@@ -479,55 +479,88 @@ export default function FazerEntrevista() {
             </CardContent>
           </Card>
 
-          {/* BLOCO 4: Tratamentos */}
-          <Card className="glass-card">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Heart className="h-4 w-4 text-primary" />
-                  Tratamentos
-                </CardTitle>
-                <Button variant="outline" size="sm" onClick={addDesignacao} className="gap-1">
-                  <Plus className="h-3 w-3" /> Adicionar
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {designacoes.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhum tratamento designado. Clique em "Adicionar" para designar.
-                </p>
-              )}
+          {/* BLOCO 4: Tratamentos — todos exibidos automaticamente */}
+          {(() => {
+            const espirituais = tratamentos.filter((t) => t.tipo === "espiritual");
+            const holisticos = tratamentos.filter((t) => t.tipo !== "espiritual");
+            const totalAssigned = Object.values(quantidades).filter((q) => q > 0).length;
 
-              {designacoes.map((d, idx) => (
-                <div key={idx} className="flex gap-2 items-end rounded-lg border p-3">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs">Tratamento</Label>
-                    <Select value={d.tratamento_id} onValueChange={(v) => updateDesignacao(idx, "tratamento_id", v)}>
-                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        {tratamentos.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            const renderGroup = (title: string, items: TipoTratamento[]) => {
+              if (items.length === 0) return null;
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {items.map((t) => {
+                      const qty = quantidades[t.id] || 0;
+                      const isActive = qty > 0;
+                      return (
+                        <div
+                          key={t.id}
+                          className={`rounded-lg border p-3 flex items-center gap-3 transition-colors ${isActive ? "border-primary/40 bg-primary/5" : ""}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium truncate ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                              {t.nome}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={qty || ""}
+                              placeholder="0"
+                              onChange={(e) => setQtd(t.id, parseInt(e.target.value) || 0)}
+                              className="w-16 h-8 text-center text-sm"
+                            />
+                            {isActive && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => clearQtd(t.id)}
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                title="Limpar"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="w-24 space-y-1">
-                    <Label className="text-xs">Sessões</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={d.quantidade_total}
-                      onChange={(e) => updateDesignacao(idx, "quantidade_total", Math.max(1, parseInt(e.target.value) || 1))}
-                    />
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeDesignacao(idx)} className="text-destructive shrink-0 mb-0.5">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              );
+            };
+
+            return (
+              <Card className="glass-card">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Heart className="h-4 w-4 text-primary" />
+                      Tratamentos
+                    </CardTitle>
+                    {totalAssigned > 0 && (
+                      <Badge variant="secondary" className="text-xs">{totalAssigned} selecionado(s)</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {tratamentos.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum tratamento ativo cadastrado
+                    </p>
+                  ) : (
+                    <>
+                      {renderGroup("Espirituais", espirituais)}
+                      {renderGroup("Holísticos", holisticos)}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* BLOCO 5: Ações */}
           <div className="flex gap-3 pb-6">
