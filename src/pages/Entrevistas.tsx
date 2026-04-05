@@ -243,10 +243,10 @@ export default function Entrevistas() {
     for (const d of validDesignacoes) {
       const trat = tratamentoMap[d.tratamento_id];
       if (!trat) continue;
-      if (trat.bloqueia_proximo_tratamento && !trat.tratamento_livre) {
-        groupA.push(d);
-      } else {
+      if (trat.tratamento_livre) {
         groupB.push(d);
+      } else {
+        groupA.push(d);
       }
     }
 
@@ -296,9 +296,25 @@ export default function Entrevistas() {
       return startDate;
     };
 
+    // Group B (libre): all start from interview date
     for (const d of groupB) await createSchedule(d, entrevistaDate);
-    let seqStart = entrevistaDate;
-    for (const d of groupA) seqStart = await createSchedule(d, seqStart);
+
+    // Group A (sequential): only first gets agenda, rest get aguardando_liberacao
+    if (groupA.length > 0) {
+      await createSchedule(groupA[0], entrevistaDate);
+      for (let i = 1; i < groupA.length; i++) {
+        const d = groupA[i];
+        await supabase.from("assistido_tratamentos").insert({
+          assistido_id: selectedEntrevista!.assistido_id,
+          tratamento_id: d.tratamento_id,
+          quantidade_total: d.quantidade_total,
+          quantidade_realizada: 0,
+          status: "aguardando_liberacao",
+          entrevista_id: selectedEntrevista!.id,
+          created_by: user!.id,
+        } as any);
+      }
+    }
 
     if (validDesignacoes.length > 0) {
       await supabase.from("assistidos").update({ status: "em_tratamento" }).eq("id", selectedEntrevista.assistido_id);
