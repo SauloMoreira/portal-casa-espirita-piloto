@@ -95,6 +95,7 @@ export type Database = {
           id: string
           nome: string
           observacoes: string | null
+          quantidade_palestras: number
           status: string
           telefone: string | null
           updated_at: string
@@ -110,6 +111,7 @@ export type Database = {
           id?: string
           nome: string
           observacoes?: string | null
+          quantidade_palestras?: number
           status?: string
           telefone?: string | null
           updated_at?: string
@@ -125,6 +127,7 @@ export type Database = {
           id?: string
           nome?: string
           observacoes?: string | null
+          quantidade_palestras?: number
           status?: string
           telefone?: string | null
           updated_at?: string
@@ -400,6 +403,7 @@ export type Database = {
           nome: string
           observacoes: string | null
           status: string
+          tarefeiro_id: string | null
           tipo: string
           updated_at: string
         }
@@ -415,6 +419,7 @@ export type Database = {
           nome: string
           observacoes?: string | null
           status?: string
+          tarefeiro_id?: string | null
           tipo: string
           updated_at?: string
         }
@@ -430,6 +435,7 @@ export type Database = {
           nome?: string
           observacoes?: string | null
           status?: string
+          tarefeiro_id?: string | null
           tipo?: string
           updated_at?: string
         }
@@ -470,6 +476,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      registrar_presenca: {
+        Args: {
+          p_assistido_tratamento_id: string
+          p_data: string
+          p_observacao?: string
+          p_registrado_por: string
+          p_status_presenca: string
+        }
+        Returns: Json
       }
     }
     Enums: {
