@@ -115,13 +115,40 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border p-3">
         {!collapsed && (
-          <div className="mb-2">
-            <p className="text-xs text-sidebar-foreground/60 truncate">
-              {user?.email}
-            </p>
-            <span className="inline-block mt-1 text-[10px] uppercase tracking-wider bg-sidebar-accent text-sidebar-foreground/80 px-2 py-0.5 rounded">
-              {role ? roleLabels[role] : ""}
-            </span>
+          <div className="mb-2 flex items-center gap-3">
+            <div className="h-9 w-9 shrink-0 rounded-full bg-sidebar-accent flex items-center justify-center overflow-hidden">
+              {profile?.foto_url ? (
+                <img src={profile.foto_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-xs font-semibold text-sidebar-foreground/80">
+                  {(profile?.nome_completo || user?.email || "")
+                    .split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((w) => w[0].toUpperCase())
+                    .join("")}
+                </span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {profile?.nome_completo || user?.email}
+              </p>
+              <span className="inline-block mt-0.5 text-[10px] uppercase tracking-wider bg-sidebar-accent text-sidebar-foreground/80 px-2 py-0.5 rounded">
+                {role ? roleLabels[role] : ""}
+              </span>
+            </div>
+          </div>
+        )}
+        {collapsed && (
+          <div className="flex justify-center mb-2">
+            <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center overflow-hidden">
+              {profile?.foto_url ? (
+                <img src={profile.foto_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <User className="h-4 w-4 text-sidebar-foreground/80" />
+              )}
+            </div>
           </div>
         )}
         <Button
