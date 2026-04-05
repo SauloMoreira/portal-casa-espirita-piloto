@@ -245,18 +245,20 @@ export default function Tratamentos() {
                   <Input type="number" min={1} value={form.ordem_tratamento} onChange={(e) => setForm({ ...form, ordem_tratamento: e.target.value })} placeholder="Ex: 1, 2, 3..." />
                 </div>
               </div>
-              {coordenadores.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Coordenador Responsável</Label>
-                  <Select value={form.coordenador_responsavel_id} onValueChange={(v) => setForm({ ...form, coordenador_responsavel_id: v === "none" ? "" : v })}>
+              <div className="space-y-2">
+                <Label>Coordenador Responsável</Label>
+                {coordenadores.length > 0 ? (
+                  <Select value={form.coordenador_responsavel_id || "none"} onValueChange={(v) => setForm({ ...form, coordenador_responsavel_id: v === "none" ? "" : v })}>
                     <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
                       {coordenadores.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-              )}
+                ) : (
+                  <p className="text-sm text-muted-foreground border rounded-md px-3 py-2">Nenhum coordenador cadastrado. Crie um usuário com perfil "Coordenador de Tratamento" primeiro.</p>
+                )}
+              </div>
               <Button onClick={handleSave} disabled={loading} className="w-full">
                 {loading ? "Salvando..." : editId ? "Atualizar" : "Cadastrar"}
               </Button>
