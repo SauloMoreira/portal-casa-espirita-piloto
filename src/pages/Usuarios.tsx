@@ -20,6 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
   entrevistador: "Entrevistador",
   tarefeiro: "Tarefeiro",
   assistido: "Assistido",
+  coordenador_de_tratamento: "Coordenador de Tratamento",
 };
 
 interface UserRow {
