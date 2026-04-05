@@ -304,6 +304,9 @@ export default function Entrevistas() {
     // Group B (libre): all start from interview date
     for (const d of groupB) await createSchedule(d, entrevistaDate);
 
+    // Group C (agendado_por_data_inicial): start from interview date (in edit mode, no manual date available)
+    for (const d of groupC) await createSchedule(d, entrevistaDate);
+
     // Group A (sequential): only first gets agenda, rest get aguardando_liberacao
     if (groupA.length > 0) {
       await createSchedule(groupA[0], entrevistaDate);
