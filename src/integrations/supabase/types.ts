@@ -86,14 +86,24 @@ export type Database = {
       }
       assistidos: {
         Row: {
+          bairro: string | null
+          celular: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
+          cpf: string | null
           created_at: string
           created_by: string
           data_nascimento: string | null
           deleted_at: string | null
           email: string | null
           endereco: string | null
+          estado: string | null
+          foto_url: string | null
           id: string
+          logradouro: string | null
           nome: string
+          numero: string | null
           observacoes: string | null
           quantidade_palestras: number
           status: string
@@ -102,14 +112,24 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          bairro?: string | null
+          celular?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
           created_by: string
           data_nascimento?: string | null
           deleted_at?: string | null
           email?: string | null
           endereco?: string | null
+          estado?: string | null
+          foto_url?: string | null
           id?: string
+          logradouro?: string | null
           nome: string
+          numero?: string | null
           observacoes?: string | null
           quantidade_palestras?: number
           status?: string
@@ -118,14 +138,24 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          bairro?: string | null
+          celular?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
           created_by?: string
           data_nascimento?: string | null
           deleted_at?: string | null
           email?: string | null
           endereco?: string | null
+          estado?: string | null
+          foto_url?: string | null
           id?: string
+          logradouro?: string | null
           nome?: string
+          numero?: string | null
           observacoes?: string | null
           quantidade_palestras?: number
           status?: string
@@ -389,6 +419,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profiles: {
+        Row: {
+          bairro: string | null
+          celular: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
+          cpf: string | null
+          created_at: string
+          created_by: string | null
+          estado: string | null
+          foto_url: string | null
+          id: string
+          logradouro: string | null
+          nome_completo: string | null
+          numero: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bairro?: string | null
+          celular?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string | null
+          foto_url?: string | null
+          id?: string
+          logradouro?: string | null
+          nome_completo?: string | null
+          numero?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bairro?: string | null
+          celular?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string | null
+          foto_url?: string | null
+          id?: string
+          logradouro?: string | null
+          nome_completo?: string | null
+          numero?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       tipos_tratamento: {
         Row: {
