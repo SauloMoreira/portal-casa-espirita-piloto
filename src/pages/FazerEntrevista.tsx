@@ -730,37 +730,58 @@ export default function FazerEntrevista() {
                     {items.map((t) => {
                       const qty = quantidades[t.id] || 0;
                       const isActive = qty > 0;
+                      const needsStartDate = (t as any).modo_agendamento === "agendado_por_data_inicial";
+                      const startDateVal = datasIniciais[t.id] || "";
                       return (
                         <div
                           key={t.id}
-                          className={`rounded-lg border p-3 flex items-center gap-3 transition-colors ${isActive ? "border-primary/40 bg-primary/5" : ""}`}
+                          className={`rounded-lg border p-3 space-y-2 transition-colors ${isActive ? "border-primary/40 bg-primary/5" : ""}`}
                         >
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium truncate ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
-                              {t.nome}
-                            </p>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium truncate ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                                {t.nome}
+                              </p>
+                              {needsStartDate && (
+                                <p className="text-[10px] text-muted-foreground">Agendado por data inicial</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Input
+                                type="number"
+                                min={0}
+                                value={qty || ""}
+                                placeholder="0"
+                                onChange={(e) => setQtd(t.id, parseInt(e.target.value) || 0)}
+                                className="w-16 h-8 text-center text-sm"
+                              />
+                              {isActive && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => clearQtd(t.id)}
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  title="Limpar"
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <Input
-                              type="number"
-                              min={0}
-                              value={qty || ""}
-                              placeholder="0"
-                              onChange={(e) => setQtd(t.id, parseInt(e.target.value) || 0)}
-                              className="w-16 h-8 text-center text-sm"
-                            />
-                            {isActive && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => clearQtd(t.id)}
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                title="Limpar"
-                              >
-                                <RotateCcw className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
-                          </div>
+                          {needsStartDate && isActive && (
+                            <div className="space-y-1">
+                              <Label className="text-xs">1ª sessão {t.dia_semana !== null ? `(${DIAS_SEMANA[t.dia_semana]})` : ""}</Label>
+                              <Input
+                                type="date"
+                                value={startDateVal}
+                                onChange={(e) => setDatasIniciais((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                                className="h-8 text-sm"
+                              />
+                              {startDateVal && t.dia_semana !== null && getDay(new Date(startDateVal + "T12:00:00")) !== t.dia_semana && (
+                                <p className="text-xs text-destructive">A data deve ser {DIAS_SEMANA[t.dia_semana]}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
