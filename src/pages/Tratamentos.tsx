@@ -82,8 +82,9 @@ export default function Tratamentos() {
       observacoes: form.observacoes || null,
       tarefeiro_id: form.tarefeiro_id || null,
       ordem_tratamento: form.ordem_tratamento ? parseInt(form.ordem_tratamento as string) : null,
-      tratamento_livre: form.tratamento_livre,
-      bloqueia_proximo_tratamento: form.bloqueia_proximo_tratamento,
+      tratamento_livre: form.modo_agendamento === "livre_concomitante",
+      bloqueia_proximo_tratamento: form.modo_agendamento === "sequencial_bloqueante",
+      modo_agendamento: form.modo_agendamento,
     };
 
     let error;
