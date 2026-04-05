@@ -615,6 +615,7 @@ export type Database = {
           frequencia_valor: number | null
           horario: string | null
           id: string
+          modo_agendamento: string
           nome: string
           observacoes: string | null
           ordem_tratamento: number | null
@@ -634,6 +635,7 @@ export type Database = {
           frequencia_valor?: number | null
           horario?: string | null
           id?: string
+          modo_agendamento?: string
           nome: string
           observacoes?: string | null
           ordem_tratamento?: number | null
@@ -653,6 +655,7 @@ export type Database = {
           frequencia_valor?: number | null
           horario?: string | null
           id?: string
+          modo_agendamento?: string
           nome?: string
           observacoes?: string | null
           ordem_tratamento?: number | null
