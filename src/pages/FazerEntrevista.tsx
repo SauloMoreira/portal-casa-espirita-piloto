@@ -730,7 +730,7 @@ export default function FazerEntrevista() {
                     {items.map((t) => {
                       const qty = quantidades[t.id] || 0;
                       const isActive = qty > 0;
-                      const needsStartDate = (t as any).modo_agendamento === "agendado_por_data_inicial";
+                      const needsStartDate = t.modo_agendamento === "agendado_por_data_inicial";
                       const startDateVal = datasIniciais[t.id] || "";
                       return (
                         <div
