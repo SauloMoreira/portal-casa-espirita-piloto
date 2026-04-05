@@ -37,22 +37,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchRole = async (userId: string, accessToken: string) => {
+  const fetchRoleAndProfile = async (userId: string, accessToken: string) => {
     try {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/user_roles?user_id=eq.${userId}&select=role&limit=1`,
-        {
-          headers: {
-            apikey: SUPABASE_KEY,
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-      if (res.ok) {
-        const rows = await res.json();
+      const [roleRes, profileRes] = await Promise.all([
+        fetch(`${SUPABASE_URL}/rest/v1/user_roles?user_id=eq.${userId}&select=role&limit=1`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` },
+        }),
+        fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=nome_completo,foto_url&limit=1`, {
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` },
+        }),
+      ]);
+      if (roleRes.ok) {
+        const rows = await roleRes.json();
         setRole((rows?.[0]?.role as AppRole) ?? "assistido");
       } else {
         setRole("assistido");
+      }
+      if (profileRes.ok) {
+        const rows = await profileRes.json();
+        setProfile(rows?.[0] ?? null);
       }
     } catch {
       setRole("assistido");
