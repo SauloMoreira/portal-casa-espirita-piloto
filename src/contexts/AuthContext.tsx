@@ -29,13 +29,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchRole = async (userId: string) => {
     try {
-      const { data } = await supabase
-        .from("user_roles" as any)
-        .select("role")
-        .eq("user_id", userId)
-        .maybeSingle();
-      const roleData = data as { role: string } | null;
-      setRole((roleData?.role as AppRole) ?? "assistido");
+      // Using raw rpc/fetch since table types may not be generated yet
+      const { data, error } = await supabase.rpc("get_user_role" as any, { _user_id: userId });
+      if (error || !data) {
+        // Fallback: direct query
+        const res = await fetch(
+          `${(supabase as any).supabaseUrl}/rest/v1/user_roles?user_id=eq.${userId}&select=role`,
+          {
+            headers: {
+              apikey: (supabase as any).supabaseKey,
+              Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+            },
+          }
+        );
+        const rows = await res.json();
+        setRole(rows?.[0]?.role as AppRole ?? "assistido");
+      } else {
+        setRole((data as string as AppRole) ?? "assistido");
+      }
     } catch {
       setRole("assistido");
     }
