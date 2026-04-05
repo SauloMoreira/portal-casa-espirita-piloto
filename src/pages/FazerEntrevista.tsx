@@ -323,6 +323,23 @@ export default function FazerEntrevista() {
       .filter(([_, qty]) => qty > 0)
       .map(([tratamento_id, quantidade_total]) => ({ tratamento_id, quantidade_total }));
 
+    // Validate: treatments with modo_agendamento = agendado_por_data_inicial must have a start date
+    for (const d of validDesignacoes) {
+      const trat = tratamentoMap[d.tratamento_id];
+      if (trat && (trat.modo_agendamento === "agendado_por_data_inicial") && !datasIniciais[d.tratamento_id]) {
+        toast({ title: "Data inicial obrigatória", description: `Informe a data da primeira sessão para "${trat.nome}"`, variant: "destructive" });
+        return;
+      }
+      // Validate weekday compatibility
+      if (trat && trat.modo_agendamento === "agendado_por_data_inicial" && datasIniciais[d.tratamento_id] && trat.dia_semana !== null) {
+        const selectedDate = new Date(datasIniciais[d.tratamento_id] + "T12:00:00");
+        if (getDay(selectedDate) !== trat.dia_semana) {
+          toast({ title: "Data incompatível", description: `A data informada para "${trat.nome}" não é ${DIAS_SEMANA[trat.dia_semana]}`, variant: "destructive" });
+          return;
+        }
+      }
+    }
+
     setSaving(true);
 
     // Check if there's already a realized interview for this assistido — reconcile if so
