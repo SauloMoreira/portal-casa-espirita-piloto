@@ -264,6 +264,44 @@ export default function FazerEntrevista() {
     setSavingAssistido(false);
   };
 
+  // Reconcile existing treatments before saving new ones
+  const reconcileExistingTreatments = async (assistidoId: string, entrevistaId: string) => {
+    const today = format(new Date(), "yyyy-MM-dd");
+
+    // 1. Find existing assistido_tratamentos linked to this interview
+    const { data: existingVinculos } = await supabase
+      .from("assistido_tratamentos")
+      .select("id, tratamento_id, quantidade_realizada, status")
+      .eq("assistido_id", assistidoId)
+      .eq("entrevista_id", entrevistaId);
+
+    if (!existingVinculos || existingVinculos.length === 0) return;
+
+    for (const vinculo of existingVinculos) {
+      // 2. Delete only FUTURE pending agenda sessions (status = 'agendado', date >= today)
+      await supabase
+        .from("agenda_tratamentos_assistido")
+        .delete()
+        .eq("assistido_tratamento_id", vinculo.id)
+        .eq("status", "agendado")
+        .gte("data_sessao", today);
+
+      // 3. If no sessions were ever realized, remove the vinculo entirely
+      if (vinculo.quantidade_realizada === 0 && vinculo.status === "aguardando_inicio") {
+        // Also remove any remaining agenda (shouldn't be any past if never started)
+        await supabase
+          .from("agenda_tratamentos_assistido")
+          .delete()
+          .eq("assistido_tratamento_id", vinculo.id);
+        await supabase
+          .from("assistido_tratamentos")
+          .delete()
+          .eq("id", vinculo.id);
+      }
+      // If vinculo has realized sessions, we keep it — don't touch historical data
+    }
+  };
+
   // Save entrevista
   const handleSalvar = async () => {
     if (!selectedAssistido) {
@@ -284,6 +322,50 @@ export default function FazerEntrevista() {
 
     setSaving(true);
 
+    // Check if there's already a realized interview for this assistido — reconcile if so
+    const { data: existingEntrevistas } = await supabase
+      .from("entrevistas_fraternas")
+      .select("id")
+      .eq("assistido_id", selectedAssistido.id)
+      .eq("status", "realizada");
+
+    // Reconcile ALL existing realized interviews for this assistido
+    if (existingEntrevistas && existingEntrevistas.length > 0) {
+      for (const existing of existingEntrevistas) {
+        await reconcileExistingTreatments(selectedAssistido.id, existing.id);
+      }
+    }
+
+    // Also reconcile any orphaned tratamentos (without entrevista_id) for this assistido
+    const { data: orphanedVinculos } = await supabase
+      .from("assistido_tratamentos")
+      .select("id, quantidade_realizada, status")
+      .eq("assistido_id", selectedAssistido.id)
+      .is("entrevista_id", null);
+
+    if (orphanedVinculos) {
+      const today = format(new Date(), "yyyy-MM-dd");
+      for (const vinculo of orphanedVinculos) {
+        await supabase
+          .from("agenda_tratamentos_assistido")
+          .delete()
+          .eq("assistido_tratamento_id", vinculo.id)
+          .eq("status", "agendado")
+          .gte("data_sessao", today);
+
+        if (vinculo.quantidade_realizada === 0 && vinculo.status === "aguardando_inicio") {
+          await supabase
+            .from("agenda_tratamentos_assistido")
+            .delete()
+            .eq("assistido_tratamento_id", vinculo.id);
+          await supabase
+            .from("assistido_tratamentos")
+            .delete()
+            .eq("id", vinculo.id);
+        }
+      }
+    }
+
     // Create the interview
     const { data: entrevista, error: entErr } = await supabase.from("entrevistas_fraternas").insert({
       assistido_id: selectedAssistido.id,
@@ -303,8 +385,8 @@ export default function FazerEntrevista() {
     const entrevistaDate = new Date(dataEntrevista + "T12:00:00");
 
     // Separate treatments into Group A (blocking sequential) and Group B (free/non-blocking)
-    const groupA: typeof validDesignacoes = []; // bloqueia_proximo_tratamento = true
-    const groupB: typeof validDesignacoes = []; // tratamento_livre = true OR bloqueia = false
+    const groupA: typeof validDesignacoes = [];
+    const groupB: typeof validDesignacoes = [];
 
     for (const d of validDesignacoes) {
       const trat = tratamentoMap[d.tratamento_id];
@@ -323,6 +405,19 @@ export default function FazerEntrevista() {
       return oa - ob;
     });
 
+    // Helper: check for existing vinculo with realized sessions for this tratamento
+    const findExistingActiveVinculo = async (tratamentoId: string) => {
+      const { data } = await supabase
+        .from("assistido_tratamentos")
+        .select("id, quantidade_realizada, quantidade_total, status")
+        .eq("assistido_id", selectedAssistido!.id)
+        .eq("tratamento_id", tratamentoId)
+        .gt("quantidade_realizada", 0)
+        .in("status", ["em_andamento", "aguardando_inicio"])
+        .limit(1);
+      return data && data.length > 0 ? data[0] : null;
+    };
+
     // Helper to create treatment link + schedule
     const createTratamentoSchedule = async (
       d: { tratamento_id: string; quantidade_total: number },
@@ -331,6 +426,47 @@ export default function FazerEntrevista() {
       const trat = tratamentoMap[d.tratamento_id];
       if (!trat) return startDate;
 
+      // Check if there's an existing vinculo with progress — reuse it
+      const existingVinculo = await findExistingActiveVinculo(d.tratamento_id);
+      let vinculoId: string;
+
+      if (existingVinculo) {
+        // Update existing vinculo: adjust total, link to new interview
+        const newTotal = Math.max(d.quantidade_total, existingVinculo.quantidade_realizada);
+        await supabase.from("assistido_tratamentos").update({
+          quantidade_total: newTotal,
+          entrevista_id: entrevista.id,
+        }).eq("id", existingVinculo.id);
+        vinculoId = existingVinculo.id;
+
+        // Generate only remaining sessions
+        const remaining = newTotal - existingVinculo.quantidade_realizada;
+        if (remaining <= 0) return startDate;
+
+        const sessions = generateSessionDates(
+          startDate, trat.dia_semana, trat.horario,
+          trat.frequencia_valor || 1, trat.frequencia_unidade || "semanas",
+          remaining
+        );
+
+        if (sessions.length > 0) {
+          const agendaRows = sessions.map((s) => ({
+            assistido_id: selectedAssistido!.id,
+            assistido_tratamento_id: vinculoId,
+            tratamento_id: d.tratamento_id,
+            data_sessao: s.data_sessao,
+            horario: s.horario,
+            status: "agendado",
+            registrado_por: user!.id,
+          }));
+          await supabase.from("agenda_tratamentos_assistido").insert(agendaRows as any);
+          const lastSession = sessions[sessions.length - 1];
+          return addDays(new Date(lastSession.data_sessao + "T12:00:00"), 1);
+        }
+        return startDate;
+      }
+
+      // No existing vinculo — create new
       const { data: vinculo, error: vErr } = await supabase.from("assistido_tratamentos").insert({
         assistido_id: selectedAssistido!.id,
         tratamento_id: d.tratamento_id,
@@ -342,20 +478,18 @@ export default function FazerEntrevista() {
       }).select("id").single();
 
       if (vErr || !vinculo) return startDate;
+      vinculoId = vinculo.id;
 
       const sessions = generateSessionDates(
-        startDate,
-        trat.dia_semana,
-        trat.horario,
-        trat.frequencia_valor || 1,
-        trat.frequencia_unidade || "semanas",
+        startDate, trat.dia_semana, trat.horario,
+        trat.frequencia_valor || 1, trat.frequencia_unidade || "semanas",
         d.quantidade_total
       );
 
       if (sessions.length > 0) {
         const agendaRows = sessions.map((s) => ({
           assistido_id: selectedAssistido!.id,
-          assistido_tratamento_id: vinculo.id,
+          assistido_tratamento_id: vinculoId,
           tratamento_id: d.tratamento_id,
           data_sessao: s.data_sessao,
           horario: s.horario,
@@ -363,8 +497,6 @@ export default function FazerEntrevista() {
           registrado_por: user!.id,
         }));
         await supabase.from("agenda_tratamentos_assistido").insert(agendaRows as any);
-
-        // Return the day after the last session as the next start date
         const lastSession = sessions[sessions.length - 1];
         return addDays(new Date(lastSession.data_sessao + "T12:00:00"), 1);
       }
