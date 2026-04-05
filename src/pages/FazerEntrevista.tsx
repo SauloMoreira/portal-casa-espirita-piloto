@@ -536,6 +536,13 @@ export default function FazerEntrevista() {
       await createTratamentoSchedule(d, entrevistaDate);
     }
 
+    // Process Group C (agendado_por_data_inicial) — start from manually chosen date
+    for (const d of groupC) {
+      const startDateStr = datasIniciais[d.tratamento_id];
+      const startDate = startDateStr ? new Date(startDateStr + "T12:00:00") : entrevistaDate;
+      await createTratamentoSchedule(d, startDate);
+    }
+
     // Process Group A (sequential blocking) — only first gets agenda, rest await release
     if (groupA.length > 0) {
       // First blocking treatment: create with aguardando_inicio + generate agenda
