@@ -38,7 +38,7 @@ const emptyForm = {
   nome: "", tipo: "espiritual", descricao: "", dia_semana: "", horario: "",
   frequencia_valor: "1", frequencia_unidade: "semanas", status: "ativo", observacoes: "", tarefeiro_id: "",
   ordem_tratamento: "", tratamento_livre: false, bloqueia_proximo_tratamento: false,
-  modo_agendamento: "sequencial_bloqueante",
+  modo_agendamento: "sequencial_bloqueante", coordenador_responsavel_id: "",
 };
 
 export default function Tratamentos() {
