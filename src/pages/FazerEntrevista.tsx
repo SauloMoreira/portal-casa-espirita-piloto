@@ -179,22 +179,18 @@ export default function FazerEntrevista() {
 
   const clearSelection = () => {
     setSelectedAssistido(null);
-    setDesignacoes([]);
+    setQuantidades({});
     setObservacoes("");
     setTipoEntrevista("regular");
     setDataEntrevista(new Date().toISOString().split("T")[0]);
   };
 
-  const addDesignacao = () => {
-    setDesignacoes([...designacoes, { tratamento_id: "", quantidade_total: 1 }]);
+  const setQtd = (tratId: string, val: number) => {
+    setQuantidades((prev) => ({ ...prev, [tratId]: Math.max(0, val) }));
   };
 
-  const removeDesignacao = (idx: number) => {
-    setDesignacoes(designacoes.filter((_, i) => i !== idx));
-  };
-
-  const updateDesignacao = (idx: number, field: string, value: any) => {
-    setDesignacoes(designacoes.map((d, i) => i === idx ? { ...d, [field]: value } : d));
+  const clearQtd = (tratId: string) => {
+    setQuantidades((prev) => ({ ...prev, [tratId]: 0 }));
   };
 
   const tratamentoMap = useMemo(() =>
