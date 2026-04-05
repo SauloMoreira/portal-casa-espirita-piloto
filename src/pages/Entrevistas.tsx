@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Calendar, BookOpen, Eye, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { addDays, addWeeks, addMonths, getDay, startOfDay, format } from "date-fns";
 
 interface Entrevista {
   id: string;
@@ -38,6 +39,56 @@ interface Tratamento {
   nome: string;
   tipo: string;
   status: string;
+  dia_semana: number | null;
+  horario: string | null;
+  frequencia_valor: number | null;
+  frequencia_unidade: string | null;
+  ordem_tratamento: number | null;
+  tratamento_livre: boolean;
+  bloqueia_proximo_tratamento: boolean;
+}
+
+function generateSessionDates(
+  startDate: Date,
+  diaSemana: number | null,
+  horario: string | null,
+  freqValor: number,
+  freqUnidade: string,
+  quantidade: number
+): { data_sessao: string; horario: string | null }[] {
+  const sessions: { data_sessao: string; horario: string | null }[] = [];
+  let cursor: Date;
+
+  if (diaSemana !== null) {
+    const entDay = getDay(startDate);
+    if (entDay === diaSemana) {
+      cursor = startOfDay(startDate);
+      if (horario) {
+        const [h, m] = horario.split(":").map(Number);
+        const treatmentTime = new Date(startDate);
+        treatmentTime.setHours(h, m, 0, 0);
+        if (startDate > treatmentTime) {
+          if (freqUnidade === "semanas") cursor = addWeeks(cursor, freqValor);
+          else if (freqUnidade === "meses") cursor = addMonths(cursor, freqValor);
+          else cursor = addDays(cursor, freqValor);
+        }
+      }
+    } else {
+      let diff = diaSemana - entDay;
+      if (diff <= 0) diff += 7;
+      cursor = addDays(startOfDay(startDate), diff);
+    }
+  } else {
+    cursor = addDays(startOfDay(startDate), 1);
+  }
+
+  for (let i = 0; i < quantidade; i++) {
+    sessions.push({ data_sessao: format(cursor, "yyyy-MM-dd"), horario: horario || null });
+    if (freqUnidade === "semanas") cursor = addWeeks(cursor, freqValor);
+    else if (freqUnidade === "meses") cursor = addMonths(cursor, freqValor);
+    else cursor = addDays(cursor, freqValor);
+  }
+  return sessions;
 }
 
 interface DesignacaoItem {
@@ -75,7 +126,7 @@ export default function Entrevistas() {
     const [{ data: ent }, { data: assist }, { data: trat }, { data: config }] = await Promise.all([
       supabase.from("entrevistas_fraternas").select("*").order("data", { ascending: false }),
       supabase.from("assistidos").select("id, nome, quantidade_palestras, status").is("deleted_at", null).order("nome"),
-      supabase.from("tipos_tratamento").select("id, nome, tipo, status").eq("status", "ativo"),
+      supabase.from("tipos_tratamento").select("id, nome, tipo, status, dia_semana, horario, frequencia_valor, frequencia_unidade, ordem_tratamento, tratamento_livre, bloqueia_proximo_tratamento").eq("status", "ativo"),
       supabase.from("configuracoes_gerais").select("chave, valor"),
     ]);
     if (assist) {
@@ -161,20 +212,95 @@ export default function Entrevistas() {
       return;
     }
 
-    for (const d of designacoes) {
-      if (!d.tratamento_id || d.quantidade_total < 1) continue;
-      await supabase.from("assistido_tratamentos").insert({
-        assistido_id: selectedEntrevista.assistido_id,
+    const today = format(new Date(), "yyyy-MM-dd");
+    const tratamentoMap = Object.fromEntries(tratamentos.map((t) => [t.id, t]));
+
+    // Reconcile: remove future pending agenda + unused vinculos for this interview
+    const { data: existingVinculos } = await supabase
+      .from("assistido_tratamentos")
+      .select("id, tratamento_id, quantidade_realizada, status")
+      .eq("assistido_id", selectedEntrevista.assistido_id)
+      .eq("entrevista_id", selectedEntrevista.id);
+
+    if (existingVinculos) {
+      for (const v of existingVinculos) {
+        await supabase.from("agenda_tratamentos_assistido")
+          .delete().eq("assistido_tratamento_id", v.id).eq("status", "agendado").gte("data_sessao", today);
+        if (v.quantidade_realizada === 0 && v.status === "aguardando_inicio") {
+          await supabase.from("agenda_tratamentos_assistido").delete().eq("assistido_tratamento_id", v.id);
+          await supabase.from("assistido_tratamentos").delete().eq("id", v.id);
+        }
+      }
+    }
+
+    // Create new vinculos + schedule
+    const validDesignacoes = designacoes.filter((d) => d.tratamento_id && d.quantidade_total >= 1);
+    const entrevistaDate = new Date(selectedEntrevista.data + "T12:00:00");
+
+    const groupA: typeof validDesignacoes = [];
+    const groupB: typeof validDesignacoes = [];
+
+    for (const d of validDesignacoes) {
+      const trat = tratamentoMap[d.tratamento_id];
+      if (!trat) continue;
+      if (trat.bloqueia_proximo_tratamento && !trat.tratamento_livre) {
+        groupA.push(d);
+      } else {
+        groupB.push(d);
+      }
+    }
+
+    groupA.sort((a, b) => {
+      const oa = tratamentoMap[a.tratamento_id]?.ordem_tratamento ?? 999;
+      const ob = tratamentoMap[b.tratamento_id]?.ordem_tratamento ?? 999;
+      return oa - ob;
+    });
+
+    const createSchedule = async (d: DesignacaoItem, startDate: Date): Promise<Date> => {
+      const trat = tratamentoMap[d.tratamento_id];
+      if (!trat) return startDate;
+
+      const { data: vinculo, error: vErr } = await supabase.from("assistido_tratamentos").insert({
+        assistido_id: selectedEntrevista!.assistido_id,
         tratamento_id: d.tratamento_id,
         quantidade_total: d.quantidade_total,
         quantidade_realizada: 0,
         status: "aguardando_inicio",
-        entrevista_id: selectedEntrevista.id,
+        entrevista_id: selectedEntrevista!.id,
         created_by: user!.id,
-      });
-    }
+      }).select("id").single();
 
-    if (designacoes.length > 0) {
+      if (vErr || !vinculo) return startDate;
+
+      const sessions = generateSessionDates(
+        startDate, trat.dia_semana, trat.horario,
+        trat.frequencia_valor || 1, trat.frequencia_unidade || "semanas",
+        d.quantidade_total
+      );
+
+      if (sessions.length > 0) {
+        await supabase.from("agenda_tratamentos_assistido").insert(
+          sessions.map((s) => ({
+            assistido_id: selectedEntrevista!.assistido_id,
+            assistido_tratamento_id: vinculo.id,
+            tratamento_id: d.tratamento_id,
+            data_sessao: s.data_sessao,
+            horario: s.horario,
+            status: "agendado",
+            registrado_por: user!.id,
+          })) as any
+        );
+        const last = sessions[sessions.length - 1];
+        return addDays(new Date(last.data_sessao + "T12:00:00"), 1);
+      }
+      return startDate;
+    };
+
+    for (const d of groupB) await createSchedule(d, entrevistaDate);
+    let seqStart = entrevistaDate;
+    for (const d of groupA) seqStart = await createSchedule(d, seqStart);
+
+    if (validDesignacoes.length > 0) {
       await supabase.from("assistidos").update({ status: "em_tratamento" }).eq("id", selectedEntrevista.assistido_id);
     } else {
       await supabase.from("assistidos").update({ status: "entrevistado" }).eq("id", selectedEntrevista.assistido_id);
