@@ -129,6 +129,7 @@ export default function Instituicao() {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Dados da instituição salvos com sucesso" });
+      window.dispatchEvent(new Event("instituicao-updated"));
     }
     setLoading(false);
   };
