@@ -15,6 +15,7 @@ import Usuarios from "./pages/Usuarios";
 import Tratamentos from "./pages/Tratamentos";
 import Assistidos from "./pages/Assistidos";
 import Entrevistas from "./pages/Entrevistas";
+import FazerEntrevista from "./pages/FazerEntrevista";
 import Agenda from "./pages/Agenda";
 import Presenca from "./pages/Presenca";
 import MeusTratamentos from "./pages/MeusTratamentos";
