@@ -14,6 +14,67 @@ export type Database = {
   }
   public: {
     Tables: {
+      agenda_tratamentos_assistido: {
+        Row: {
+          assistido_id: string
+          assistido_tratamento_id: string
+          created_at: string
+          data_sessao: string
+          horario: string | null
+          id: string
+          registrado_por: string | null
+          status: string
+          tratamento_id: string
+          updated_at: string
+        }
+        Insert: {
+          assistido_id: string
+          assistido_tratamento_id: string
+          created_at?: string
+          data_sessao: string
+          horario?: string | null
+          id?: string
+          registrado_por?: string | null
+          status?: string
+          tratamento_id: string
+          updated_at?: string
+        }
+        Update: {
+          assistido_id?: string
+          assistido_tratamento_id?: string
+          created_at?: string
+          data_sessao?: string
+          horario?: string | null
+          id?: string
+          registrado_por?: string | null
+          status?: string
+          tratamento_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_tratamentos_assistido_assistido_id_fkey"
+            columns: ["assistido_id"]
+            isOneToOne: false
+            referencedRelation: "assistidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_tratamentos_assistido_assistido_tratamento_id_fkey"
+            columns: ["assistido_tratamento_id"]
+            isOneToOne: false
+            referencedRelation: "assistido_tratamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_tratamentos_assistido_tratamento_id_fkey"
+            columns: ["tratamento_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_tratamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistido_tratamentos: {
         Row: {
           assistido_id: string

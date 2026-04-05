@@ -15,6 +15,7 @@ import Usuarios from "./pages/Usuarios";
 import Tratamentos from "./pages/Tratamentos";
 import Assistidos from "./pages/Assistidos";
 import Entrevistas from "./pages/Entrevistas";
+import FazerEntrevista from "./pages/FazerEntrevista";
 import Agenda from "./pages/Agenda";
 import Presenca from "./pages/Presenca";
 import MeusTratamentos from "./pages/MeusTratamentos";
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/tratamentos" element={<ProtectedRoute allowedRoles={["admin"]}><Tratamentos /></ProtectedRoute>} />
               <Route path="/assistidos" element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}><Assistidos /></ProtectedRoute>} />
               <Route path="/entrevistas" element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}><Entrevistas /></ProtectedRoute>} />
+              <Route path="/fazer-entrevista" element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}><FazerEntrevista /></ProtectedRoute>} />
               <Route path="/agenda" element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}><Agenda /></ProtectedRoute>} />
               <Route path="/presenca" element={<ProtectedRoute allowedRoles={["admin", "tarefeiro"]}><Presenca /></ProtectedRoute>} />
               <Route path="/meus-tratamentos" element={<ProtectedRoute allowedRoles={["assistido"]}><MeusTratamentos /></ProtectedRoute>} />
