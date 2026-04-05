@@ -53,7 +53,7 @@ export default function Presenca() {
       .from("assistido_tratamentos")
       .select("id, assistido_id, tratamento_id, quantidade_total, quantidade_realizada, quantidade_faltante, status")
       .in("tratamento_id", tratIds)
-      .in("status", ["aguardando_inicio", "em_andamento"]);
+      .in("status", ["aguardando_inicio", "em_andamento", "liberado"]);
 
     if (!vinculos || vinculos.length === 0) { setItems([]); return; }
 
