@@ -702,6 +702,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assistido_belongs_to_coordinator: {
+        Args: { _assistido_id: string; _coordinator_id: string }
+        Returns: boolean
+      }
+      entrevista_assistido_belongs_to_coordinator: {
+        Args: { _assistido_id: string; _coordinator_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
