@@ -11,6 +11,7 @@ import {
   FileText,
   LogOut,
   User,
+  Building2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -47,6 +48,7 @@ const navItems: NavItem[] = [
   { title: "Meus Tratamentos", url: "/meus-tratamentos", icon: Heart, roles: ["assistido"] },
   { title: "Minha Agenda", url: "/minha-agenda", icon: Calendar, roles: ["assistido"] },
   { title: "Relatórios", url: "/relatorios", icon: FileText, roles: ["admin"] },
+  { title: "Instituição", url: "/instituicao", icon: Building2, roles: ["admin"] },
   { title: "Configurações", url: "/configuracoes", icon: Settings, roles: ["admin"] },
   { title: "Auditoria", url: "/auditoria", icon: Shield, roles: ["admin"] },
 ];

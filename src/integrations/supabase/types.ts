@@ -275,6 +275,69 @@ export type Database = {
           },
         ]
       }
+      instituicao_config: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string
+          complemento: string | null
+          created_at: string
+          email_institucional: string | null
+          estado: string | null
+          id: string
+          logo_url: string | null
+          logradouro: string | null
+          nome_fantasia: string
+          numero: string | null
+          observacoes: string | null
+          razao_social: string
+          telefone: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj: string
+          complemento?: string | null
+          created_at?: string
+          email_institucional?: string | null
+          estado?: string | null
+          id?: string
+          logo_url?: string | null
+          logradouro?: string | null
+          nome_fantasia: string
+          numero?: string | null
+          observacoes?: string | null
+          razao_social: string
+          telefone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string
+          complemento?: string | null
+          created_at?: string
+          email_institucional?: string | null
+          estado?: string | null
+          id?: string
+          logo_url?: string | null
+          logradouro?: string | null
+          nome_fantasia?: string
+          numero?: string | null
+          observacoes?: string | null
+          razao_social?: string
+          telefone?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       orientacoes_assistido: {
         Row: {
           assistido_id: string

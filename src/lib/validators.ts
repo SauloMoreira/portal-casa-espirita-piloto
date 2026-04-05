@@ -1,3 +1,29 @@
+// CNPJ validation with check digits
+export function isValidCNPJ(cnpj: string): boolean {
+  const cleaned = cnpj.replace(/\D/g, "");
+  if (cleaned.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(cleaned)) return false;
+  const weights1 = [5,4,3,2,9,8,7,6,5,4,3,2];
+  const weights2 = [6,5,4,3,2,9,8,7,6,5,4,3,2];
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += parseInt(cleaned[i]) * weights1[i];
+  let rest = sum % 11;
+  if (parseInt(cleaned[12]) !== (rest < 2 ? 0 : 11 - rest)) return false;
+  sum = 0;
+  for (let i = 0; i < 13; i++) sum += parseInt(cleaned[i]) * weights2[i];
+  rest = sum % 11;
+  return parseInt(cleaned[13]) === (rest < 2 ? 0 : 11 - rest);
+}
+
+export function maskCNPJ(value: string): string {
+  const cleaned = value.replace(/\D/g, "").slice(0, 14);
+  return cleaned
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
+
 // CPF validation with check digits
 export function isValidCPF(cpf: string): boolean {
   const cleaned = cpf.replace(/\D/g, "");
