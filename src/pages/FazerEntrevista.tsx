@@ -40,6 +40,7 @@ interface TipoTratamento {
   ordem_tratamento: number | null;
   tratamento_livre: boolean;
   bloqueia_proximo_tratamento: boolean;
+  modo_agendamento: string;
 }
 
 // quantidades map: tratamento_id -> quantidade (0 = not assigned)
