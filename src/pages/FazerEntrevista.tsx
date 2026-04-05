@@ -535,11 +535,37 @@ export default function FazerEntrevista() {
       await createTratamentoSchedule(d, entrevistaDate);
     }
 
-    // Process Group C (agendado_por_data_inicial) — start from manually chosen date
+    // Process Group C (agendado_por_data_inicial) — if date provided, schedule; otherwise wait list
     for (const d of groupC) {
       const startDateStr = datasIniciais[d.tratamento_id];
-      const startDate = startDateStr ? new Date(startDateStr + "T12:00:00") : entrevistaDate;
-      await createTratamentoSchedule(d, startDate);
+      if (startDateStr) {
+        // Date provided — schedule normally
+        const startDate = new Date(startDateStr + "T12:00:00");
+        await createTratamentoSchedule(d, startDate);
+      } else {
+        // No date — send to coordinator wait list (aguardando_agendamento)
+        const trat = tratamentoMap[d.tratamento_id];
+        if (!trat) continue;
+        const existingVinculo = await findExistingActiveVinculo(d.tratamento_id);
+        if (existingVinculo) {
+          const newTotal = Math.max(d.quantidade_total, existingVinculo.quantidade_realizada);
+          await supabase.from("assistido_tratamentos").update({
+            quantidade_total: newTotal,
+            entrevista_id: entrevista.id,
+            status: "aguardando_agendamento",
+          }).eq("id", existingVinculo.id);
+        } else {
+          await supabase.from("assistido_tratamentos").insert({
+            assistido_id: selectedAssistido!.id,
+            tratamento_id: d.tratamento_id,
+            quantidade_total: d.quantidade_total,
+            quantidade_realizada: 0,
+            status: "aguardando_agendamento",
+            entrevista_id: entrevista.id,
+            created_by: user!.id,
+          } as any);
+        }
+      }
     }
 
     // Process Group A (sequential blocking) — only first gets agenda, rest await release
