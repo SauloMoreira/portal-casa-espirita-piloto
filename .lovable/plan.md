@@ -1,60 +1,40 @@
+## Plano de Implementação
 
-## Fase 1 – Plano de Implementação
+### 1. Migração de Banco de Dados
+- Adicionar `coordenador_de_tratamento` ao enum `app_role`
+- Adicionar coluna `coordenador_responsavel_id` na tabela `tipos_tratamento`
+- Adicionar coluna `agendado_por` (nullable) na tabela `assistido_tratamentos` para rastrear quem agendou
+- Adicionar status `aguardando_agendamento` como valor válido em `assistido_tratamentos`
+- Criar políticas RLS para o coordenador:
+  - SELECT em `assistido_tratamentos`, `agenda_tratamentos_assistido`, `assistidos` — apenas dos tratamentos sob sua coordenação
+  - UPDATE em `assistido_tratamentos` — para agendar
+  - INSERT em `agenda_tratamentos_assistido` — para gerar agenda
 
-### Etapa 1: Ajustes no banco de dados
-- Adicionar coluna `tarefeiro_id` na tabela `tipos_tratamento` (vincular tratamento ao tarefeiro responsável)
-- Adicionar coluna `quantidade_palestras` na tabela `assistidos` (contagem de palestras assistidas)
-- Criar trigger para calcular `quantidade_faltante` automaticamente
-- Criar trigger para atualizar status do `assistido_tratamentos` ao atingir total de sessões
+### 2. Atualizar Tela de Tratamentos (`Tratamentos.tsx`)
+- Adicionar campo "Coordenador Responsável" no formulário de cadastro/edição de tratamento
+- Select com lista de usuários que tenham role `coordenador_de_tratamento`
 
-### Etapa 2: Tela de recuperação de senha
-- Criar página `/forgot-password` e `/reset-password`
+### 3. Atualizar Tela Fazer Entrevista (`FazerEntrevista.tsx`)
+- Para tratamentos `agendado_por_data_inicial`: tornar data inicial **opcional** (não obrigatória)
+- Se data em branco → salvar com status `aguardando_agendamento` e não gerar agenda
+- Exibir mensagem informativa: "Sem data → lista de espera do coordenador"
 
-### Etapa 3: Gestão de Usuários (Admin)
-- CRUD completo: listar, criar, editar, ativar/inativar usuários
-- Atribuição de perfil (admin, entrevistador, tarefeiro, assistido)
+### 4. Criar Dashboard do Coordenador
+- Nova página `CoordenadorDashboard.tsx` com 3 abas:
+  - **Lista de Espera**: assistidos aguardando agendamento, ordenados por data/hora da entrevista
+  - **Em Andamento**: assistidos com tratamento ativo
+  - **Agenda**: próximas sessões dos tratamentos coordenados
+- Ação "Agendar" na lista de espera: campo de data + validação de dia da semana + geração automática de agenda
 
-### Etapa 4: Cadastro de Tratamentos (Admin)
-- CRUD completo com formulário: nome, tipo, descrição, dia da semana, horário, frequência, tarefeiro responsável, status
-- Filtros por nome, tipo e status
-- Inativação em vez de exclusão
+### 5. Atualizar Navegação e Rotas
+- Adicionar rotas para o coordenador no `App.tsx`
+- Adicionar itens de menu no `AppSidebar.tsx`
+- Atualizar `Dashboard.tsx` para renderizar dashboard do coordenador
+- Atualizar `ProtectedRoute` se necessário
 
-### Etapa 5: Cadastro de Assistidos (Admin/Entrevistador)
-- CRUD completo: nome, data de nascimento, telefone, e-mail, endereço, observações, status
-- Exibir quantidade de palestras e aptidão para entrevista
-- Filtros por nome, telefone e status
+### 6. Atualizar AuthContext
+- Incluir `coordenador_de_tratamento` no type `AppRole`
 
-### Etapa 6: Configuração de Palestras Mínimas (Admin)
-- Tela de configuração com campo parametrizável
-- Toggle para permitir entrevista fraterna livre
-
-### Etapa 7: Registro de Palestras e Presenças em Palestras
-- Registrar palestras e marcar presença dos assistidos
-- Contagem automática para regra de aptidão
-
-### Etapa 8: Agenda de Entrevistas Fraternas
-- Agendar, remarcar, cancelar entrevistas
-- Validar regra de palestras mínimas (regular vs livre)
-- Filtros por data, entrevistador e status
-
-### Etapa 9: Entrevista com Designação de Tratamentos
-- Formulário de entrevista: dados do assistido, observações, decisões
-- Designar múltiplos tratamentos com quantidade de sessões
-- Criar vínculos `assistido_tratamentos` ao salvar
-
-### Etapa 10: Tela do Tarefeiro – Presença
-- Lista de tratamentos do dia do tarefeiro logado
-- Lista de assistidos por tratamento
-- Botões para marcar presença/ausência
-- Atualização automática de sessões realizadas/faltantes
-
-### Etapa 11: Tela do Assistido
-- Dashboard: tratamentos ativos, sessões realizadas/faltantes, próximas datas
-- Entrevistas agendadas
-- Interface acolhedora e simples
-
-### Etapa 12: Dashboards simplificados por perfil
-- Admin: totais básicos (assistidos, entrevistas, tratamentos ativos)
-- Entrevistador: entrevistas do dia e pendentes
-- Tarefeiro: tratamentos do dia
-- Assistido: próximos atendimentos e progresso
+### Ordem de execução:
+1. Migração DB (precisa aprovação)
+2. Código (após migração aprovada)
