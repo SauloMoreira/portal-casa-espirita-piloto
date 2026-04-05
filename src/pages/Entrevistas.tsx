@@ -212,20 +212,95 @@ export default function Entrevistas() {
       return;
     }
 
-    for (const d of designacoes) {
-      if (!d.tratamento_id || d.quantidade_total < 1) continue;
-      await supabase.from("assistido_tratamentos").insert({
-        assistido_id: selectedEntrevista.assistido_id,
+    const today = format(new Date(), "yyyy-MM-dd");
+    const tratamentoMap = Object.fromEntries(tratamentos.map((t) => [t.id, t]));
+
+    // Reconcile: remove future pending agenda + unused vinculos for this interview
+    const { data: existingVinculos } = await supabase
+      .from("assistido_tratamentos")
+      .select("id, tratamento_id, quantidade_realizada, status")
+      .eq("assistido_id", selectedEntrevista.assistido_id)
+      .eq("entrevista_id", selectedEntrevista.id);
+
+    if (existingVinculos) {
+      for (const v of existingVinculos) {
+        await supabase.from("agenda_tratamentos_assistido")
+          .delete().eq("assistido_tratamento_id", v.id).eq("status", "agendado").gte("data_sessao", today);
+        if (v.quantidade_realizada === 0 && v.status === "aguardando_inicio") {
+          await supabase.from("agenda_tratamentos_assistido").delete().eq("assistido_tratamento_id", v.id);
+          await supabase.from("assistido_tratamentos").delete().eq("id", v.id);
+        }
+      }
+    }
+
+    // Create new vinculos + schedule
+    const validDesignacoes = designacoes.filter((d) => d.tratamento_id && d.quantidade_total >= 1);
+    const entrevistaDate = new Date(selectedEntrevista.data + "T12:00:00");
+
+    const groupA: typeof validDesignacoes = [];
+    const groupB: typeof validDesignacoes = [];
+
+    for (const d of validDesignacoes) {
+      const trat = tratamentoMap[d.tratamento_id];
+      if (!trat) continue;
+      if (trat.bloqueia_proximo_tratamento && !trat.tratamento_livre) {
+        groupA.push(d);
+      } else {
+        groupB.push(d);
+      }
+    }
+
+    groupA.sort((a, b) => {
+      const oa = tratamentoMap[a.tratamento_id]?.ordem_tratamento ?? 999;
+      const ob = tratamentoMap[b.tratamento_id]?.ordem_tratamento ?? 999;
+      return oa - ob;
+    });
+
+    const createSchedule = async (d: DesignacaoItem, startDate: Date): Promise<Date> => {
+      const trat = tratamentoMap[d.tratamento_id];
+      if (!trat) return startDate;
+
+      const { data: vinculo, error: vErr } = await supabase.from("assistido_tratamentos").insert({
+        assistido_id: selectedEntrevista!.assistido_id,
         tratamento_id: d.tratamento_id,
         quantidade_total: d.quantidade_total,
         quantidade_realizada: 0,
         status: "aguardando_inicio",
-        entrevista_id: selectedEntrevista.id,
+        entrevista_id: selectedEntrevista!.id,
         created_by: user!.id,
-      });
-    }
+      }).select("id").single();
 
-    if (designacoes.length > 0) {
+      if (vErr || !vinculo) return startDate;
+
+      const sessions = generateSessionDates(
+        startDate, trat.dia_semana, trat.horario,
+        trat.frequencia_valor || 1, trat.frequencia_unidade || "semanas",
+        d.quantidade_total
+      );
+
+      if (sessions.length > 0) {
+        await supabase.from("agenda_tratamentos_assistido").insert(
+          sessions.map((s) => ({
+            assistido_id: selectedEntrevista!.assistido_id,
+            assistido_tratamento_id: vinculo.id,
+            tratamento_id: d.tratamento_id,
+            data_sessao: s.data_sessao,
+            horario: s.horario,
+            status: "agendado",
+            registrado_por: user!.id,
+          })) as any
+        );
+        const last = sessions[sessions.length - 1];
+        return addDays(new Date(last.data_sessao + "T12:00:00"), 1);
+      }
+      return startDate;
+    };
+
+    for (const d of groupB) await createSchedule(d, entrevistaDate);
+    let seqStart = entrevistaDate;
+    for (const d of groupA) seqStart = await createSchedule(d, seqStart);
+
+    if (validDesignacoes.length > 0) {
       await supabase.from("assistidos").update({ status: "em_tratamento" }).eq("id", selectedEntrevista.assistido_id);
     } else {
       await supabase.from("assistidos").update({ status: "entrevistado" }).eq("id", selectedEntrevista.assistido_id);
