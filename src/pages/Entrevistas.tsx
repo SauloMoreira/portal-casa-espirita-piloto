@@ -203,8 +203,8 @@ export default function Entrevistas() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-foreground">Entrevistas Fraternas</h1>
-          <p className="text-sm text-muted-foreground mt-1">Agenda e acompanhamento</p>
+          <h1 className="text-2xl font-display font-bold text-foreground">Agendamento de Entrevistas</h1>
+          <p className="text-sm text-muted-foreground mt-1">Agende, remarque ou cancele entrevistas</p>
         </div>
         <Button className="gap-2" onClick={() => setAgendarOpen(true)}>
           <Plus className="h-4 w-4" />Agendar Entrevista
