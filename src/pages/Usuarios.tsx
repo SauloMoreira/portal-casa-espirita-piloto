@@ -120,32 +120,34 @@ export default function Usuarios() {
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({ email: form.email.trim(), password: form.password });
-      if (error) throw error;
-      if (data.user) {
-        await supabase.from("user_roles").insert({ user_id: data.user.id, role: form.role as any });
-        await supabase.from("profiles").insert({
-          user_id: data.user.id,
-          nome_completo: form.nome_completo.trim(),
-          celular: form.celular.replace(/\D/g, ""),
-          cpf: cpfClean,
-          cep: form.cep.replace(/\D/g, ""),
-          logradouro: form.logradouro.trim(),
-          numero: form.numero.trim(),
-          complemento: form.complemento.trim() || null,
-          bairro: form.bairro.trim(),
-          cidade: form.cidade.trim(),
-          estado: form.estado.trim().toUpperCase(),
-          foto_url: form.foto_url || null,
-          status: form.status,
-          created_by: user!.id,
-        } as any);
-        toast({ title: "Usuário criado com sucesso" });
-        setOpen(false);
-        setForm(emptyForm);
-        setErrors({});
-        fetchUsers();
-      }
+      const { data: fnData, error: fnError } = await supabase.functions.invoke("create-user", {
+        body: {
+          email: form.email.trim(),
+          password: form.password,
+          role: form.role,
+          profile: {
+            nome_completo: form.nome_completo.trim(),
+            celular: form.celular.replace(/\D/g, ""),
+            cpf: cpfClean,
+            cep: form.cep.replace(/\D/g, ""),
+            logradouro: form.logradouro.trim(),
+            numero: form.numero.trim(),
+            complemento: form.complemento.trim() || null,
+            bairro: form.bairro.trim(),
+            cidade: form.cidade.trim(),
+            estado: form.estado.trim().toUpperCase(),
+            foto_url: form.foto_url || null,
+            status: form.status,
+          },
+        },
+      });
+      if (fnError) throw fnError;
+      if (fnData?.error) throw new Error(fnData.error);
+      toast({ title: "Usuário criado com sucesso" });
+      setOpen(false);
+      setForm(emptyForm);
+      setErrors({});
+      fetchUsers();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
