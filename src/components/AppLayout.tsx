@@ -4,9 +4,11 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
+import { useToast } from "@/hooks/use-toast";
 
 export function AppLayout() {
   const [nomeFantasia, setNomeFantasia] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const fetchInst = () => {
     supabase.from("instituicao_config").select("nome_fantasia").limit(1).then(({ data }) => {
@@ -19,6 +21,21 @@ export function AppLayout() {
     window.addEventListener("instituicao-updated", fetchInst);
     return () => window.removeEventListener("instituicao-updated", fetchInst);
   }, []);
+
+  // Push notification toasts
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const aviso = (e as CustomEvent).detail;
+      if (aviso?.titulo) {
+        toast({
+          title: aviso.titulo,
+          description: aviso.mensagem?.substring(0, 100),
+        });
+      }
+    };
+    window.addEventListener("aviso-novo", handler);
+    return () => window.removeEventListener("aviso-novo", handler);
+  }, [toast]);
 
   return (
     <SidebarProvider>

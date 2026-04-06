@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,15 +9,24 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Calendar, ClipboardCheck, Printer } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, Calendar, ClipboardCheck, Printer, AlertTriangle, ArrowUpDown, Flag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { addDays, addWeeks, addMonths, getDay, startOfDay, format } from "date-fns";
+import { addDays, addWeeks, addMonths, getDay, startOfDay, format, differenceInDays } from "date-fns";
 import { CartaAgendamento } from "@/components/CartaAgendamento";
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
+const PRIORIDADE_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; order: number }> = {
+  urgente: { label: "Urgente", variant: "destructive", order: 0 },
+  alta: { label: "Alta", variant: "default", order: 1 },
+  normal: { label: "Normal", variant: "secondary", order: 2 },
+};
+
+type SortMode = "prioridade" | "cronologico" | "tempo_espera";
+
 interface WaitItem {
-  id: string; // assistido_tratamento id
+  id: string;
   assistido_id: string;
   assistido_nome: string;
   tratamento_id: string;
@@ -29,6 +38,9 @@ interface WaitItem {
   horario: string | null;
   frequencia_valor: number | null;
   frequencia_unidade: string | null;
+  prioridade: string;
+  urgencia: string | null;
+  dias_espera: number;
 }
 
 export default function CoordenadorListaEspera() {
@@ -37,6 +49,8 @@ export default function CoordenadorListaEspera() {
   const [items, setItems] = useState<WaitItem[]>([]);
   const [search, setSearch] = useState("");
   const [filterTrat, setFilterTrat] = useState("todos");
+  const [filterPrioridade, setFilterPrioridade] = useState("todos");
+  const [sortMode, setSortMode] = useState<SortMode>("prioridade");
   const [agendarOpen, setAgendarOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<WaitItem | null>(null);
   const [dataInicial, setDataInicial] = useState("");
@@ -45,11 +59,14 @@ export default function CoordenadorListaEspera() {
   const [cartaOpen, setCartaOpen] = useState(false);
   const [cartaAssistidoId, setCartaAssistidoId] = useState("");
   const [cartaVinculoIds, setCartaVinculoIds] = useState<string[]>([]);
+  const [prioridadeOpen, setPrioridadeOpen] = useState(false);
+  const [prioridadeItem, setPrioridadeItem] = useState<WaitItem | null>(null);
+  const [novaPrioridade, setNovaPrioridade] = useState("normal");
+  const [novaUrgencia, setNovaUrgencia] = useState("");
 
   const fetchData = async () => {
     if (!user) return;
 
-    // Get my treatments
     const { data: meusTrat } = await supabase
       .from("tipos_tratamento")
       .select("id, nome, dia_semana, horario, frequencia_valor, frequencia_unidade")
@@ -61,16 +78,14 @@ export default function CoordenadorListaEspera() {
     const tratIds = meusTrat.map((t: any) => t.id);
     setTratNomes(meusTrat.map((t: any) => t.nome));
 
-    // Get wait list items
     const { data: vinculos } = await supabase
       .from("assistido_tratamentos")
-      .select("id, assistido_id, tratamento_id, quantidade_total, status, entrevista_id")
+      .select("id, assistido_id, tratamento_id, quantidade_total, status, entrevista_id, prioridade, urgencia, created_at")
       .in("tratamento_id", tratIds)
       .eq("status", "aguardando_agendamento");
 
     if (!vinculos || vinculos.length === 0) { setItems([]); return; }
 
-    // Get assistido names
     const assistidoIds = [...new Set(vinculos.map((v: any) => v.assistido_id))];
     const { data: assistidos } = await supabase
       .from("assistidos")
@@ -79,16 +94,17 @@ export default function CoordenadorListaEspera() {
 
     const assistMap = Object.fromEntries((assistidos || []).map((a: any) => [a.id, a.nome]));
 
-    // Get entrevista dates
     const entrevistaIds = vinculos.map((v: any) => v.entrevista_id).filter(Boolean);
     const { data: entrevistas } = entrevistaIds.length > 0
       ? await supabase.from("entrevistas_fraternas").select("id, data").in("id", entrevistaIds)
       : { data: [] };
 
     const entMap = Object.fromEntries((entrevistas || []).map((e: any) => [e.id, e.data]));
+    const today = new Date();
 
     const result: WaitItem[] = vinculos.map((v: any) => {
       const trat = tratMap[v.tratamento_id];
+      const entDate = v.entrevista_id ? entMap[v.entrevista_id] || null : null;
       return {
         id: v.id,
         assistido_id: v.assistido_id,
@@ -96,20 +112,16 @@ export default function CoordenadorListaEspera() {
         tratamento_id: v.tratamento_id,
         tratamento_nome: trat?.nome || "—",
         quantidade_total: v.quantidade_total,
-        entrevista_data: v.entrevista_id ? entMap[v.entrevista_id] || null : null,
+        entrevista_data: entDate,
         status: v.status,
         dia_semana: trat?.dia_semana ?? null,
         horario: trat?.horario ?? null,
         frequencia_valor: trat?.frequencia_valor ?? 1,
         frequencia_unidade: trat?.frequencia_unidade ?? "semanas",
+        prioridade: v.prioridade || "normal",
+        urgencia: v.urgencia || null,
+        dias_espera: entDate ? differenceInDays(today, new Date(entDate)) : differenceInDays(today, new Date(v.created_at)),
       };
-    });
-
-    // Sort by entrevista date (oldest first)
-    result.sort((a, b) => {
-      const da = a.entrevista_data || "9999";
-      const db = b.entrevista_data || "9999";
-      return da.localeCompare(db);
     });
 
     setItems(result);
@@ -117,16 +129,57 @@ export default function CoordenadorListaEspera() {
 
   useEffect(() => { fetchData(); }, [user]);
 
-  const filtered = items.filter((i) => {
-    const matchSearch = i.assistido_nome.toLowerCase().includes(search.toLowerCase());
-    const matchTrat = filterTrat === "todos" || i.tratamento_nome === filterTrat;
-    return matchSearch && matchTrat;
-  });
+  const sortItems = (list: WaitItem[]) => {
+    return [...list].sort((a, b) => {
+      if (sortMode === "prioridade") {
+        const pa = PRIORIDADE_CONFIG[a.prioridade]?.order ?? 2;
+        const pb = PRIORIDADE_CONFIG[b.prioridade]?.order ?? 2;
+        if (pa !== pb) return pa - pb;
+        return b.dias_espera - a.dias_espera;
+      }
+      if (sortMode === "tempo_espera") {
+        return b.dias_espera - a.dias_espera;
+      }
+      // cronologico
+      const da = a.entrevista_data || "9999";
+      const db = b.entrevista_data || "9999";
+      return da.localeCompare(db);
+    });
+  };
+
+  const filtered = sortItems(
+    items.filter((i) => {
+      const matchSearch = i.assistido_nome.toLowerCase().includes(search.toLowerCase());
+      const matchTrat = filterTrat === "todos" || i.tratamento_nome === filterTrat;
+      const matchPrio = filterPrioridade === "todos" || i.prioridade === filterPrioridade;
+      return matchSearch && matchTrat && matchPrio;
+    })
+  );
 
   const openAgendar = (item: WaitItem) => {
     setSelectedItem(item);
     setDataInicial("");
     setAgendarOpen(true);
+  };
+
+  const openPrioridade = (item: WaitItem) => {
+    setPrioridadeItem(item);
+    setNovaPrioridade(item.prioridade);
+    setNovaUrgencia(item.urgencia || "");
+    setPrioridadeOpen(true);
+  };
+
+  const handleSalvarPrioridade = async () => {
+    if (!prioridadeItem) return;
+    setSaving(true);
+    await supabase.from("assistido_tratamentos").update({
+      prioridade: novaPrioridade,
+      urgencia: novaUrgencia.trim() || null,
+    } as any).eq("id", prioridadeItem.id);
+    toast({ title: "Prioridade atualizada" });
+    setPrioridadeOpen(false);
+    setSaving(false);
+    fetchData();
   };
 
   const handleAgendar = async () => {
@@ -135,7 +188,6 @@ export default function CoordenadorListaEspera() {
       return;
     }
 
-    // Validate weekday
     if (selectedItem.dia_semana !== null) {
       const selectedDate = new Date(dataInicial + "T12:00:00");
       if (getDay(selectedDate) !== selectedItem.dia_semana) {
@@ -150,7 +202,6 @@ export default function CoordenadorListaEspera() {
 
     setSaving(true);
 
-    // Generate sessions
     const startDate = new Date(dataInicial + "T12:00:00");
     const sessions: { data_sessao: string; horario: string | null }[] = [];
     let cursor = startOfDay(startDate);
@@ -167,7 +218,6 @@ export default function CoordenadorListaEspera() {
       else cursor = addDays(cursor, fv);
     }
 
-    // Insert agenda
     if (sessions.length > 0) {
       const { error: agendaErr } = await supabase.from("agenda_tratamentos_assistido").insert(
         sessions.map((s) => ({
@@ -188,7 +238,6 @@ export default function CoordenadorListaEspera() {
       }
     }
 
-    // Update status
     await supabase.from("assistido_tratamentos").update({
       status: "aguardando_inicio",
       data_inicio: dataInicial,
@@ -198,14 +247,16 @@ export default function CoordenadorListaEspera() {
     toast({ title: "Tratamento agendado com sucesso!", description: `${sessions.length} sessão(ões) gerada(s)` });
     setAgendarOpen(false);
     setSaving(false);
-    
-    // Show scheduling letter
+
     setCartaAssistidoId(selectedItem.assistido_id);
     setCartaVinculoIds([selectedItem.id]);
     setCartaOpen(true);
-    
+
     fetchData();
   };
+
+  const urgentCount = items.filter((i) => i.prioridade === "urgente").length;
+  const altaCount = items.filter((i) => i.prioridade === "alta").length;
 
   return (
     <div className="space-y-6">
@@ -216,6 +267,22 @@ export default function CoordenadorListaEspera() {
         </h1>
         <p className="text-sm text-muted-foreground mt-1">Assistidos aguardando agendamento nos seus tratamentos</p>
       </div>
+
+      {/* Summary badges */}
+      {(urgentCount > 0 || altaCount > 0) && (
+        <div className="flex gap-2 flex-wrap">
+          {urgentCount > 0 && (
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="h-3 w-3" /> {urgentCount} urgente{urgentCount > 1 ? "s" : ""}
+            </Badge>
+          )}
+          {altaCount > 0 && (
+            <Badge variant="default" className="gap-1">
+              <Flag className="h-3 w-3" /> {altaCount} alta prioridade
+            </Badge>
+          )}
+        </div>
+      )}
 
       <Card className="glass-card">
         <CardHeader className="pb-3">
@@ -233,6 +300,23 @@ export default function CoordenadorListaEspera() {
                 </SelectContent>
               </Select>
             )}
+            <Select value={filterPrioridade} onValueChange={setFilterPrioridade}>
+              <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas prioridades</SelectItem>
+                <SelectItem value="urgente">Urgente</SelectItem>
+                <SelectItem value="alta">Alta</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+              <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="prioridade">Ordenar: Prioridade</SelectItem>
+                <SelectItem value="cronologico">Ordenar: Cronológico</SelectItem>
+                <SelectItem value="tempo_espera">Ordenar: Tempo de espera</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>
@@ -246,39 +330,109 @@ export default function CoordenadorListaEspera() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-20">Prioridade</TableHead>
                     <TableHead>Assistido</TableHead>
                     <TableHead>Tratamento</TableHead>
-                    <TableHead className="hidden md:table-cell">Data Entrevista</TableHead>
+                    <TableHead className="hidden md:table-cell">Entrevista</TableHead>
+                    <TableHead className="hidden md:table-cell">Espera</TableHead>
                     <TableHead className="hidden md:table-cell">Sessões</TableHead>
-                    <TableHead className="hidden md:table-cell">Status</TableHead>
-                    <TableHead className="w-24"></TableHead>
+                    <TableHead className="w-32"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.assistido_nome}</TableCell>
-                      <TableCell>{item.tratamento_nome}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {item.entrevista_data ? format(new Date(item.entrevista_data), "dd/MM/yyyy") : "—"}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">{item.quantidade_total}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <Badge variant="outline" className="text-xs">Aguardando</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button size="sm" onClick={() => openAgendar(item)} className="gap-1">
-                          <Calendar className="h-3 w-3" /> Agendar
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filtered.map((item) => {
+                    const pConfig = PRIORIDADE_CONFIG[item.prioridade] || PRIORIDADE_CONFIG.normal;
+                    return (
+                      <TableRow key={item.id} className={item.prioridade === "urgente" ? "bg-destructive/5" : item.prioridade === "alta" ? "bg-primary/5" : ""}>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 p-1 h-auto"
+                            onClick={() => openPrioridade(item)}
+                            title="Alterar prioridade"
+                          >
+                            <Badge variant={pConfig.variant} className="text-xs cursor-pointer">
+                              {pConfig.label}
+                            </Badge>
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <span className="font-medium">{item.assistido_nome}</span>
+                            {item.urgencia && (
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]" title={item.urgencia}>
+                                {item.urgencia}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{item.tratamento_nome}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {item.entrevista_data ? format(new Date(item.entrevista_data), "dd/MM/yyyy") : "—"}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <span className={item.dias_espera > 30 ? "text-destructive font-medium" : item.dias_espera > 14 ? "text-amber-600 font-medium" : ""}>
+                            {item.dias_espera}d
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{item.quantidade_total}</TableCell>
+                        <TableCell>
+                          <Button size="sm" onClick={() => openAgendar(item)} className="gap-1">
+                            <Calendar className="h-3 w-3" /> Agendar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog Alterar Prioridade */}
+      <Dialog open={prioridadeOpen} onOpenChange={setPrioridadeOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Flag className="h-5 w-5" /> Definir Prioridade
+            </DialogTitle>
+          </DialogHeader>
+          {prioridadeItem && (
+            <div className="space-y-4 pt-2">
+              <div className="rounded-lg border border-border bg-muted/50 p-3">
+                <p className="font-medium text-sm">{prioridadeItem.assistido_nome}</p>
+                <p className="text-xs text-muted-foreground">{prioridadeItem.tratamento_nome}</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Prioridade</Label>
+                <Select value={novaPrioridade} onValueChange={setNovaPrioridade}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="alta">Alta</SelectItem>
+                    <SelectItem value="urgente">Urgente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Justificativa (opcional)</Label>
+                <Textarea
+                  value={novaUrgencia}
+                  onChange={(e) => setNovaUrgencia(e.target.value)}
+                  placeholder="Motivo da priorização..."
+                  rows={3}
+                />
+              </div>
+              <Button onClick={handleSalvarPrioridade} disabled={saving} className="w-full">
+                {saving ? "Salvando..." : "Salvar Prioridade"}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Agendar */}
       <Dialog open={agendarOpen} onOpenChange={setAgendarOpen}>
@@ -288,8 +442,13 @@ export default function CoordenadorListaEspera() {
           </DialogHeader>
           {selectedItem && (
             <div className="space-y-4 pt-2">
-              <div className="rounded-lg border p-3 space-y-1">
-                <p className="text-sm font-medium">{selectedItem.assistido_nome}</p>
+              <div className="rounded-lg border border-border p-3 space-y-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{selectedItem.assistido_nome}</p>
+                  <Badge variant={PRIORIDADE_CONFIG[selectedItem.prioridade]?.variant || "secondary"} className="text-xs">
+                    {PRIORIDADE_CONFIG[selectedItem.prioridade]?.label || "Normal"}
+                  </Badge>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {selectedItem.tratamento_nome} · {selectedItem.quantidade_total} sessão(ões)
                 </p>
@@ -297,6 +456,9 @@ export default function CoordenadorListaEspera() {
                   <p className="text-xs text-muted-foreground">
                     Dia: {DIAS_SEMANA[selectedItem.dia_semana]} · Horário: {selectedItem.horario || "—"}
                   </p>
+                )}
+                {selectedItem.urgencia && (
+                  <p className="text-xs text-amber-600 mt-1">⚠ {selectedItem.urgencia}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -318,7 +480,6 @@ export default function CoordenadorListaEspera() {
         </DialogContent>
       </Dialog>
 
-      {/* Carta de Agendamento */}
       <CartaAgendamento
         open={cartaOpen}
         onOpenChange={setCartaOpen}

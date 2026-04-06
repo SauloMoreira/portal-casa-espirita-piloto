@@ -85,12 +85,14 @@ export type Database = {
           entrevista_id: string | null
           id: string
           observacoes: string | null
+          prioridade: string
           quantidade_faltante: number | null
           quantidade_realizada: number
           quantidade_total: number
           status: string
           tratamento_id: string
           updated_at: string
+          urgencia: string | null
         }
         Insert: {
           agendado_por?: string | null
@@ -101,12 +103,14 @@ export type Database = {
           entrevista_id?: string | null
           id?: string
           observacoes?: string | null
+          prioridade?: string
           quantidade_faltante?: number | null
           quantidade_realizada?: number
           quantidade_total?: number
           status?: string
           tratamento_id: string
           updated_at?: string
+          urgencia?: string | null
         }
         Update: {
           agendado_por?: string | null
@@ -117,12 +121,14 @@ export type Database = {
           entrevista_id?: string | null
           id?: string
           observacoes?: string | null
+          prioridade?: string
           quantidade_faltante?: number | null
           quantidade_realizada?: number
           quantidade_total?: number
           status?: string
           tratamento_id?: string
           updated_at?: string
+          urgencia?: string | null
         }
         Relationships: [
           {

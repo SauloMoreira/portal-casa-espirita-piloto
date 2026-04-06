@@ -46,7 +46,10 @@ export function useAvisos() {
         table: "avisos_internos",
         filter: `destinatario_id=eq.${user.id}`,
       }, (payload) => {
-        setAvisos((prev) => [payload.new as Aviso, ...prev]);
+        const novo = payload.new as Aviso;
+        setAvisos((prev) => [novo, ...prev]);
+        // Dispatch custom event for toast notification
+        window.dispatchEvent(new CustomEvent("aviso-novo", { detail: novo }));
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
