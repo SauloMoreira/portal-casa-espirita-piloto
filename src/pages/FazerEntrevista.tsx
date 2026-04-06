@@ -150,6 +150,7 @@ export default function FazerEntrevista() {
   const [isRecording, setIsRecording] = useState(false);
   const isRecordingRef = useRef(false);
   const recognitionRef = useRef<any>(null);
+  const transcriptBaseRef = useRef("");
 
   const { user } = useAuth();
   const { toast } = useToast();
