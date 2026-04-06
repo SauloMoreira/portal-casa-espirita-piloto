@@ -917,7 +917,11 @@ export default function FazerEntrevista() {
                 )}
                 <Textarea
                   value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    transcriptBaseRef.current = nextValue;
+                    setObservacoes(nextValue);
+                  }}
                   rows={5}
                   placeholder="Registre observações importantes da entrevista ou use o botão Gravar Voz..."
                 />
