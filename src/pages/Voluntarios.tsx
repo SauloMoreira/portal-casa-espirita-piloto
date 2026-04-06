@@ -367,6 +367,17 @@ export default function Voluntarios() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={filterFuncao} onValueChange={setFilterFuncao}>
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder="Função" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas as Funções</SelectItem>
+                {allFuncoes.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>{f.nome_funcao} ({f.tipo_voluntario})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
