@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAvisos } from "@/hooks/useAvisos";
 import { StatCard } from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, Calendar, CheckCircle, Clock, Bell } from "lucide-react";
+import { Heart, Calendar, CheckCircle, Clock, Bell, MapPin } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
@@ -89,15 +89,59 @@ export default function AssistidoDashboard() {
         <h1 className="text-2xl font-display font-bold text-foreground">Meu Painel</h1>
         <p className="text-sm text-muted-foreground mt-1">Seus tratamentos e agenda</p>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+      {/* Cards-resumo */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard title="Tratamentos Ativos" value={stats.ativos} icon={Heart} />
         <StatCard title="Sessões Realizadas" value={stats.realizadas} icon={CheckCircle} />
         <StatCard title="Sessões Faltantes" value={stats.faltantes} icon={Clock} />
         <StatCard title="Próximo Atendimento" value={proximaLabel} icon={Calendar} />
       </div>
 
+      {/* Próxima sessão — destaque principal */}
+      {proximaSessao ? (
+        <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-br from-primary/[0.06] via-card to-card shadow-sm">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/[0.04] rounded-full -translate-y-12 translate-x-12" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-primary flex items-center gap-2 tracking-wide uppercase">
+              <Calendar className="h-4 w-4" /> Próxima Sessão
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-5">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-lg font-display font-bold text-foreground">{proximaSessao.tratamento_nome}</p>
+                <p className="text-sm text-muted-foreground">
+                  {format(new Date(proximaSessao.data_sessao + "T12:00:00"), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </p>
+                {proximaSessao.horario && (
+                  <p className="text-sm font-medium text-foreground/80">
+                    <Clock className="inline h-3.5 w-3.5 mr-1 -mt-0.5 text-primary/60" />
+                    {proximaSessao.horario.slice(0, 5)}
+                  </p>
+                )}
+              </div>
+              <Badge variant="outline" className="self-start sm:self-auto border-primary/30 text-primary bg-primary/[0.06] text-xs">
+                Agendada
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-border/60 bg-gradient-to-br from-card to-secondary/20 shadow-sm">
+          <CardContent className="py-8">
+            <div className="flex flex-col items-center text-muted-foreground gap-2">
+              <Calendar className="h-7 w-7 opacity-30" />
+              <p className="text-sm font-medium">Nenhuma sessão agendada no momento</p>
+              <p className="text-xs opacity-70">Quando houver agendamentos, eles aparecerão aqui</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Meus Tratamentos */}
       {tratamentos.length > 0 && (
-        <Card className="glass-card">
+        <Card className="border-border/60 shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Meus Tratamentos</CardTitle>
           </CardHeader>
@@ -105,9 +149,9 @@ export default function AssistidoDashboard() {
             {tratamentos.map((t) => {
               const pct = t.quantidade_total > 0 ? (t.quantidade_realizada / t.quantidade_total) * 100 : 0;
               return (
-                <div key={t.id} className="rounded-lg border p-3 space-y-2 cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate("/meus-tratamentos")}>
+                <div key={t.id} className="rounded-xl border border-border/60 p-4 space-y-2.5 cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => navigate("/meus-tratamentos")}>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">{t.nome}</p>
+                    <p className="text-sm font-semibold text-foreground">{t.nome}</p>
                     <Badge variant="secondary" className="text-xs">{STATUS_LABELS[t.status] || t.status}</Badge>
                   </div>
                   <Progress value={pct} className="h-1.5" />
@@ -121,28 +165,8 @@ export default function AssistidoDashboard() {
         </Card>
       )}
 
-      {/* Próxima sessão real */}
-      {proximaSessao && (
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-primary" /> Próxima Sessão
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border p-3">
-              <p className="text-sm font-medium">{proximaSessao.tratamento_nome}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {format(new Date(proximaSessao.data_sessao + "T12:00:00"), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                {proximaSessao.horario && ` às ${proximaSessao.horario.slice(0, 5)}`}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {tratamentos.length === 0 && (
-        <Card className="glass-card">
+        <Card className="border-border/60 shadow-sm">
           <CardContent className="py-12">
             <div className="flex flex-col items-center text-muted-foreground">
               <Heart className="h-8 w-8 mb-2 opacity-40" />
@@ -155,7 +179,7 @@ export default function AssistidoDashboard() {
 
       {/* Avisos recentes */}
       {avisos.length > 0 && (
-        <Card className="glass-card">
+        <Card className="border-border/60 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Bell className="h-4 w-4 text-primary" /> Avisos Recentes
@@ -170,7 +194,7 @@ export default function AssistidoDashboard() {
                   if (!a.lido) await marcarComoLido(a.id);
                   if (a.link) navigate(a.link);
                 }}
-                className={`rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors ${!a.lido ? "border-primary/30 bg-primary/5" : ""}`}
+                className={`rounded-xl border p-3 cursor-pointer hover:bg-secondary/30 transition-colors ${!a.lido ? "border-primary/30 bg-primary/5" : "border-border/60"}`}
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">{a.titulo}</p>
