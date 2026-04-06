@@ -144,6 +144,9 @@ export default function FazerEntrevista() {
   const [cartaOpen, setCartaOpen] = useState(false);
   const [cartaAssistidoId, setCartaAssistidoId] = useState("");
   const [cartaEntrevistaId, setCartaEntrevistaId] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSugestao, setAiSugestao] = useState("");
 
   const { user } = useAuth();
   const { toast } = useToast();
