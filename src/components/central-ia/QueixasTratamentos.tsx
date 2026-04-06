@@ -70,6 +70,8 @@ export default function QueixasTratamentos() {
   const [sinonimos, setSinonimos] = useState("");
   const [nivelRelevancia, setNivelRelevancia] = useState("media");
   const [observacoes, setObservacoes] = useState("");
+  const [selectedTratamentos, setSelectedTratamentos] = useState<string[]>([]);
+  const [tratSearch, setTratSearch] = useState("");
 
   // Vinculos
   const [showVinculos, setShowVinculos] = useState<string | null>(null);
