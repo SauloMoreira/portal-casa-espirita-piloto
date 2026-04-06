@@ -73,7 +73,7 @@ export default function Presenca() {
       .filter((s) => {
         const trat = tratMap[s.tratamento_id];
         if (!trat) return false;
-        if (role === "tarefeiro" && trat.tarefeiro_id !== user!.id) return false;
+        if (role === "tarefeiro" && trat.tarefeiro_id && trat.tarefeiro_id !== user!.id) return false;
         // Only show if vinculo is in active status
         return vinculoMap[s.assistido_tratamento_id] != null;
       })
