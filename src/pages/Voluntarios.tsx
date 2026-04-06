@@ -305,7 +305,9 @@ export default function Voluntarios() {
     const matchesStatus = filterStatus === "todos" || v.status === filterStatus;
     const matchesTipo =
       filterTipo === "todos" || (v.tipos_voluntario && v.tipos_voluntario.includes(filterTipo));
-    return matchesSearch && matchesStatus && matchesTipo;
+    const matchesFuncao =
+      filterFuncao === "todos" || (voluntarioFuncoesMap[v.id] || []).includes(filterFuncao);
+    return matchesSearch && matchesStatus && matchesTipo && matchesFuncao;
   });
 
   const toggleTipo = (tipo: string) => {
