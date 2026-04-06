@@ -109,6 +109,8 @@ export default function QueixasTratamentos() {
     setSinonimos("");
     setNivelRelevancia("media");
     setObservacoes("");
+    setSelectedTratamentos([]);
+    setTratSearch("");
   };
 
   const openEdit = (q: Queixa) => {
