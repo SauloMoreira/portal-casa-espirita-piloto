@@ -141,6 +141,10 @@ export default function FazerEntrevista() {
   const [assistidoErrors, setAssistidoErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [savingAssistido, setSavingAssistido] = useState(false);
+  const [cartaOpen, setCartaOpen] = useState(false);
+  const [cartaAssistidoId, setCartaAssistidoId] = useState("");
+  const [cartaEntrevistaId, setCartaEntrevistaId] = useState("");
+  const [savingAssistido, setSavingAssistido] = useState(false);
 
   const { user } = useAuth();
   const { toast } = useToast();
