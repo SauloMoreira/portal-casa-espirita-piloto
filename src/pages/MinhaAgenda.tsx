@@ -105,15 +105,15 @@ export default function MinhaAgenda() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {sessoes.length === 0 ? (
+          {sessoesFuturas.length === 0 ? (
             <div className="flex flex-col items-center py-8 text-muted-foreground">
               <Heart className="h-8 w-8 mb-2 opacity-30" />
-              <p className="text-sm">Nenhuma sessão agendada</p>
+              <p className="text-sm">Nenhuma sessão agendada no momento</p>
               <p className="text-xs mt-1">Quando suas sessões forem confirmadas, elas aparecerão aqui</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {sessoes.map((s) => {
+              {sessoesFuturas.map((s) => {
                 const dataObj = new Date(s.data_sessao + "T12:00:00");
                 return (
                   <div key={s.id} className="flex items-center justify-between rounded-lg border p-3">
@@ -134,6 +134,46 @@ export default function MinhaAgenda() {
           )}
         </CardContent>
       </Card>
+
+      {/* Histórico de sessões */}
+      {sessoesPassadas.length > 0 && (
+        <Card className="glass-card">
+          <CardHeader className="flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-muted-foreground" /> Histórico
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setShowHistorico(!showHistorico)}>
+              {showHistorico ? "Ocultar" : `Ver (${sessoesPassadas.length})`}
+            </Button>
+          </CardHeader>
+          {showHistorico && (
+            <CardContent>
+              <div className="space-y-2">
+                {sessoesPassadas.map((s) => {
+                  const dataObj = new Date(s.data_sessao + "T12:00:00");
+                  return (
+                    <div key={s.id} className="flex items-center justify-between rounded-lg border border-border/60 p-3 opacity-80">
+                      <div>
+                        <p className="text-sm font-medium">{s.tratamento_nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(dataObj, "dd/MM/yyyy")} — {DIAS_SEMANA[dataObj.getDay()]}
+                          {s.horario && ` às ${s.horario.slice(0, 5)}`}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={s.status === "realizado" ? "default" : s.status === "ausente" ? "destructive" : "secondary"}
+                        className="text-[10px]"
+                      >
+                        {STATUS_SESSAO_LABELS[s.status] || s.status}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
