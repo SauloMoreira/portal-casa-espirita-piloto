@@ -99,6 +99,7 @@ export default function Tratamentos() {
       bloqueia_proximo_tratamento: form.modo_agendamento === "sequencial_bloqueante",
       modo_agendamento: form.modo_agendamento,
       coordenador_responsavel_id: form.coordenador_responsavel_id || null,
+      quantidade_padrao_sessoes: qtdPadrao,
     };
 
     let error;
