@@ -132,7 +132,7 @@ export default function FazerEntrevista() {
   const [dataEntrevista, setDataEntrevista] = useState(new Date().toISOString().split("T")[0]);
   const [tipoEntrevista, setTipoEntrevista] = useState<"regular" | "livre">("regular");
   const [observacoes, setObservacoes] = useState("");
-  const [quantidades, setQuantidades] = useState<Record<string, number>>({});
+  const [quantidades, setQuantidades] = useState<Record<string, string>>({});
   const [datasIniciais, setDatasIniciais] = useState<Record<string, string>>({});
 
   const [novoAssistidoOpen, setNovoAssistidoOpen] = useState(false);
