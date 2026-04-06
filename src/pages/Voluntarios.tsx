@@ -35,6 +35,13 @@ const STATUS_COLORS: Record<string, string> = {
 
 const TIPOS_VOLUNTARIO = ["Médium", "Tarefeiro"];
 
+interface FuncaoVoluntariado {
+  id: string;
+  nome_funcao: string;
+  tipo_voluntario: string;
+  status: string;
+}
+
 interface Voluntario {
   id: string;
   nome_completo: string;
@@ -60,6 +67,7 @@ interface Voluntario {
   observacoes: string | null;
   created_by: string;
   created_at: string;
+  funcoes?: string[]; // loaded separately
 }
 
 const emptyForm = {
@@ -80,6 +88,7 @@ const emptyForm = {
   data_ingresso_sistema: new Date().toISOString().split("T")[0],
   data_adesao_voluntariado: "",
   tipos_voluntario: [] as string[],
+  funcoes_ids: [] as string[],
   atuacao_detalhada: "",
   status: "ativo",
   data_desligamento: "",
