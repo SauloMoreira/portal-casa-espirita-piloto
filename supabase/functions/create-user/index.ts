@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify the caller is an admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -23,7 +22,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify caller is admin using their token
     const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -35,24 +33,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin role
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const { data: roleData } = await adminClient
+
+    // Check caller role - admin or entrevistador can create users
+    const { data: callerRoles } = await adminClient
       .from("user_roles")
       .select("role")
-      .eq("user_id", caller.id)
-      .eq("role", "admin")
-      .maybeSingle();
+      .eq("user_id", caller.id);
 
-    if (!roleData) {
-      return new Response(JSON.stringify({ error: "Apenas administradores podem criar usuários" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const callerRoleList = (callerRoles || []).map((r: any) => r.role);
+    const isAdmin = callerRoleList.includes("admin");
+    const isEntrevistador = callerRoleList.includes("entrevistador");
 
     const body = await req.json();
-    const { email, password, role, profile } = body;
+    const { email, password, role, profile, assistido_id, assistido_update } = body;
 
     if (!email || !password || !role) {
       return new Response(JSON.stringify({ error: "Campos obrigatórios ausentes" }), {
@@ -61,7 +55,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create user with admin API (doesn't affect caller's session)
+    // Entrevistadores can only create assistido users
+    if (!isAdmin && isEntrevistador && role !== "assistido") {
+      return new Response(JSON.stringify({ error: "Entrevistadores só podem criar acesso de assistidos" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!isAdmin && !isEntrevistador) {
+      return new Response(JSON.stringify({ error: "Sem permissão para criar usuários" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create user
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password,
@@ -87,6 +96,14 @@ Deno.serve(async (req) => {
         user_id: userId,
         created_by: caller.id,
       });
+    }
+
+    // Link assistido to user if assistido_id provided
+    if (assistido_id) {
+      await adminClient.from("assistidos").update({
+        user_id: userId,
+        ...(assistido_update || {}),
+      }).eq("id", assistido_id);
     }
 
     return new Response(JSON.stringify({ success: true, user_id: userId }), {
