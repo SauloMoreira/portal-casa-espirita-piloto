@@ -321,7 +321,12 @@ export default function FazerEntrevista() {
       return;
     }
     const validDesignacoes = Object.entries(quantidades)
-      .filter(([_, qty]) => qty > 0)
+      .filter(([tid, qty]) => qty > 0 || (qty === 0 && tratamentoMap[tid]))
+      .filter(([tid, qty]) => {
+        // Include if user typed a quantity > 0, OR if the field was left blank but the treatment has a default
+        if (qty > 0) return true;
+        return false;
+      })
       .map(([tratamento_id, quantidade_total]) => ({ tratamento_id, quantidade_total }));
 
     // Note: treatments with modo_agendamento = agendado_por_data_inicial can have blank start date
