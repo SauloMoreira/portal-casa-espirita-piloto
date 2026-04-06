@@ -62,6 +62,7 @@ const navItems: NavItem[] = [
   { title: "Meus Tratamentos", url: "/coordenador-tratamentos", icon: Heart, roles: ["coordenador_de_tratamento"] },
   { title: "Agenda do Tratamento", url: "/coordenador-agenda", icon: Calendar, roles: ["coordenador_de_tratamento"] },
   { title: "Central de IA", url: "/central-ia", icon: Brain, roles: ["admin", "entrevistador"] },
+  { title: "Voluntários", url: "/voluntarios", icon: UserCheck, roles: ["admin"] },
   { title: "Relatórios", url: "/relatorios", icon: FileText, roles: ["admin"] },
   { title: "Exceções", url: "/excecoes", icon: AlertTriangle, roles: ["admin"] },
   { title: "Instituição", url: "/instituicao", icon: Building2, roles: ["admin"] },
