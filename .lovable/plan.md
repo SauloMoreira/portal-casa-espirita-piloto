@@ -1,43 +1,71 @@
 
-# Fase 2 — Relatórios Operacionais e Gerenciais
+# Fase 4 — Inteligência, Automação e Governança
 
-## Arquitetura
-- **Página hub** (`Relatorios.tsx`): grid de cards clicáveis que abrem cada relatório inline (tabs ou estado)
-- **6 componentes de relatório** em `src/components/relatorios/`:
-  1. `AssistidosPorTratamento.tsx`
-  2. `FrequenciaPresenca.tsx`
-  3. `EntrevistasRealizadas.tsx`
-  4. `TratamentosConcluidos.tsx`
-  5. `FaltasPorPeriodo.tsx`
-  6. `CargaPorTarefeiro.tsx`
-- **Componente reutilizável** `ReportFilters.tsx` para filtros de período, tratamento, tarefeiro, coordenador, assistido
-- **Utilitário** `exportCsv.ts` para exportação CSV respeitando filtros
+## Entrega em 3 blocos para manter qualidade e não quebrar nada:
 
-## Fontes de dados (sempre dados reais)
-- `agenda_tratamentos_assistido` → sessões reais agendadas
-- `presencas_tratamentos` → presenças/ausências registradas
-- `assistido_tratamentos` → vínculos e status
-- `tipos_tratamento` → dados do tratamento
-- `assistidos` → dados do assistido
-- `entrevistas_fraternas` → entrevistas realizadas
-- `profiles` → nomes de tarefeiros/coordenadores/entrevistadores
+---
 
-## Cada relatório terá
-- Filtros no topo (período + filtros específicos)
-- Cards-resumo com totais
-- Gráfico simples (barras ou pizza via Recharts, já instalado)
-- Tabela detalhada
-- Botão "Exportar CSV"
+### Bloco A — Fundação (Banco + Regras + Auditoria)
 
-## Permissões
-- Rota aberta para `admin`, `entrevistador`, `coordenador_de_tratamento`, `tarefeiro`
-- Dados filtrados por role no frontend (coordenador vê só seus tratamentos, tarefeiro só os seus)
-- Assistido não acessa
+1. **Motor de Regras Avançadas**
+   - Tabela `regras_operacionais` com chave, valor, descrição, ativo/inativo
+   - Tela de configuração para admin (limite de faltas, prazo máximo em espera, etc.)
+   - Regras consultáveis por todo o sistema
 
-## Etapas de implementação
-1. Criar utilitário de exportação CSV
-2. Criar componente de filtros reutilizável
-3. Criar os 6 componentes de relatório
-4. Refatorar `Relatorios.tsx` como hub com navegação para cada relatório
-5. Atualizar rota no `App.tsx` para incluir perfis permitidos
-6. Validar build
+2. **Auditoria Avançada**
+   - Triggers no banco para registrar automaticamente alterações em: entrevistas, assistido_tratamentos, agenda_tratamentos_assistido, presencas_tratamentos
+   - Dados: quem, quando, valor anterior, valor novo
+   - Tela de auditoria já existente será aprimorada com filtros e detalhes
+
+3. **Alertas Automáticos Operacionais**
+   - Edge function scheduled (cron) que verifica condições como:
+     - Faltas recorrentes (baseado na regra configurada)
+     - Tratamento sem agenda
+     - Itens antigos na lista de espera
+     - Entrevista sem tratamento
+     - Carga alta por tarefeiro
+   - Gera avisos na tabela `avisos_internos` para os perfis corretos
+
+---
+
+### Bloco B — Experiência Operacional
+
+4. **Priorização da Lista de Espera**
+   - Adicionar campo `prioridade` e `urgencia` em `assistido_tratamentos`
+   - Coordenador pode definir prioridade ao visualizar a fila
+   - Lista de espera com ordenação por prioridade + tempo na fila
+   - Destaque visual para itens críticos
+
+5. **Painel de Exceções e Pendências**
+   - Nova página/aba para admin e coordenador
+   - Cards com contadores: tratamentos sem agenda, sessões sem presença, entrevistas sem desdobramento, assistidos com muitas faltas
+   - Cada card permite drill-down com filtros
+
+6. **Push Notifications Internas**
+   - Usar a tabela `avisos_internos` existente + Supabase Realtime
+   - Toast/notification em tempo real quando chega novo aviso
+   - Badge no ícone de notificação atualizado em tempo real
+   - Tipos: próxima sessão, sessão alterada, tratamento concluído
+
+---
+
+### Bloco C — Inteligência
+
+7. **Assistente da Entrevista Fraterna**
+   - Botão "Assistente IA" na tela de entrevista
+   - Usa Lovable AI (Gemini) para:
+     - Resumir observações da entrevista
+     - Destacar queixas, dores, pontos de atenção
+     - Sugerir tratamentos disponíveis no sistema
+     - Sugerir quantidade de sessões
+   - Resultado é sugestão editável, nunca automático
+   - Registro de quem validou a sugestão
+
+---
+
+## Ordem de implementação sugerida:
+1. Bloco A (fundação) → aprovação → implementação
+2. Bloco B (experiência) → aprovação → implementação  
+3. Bloco C (IA) → aprovação → implementação
+
+Deseja aprovar o plano e começar pelo Bloco A?
