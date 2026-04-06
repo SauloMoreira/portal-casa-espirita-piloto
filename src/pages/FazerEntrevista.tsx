@@ -335,14 +335,17 @@ export default function FazerEntrevista() {
       toast({ title: "Informe a data da entrevista", variant: "destructive" });
       return;
     }
-    const validDesignacoes = Object.entries(quantidades)
-      .filter(([tid, qty]) => qty > 0 || (qty === 0 && tratamentoMap[tid]))
-      .filter(([tid, qty]) => {
-        // Include if user typed a quantity > 0, OR if the field was left blank but the treatment has a default
-        if (qty > 0) return true;
-        return false;
-      })
-      .map(([tratamento_id, quantidade_total]) => ({ tratamento_id, quantidade_total }));
+    // Build valid designations: selected treatments with resolved quantities
+    const validDesignacoes: { tratamento_id: string; quantidade_total: number }[] = [];
+    for (const [tid, qtyStr] of Object.entries(quantidades)) {
+      const trat = tratamentoMap[tid];
+      if (!trat) continue;
+      const parsedQty = qtyStr ? parseInt(qtyStr) : 0;
+      const effectiveQty = parsedQty > 0 ? parsedQty : trat.quantidade_padrao_sessoes;
+      if (effectiveQty > 0) {
+        validDesignacoes.push({ tratamento_id: tid, quantidade_total: effectiveQty });
+      }
+    }
 
     // Note: treatments with modo_agendamento = agendado_por_data_inicial can have blank start date
     // In that case they go to the coordinator's wait list
