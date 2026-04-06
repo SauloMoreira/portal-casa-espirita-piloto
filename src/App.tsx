@@ -34,6 +34,7 @@ import Notificacoes from "./pages/Notificacoes";
 import MeusDocumentos from "./pages/MeusDocumentos";
 import CentralIA from "./pages/CentralIA";
 import Voluntarios from "./pages/Voluntarios";
+import FuncoesVoluntariado from "./pages/FuncoesVoluntariado";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
