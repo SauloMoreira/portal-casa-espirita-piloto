@@ -690,13 +690,26 @@ export default function FazerEntrevista() {
 
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
-      if (event.error !== "no-speech") {
+      // "aborted" and "no-speech" are non-critical – don't show error toast
+      if (event.error === "not-allowed") {
+        toast({ title: "Microfone bloqueado", description: "Permita o acesso ao microfone nas configurações do navegador.", variant: "destructive" });
+        setIsRecording(false);
+      } else if (event.error !== "no-speech" && event.error !== "aborted") {
         toast({ title: "Erro no reconhecimento de voz", description: event.error, variant: "destructive" });
+        setIsRecording(false);
       }
-      setIsRecording(false);
     };
 
     recognition.onend = () => {
+      // Auto-restart if still recording (browser stops after silence)
+      if (recognitionRef[0] && isRecording) {
+        try {
+          recognition.start();
+          return;
+        } catch (e) {
+          // ignore restart errors
+        }
+      }
       setIsRecording(false);
     };
 
