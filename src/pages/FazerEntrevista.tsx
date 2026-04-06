@@ -659,74 +659,111 @@ export default function FazerEntrevista() {
     }
   };
 
-  const toggleRecording = () => {
+  const toggleRecording = async () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast({ title: "Navegador não suporta reconhecimento de voz", description: "Use o Google Chrome para essa funcionalidade.", variant: "destructive" });
       return;
     }
 
-    if (isRecording && recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
+    if (isRecording) {
       isRecordingRef.current = false;
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
       setIsRecording(false);
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "pt-BR";
-    recognition.continuous = true;
-    recognition.interimResults = true;
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    } catch {
+      toast({ title: "Microfone bloqueado", description: "Permita o acesso ao microfone nas configurações do navegador.", variant: "destructive" });
+      return;
+    }
 
-    let finalTranscript = observacoes;
+    const startRecognition = (seedTranscript: string) => {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "pt-BR";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
 
-    recognition.onresult = (event: any) => {
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += (finalTranscript ? " " : "") + transcript;
-          setObservacoes(finalTranscript);
+      let finalTranscript = seedTranscript.trim();
+      recognitionRef.current = recognition;
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = String(event.results[i][0]?.transcript || "").trim();
+          if (!transcript) continue;
+
+          if (event.results[i].isFinal) {
+            finalTranscript = [finalTranscript, transcript].filter(Boolean).join(" ").trim();
+          } else {
+            interimTranscript = [interimTranscript, transcript].filter(Boolean).join(" ").trim();
+          }
         }
-      }
-    };
 
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      // "aborted" and "no-speech" are non-critical – don't show error toast
-      if (event.error === "not-allowed") {
-        toast({ title: "Microfone bloqueado", description: "Permita o acesso ao microfone nas configurações do navegador.", variant: "destructive" });
-        isRecordingRef.current = false;
-        recognitionRef.current = null;
-        setIsRecording(false);
-      } else if (event.error !== "no-speech" && event.error !== "aborted") {
-        toast({ title: "Erro no reconhecimento de voz", description: event.error, variant: "destructive" });
-        isRecordingRef.current = false;
-        recognitionRef.current = null;
-        setIsRecording(false);
-      }
-    };
+        const combinedTranscript = [finalTranscript, interimTranscript].filter(Boolean).join(" ").trim();
+        setObservacoes(combinedTranscript);
+      };
 
-    recognition.onend = () => {
-      // Auto-restart if still recording (browser stops after silence)
-      if (isRecordingRef.current) {
-        try {
-          recognition.start();
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+
+        if (["not-allowed", "service-not-allowed"].includes(event.error)) {
+          isRecordingRef.current = false;
+          recognitionRef.current = null;
+          setIsRecording(false);
+          toast({ title: "Microfone bloqueado", description: "Permita o acesso ao microfone nas configurações do navegador.", variant: "destructive" });
           return;
-        } catch (e) {
-          // ignore restart errors
         }
-      }
-      isRecordingRef.current = false;
-      recognitionRef.current = null;
-      setIsRecording(false);
+
+        if (event.error === "audio-capture") {
+          isRecordingRef.current = false;
+          recognitionRef.current = null;
+          setIsRecording(false);
+          toast({ title: "Microfone não encontrado", description: "Verifique se há um microfone disponível e ativo no dispositivo.", variant: "destructive" });
+          return;
+        }
+
+        if (event.error === "aborted" && !isRecordingRef.current) {
+          return;
+        }
+
+        if (event.error !== "no-speech" && event.error !== "aborted") {
+          isRecordingRef.current = false;
+          recognitionRef.current = null;
+          setIsRecording(false);
+          toast({ title: "Erro no reconhecimento de voz", description: event.error, variant: "destructive" });
+        }
+      };
+
+      recognition.onend = () => {
+        if (!isRecordingRef.current) {
+          recognitionRef.current = null;
+          setIsRecording(false);
+          return;
+        }
+
+        window.setTimeout(() => {
+          if (isRecordingRef.current) {
+            startRecognition(finalTranscript);
+          }
+        }, 250);
+      };
+
+      recognition.start();
     };
 
-    recognition.start();
-    recognitionRef.current = recognition;
     isRecordingRef.current = true;
     setIsRecording(true);
-    toast({ title: "🎙️ Gravando...", description: "Fale normalmente. Clique novamente para parar." });
+    startRecognition(observacoes);
+    toast({ title: "🎙️ Gravando...", description: "Fale normalmente. O texto será transcrito automaticamente." });
   };
 
   return (
