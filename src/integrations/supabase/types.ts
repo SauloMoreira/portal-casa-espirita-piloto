@@ -384,6 +384,372 @@ export type Database = {
           },
         ]
       }
+      ia_biblioteca: {
+        Row: {
+          arquivo_url: string | null
+          autor: string | null
+          created_at: string
+          created_by: string
+          id: string
+          resumo: string | null
+          status: string
+          subtitulos: string | null
+          tema: string
+          texto_indexavel: string | null
+          tipo_material: string
+          titulo: string
+          updated_at: string
+          usar_na_ia: boolean
+        }
+        Insert: {
+          arquivo_url?: string | null
+          autor?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          resumo?: string | null
+          status?: string
+          subtitulos?: string | null
+          tema?: string
+          texto_indexavel?: string | null
+          tipo_material?: string
+          titulo: string
+          updated_at?: string
+          usar_na_ia?: boolean
+        }
+        Update: {
+          arquivo_url?: string | null
+          autor?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          resumo?: string | null
+          status?: string
+          subtitulos?: string | null
+          tema?: string
+          texto_indexavel?: string | null
+          tipo_material?: string
+          titulo?: string
+          updated_at?: string
+          usar_na_ia?: boolean
+        }
+        Relationships: []
+      }
+      ia_biblioteca_relacoes: {
+        Row: {
+          created_at: string
+          id: string
+          material_id: string
+          observacao: string | null
+          queixa_id: string | null
+          tipo_relacao: string
+          tratamento_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          material_id: string
+          observacao?: string | null
+          queixa_id?: string | null
+          tipo_relacao?: string
+          tratamento_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          material_id?: string
+          observacao?: string | null
+          queixa_id?: string | null
+          tipo_relacao?: string
+          tratamento_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_biblioteca_relacoes_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "ia_biblioteca"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_biblioteca_relacoes_queixa_id_fkey"
+            columns: ["queixa_id"]
+            isOneToOne: false
+            referencedRelation: "ia_queixas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_biblioteca_relacoes_tratamento_id_fkey"
+            columns: ["tratamento_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_tratamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ia_configuracoes: {
+        Row: {
+          exibir_justificativa: boolean
+          exigir_feedback: boolean
+          id: string
+          nivel_confianca_minimo: number
+          peso_base_doutrinaria: number
+          peso_base_operacional: number
+          peso_historico: number
+          updated_at: string
+          updated_by: string | null
+          usar_base_doutrinaria: boolean
+          usar_base_operacional: boolean
+          usar_historico_supervisionado: boolean
+        }
+        Insert: {
+          exibir_justificativa?: boolean
+          exigir_feedback?: boolean
+          id?: string
+          nivel_confianca_minimo?: number
+          peso_base_doutrinaria?: number
+          peso_base_operacional?: number
+          peso_historico?: number
+          updated_at?: string
+          updated_by?: string | null
+          usar_base_doutrinaria?: boolean
+          usar_base_operacional?: boolean
+          usar_historico_supervisionado?: boolean
+        }
+        Update: {
+          exibir_justificativa?: boolean
+          exigir_feedback?: boolean
+          id?: string
+          nivel_confianca_minimo?: number
+          peso_base_doutrinaria?: number
+          peso_base_operacional?: number
+          peso_historico?: number
+          updated_at?: string
+          updated_by?: string | null
+          usar_base_doutrinaria?: boolean
+          usar_base_operacional?: boolean
+          usar_historico_supervisionado?: boolean
+        }
+        Relationships: []
+      }
+      ia_feedback: {
+        Row: {
+          atribuicao_final_json: Json | null
+          avaliador_id: string
+          classificacao: string
+          created_at: string
+          diferencas_json: Json | null
+          id: string
+          motivo_ajuste: string | null
+          observacao: string | null
+          sugestao_ia_id: string
+          sugestao_original_json: Json | null
+          updated_at: string
+        }
+        Insert: {
+          atribuicao_final_json?: Json | null
+          avaliador_id: string
+          classificacao?: string
+          created_at?: string
+          diferencas_json?: Json | null
+          id?: string
+          motivo_ajuste?: string | null
+          observacao?: string | null
+          sugestao_ia_id: string
+          sugestao_original_json?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          atribuicao_final_json?: Json | null
+          avaliador_id?: string
+          classificacao?: string
+          created_at?: string
+          diferencas_json?: Json | null
+          id?: string
+          motivo_ajuste?: string | null
+          observacao?: string | null
+          sugestao_ia_id?: string
+          sugestao_original_json?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_feedback_sugestao_ia_id_fkey"
+            columns: ["sugestao_ia_id"]
+            isOneToOne: false
+            referencedRelation: "ia_sugestoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ia_queixa_tratamento: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          observacao_doutrinaria: string | null
+          observacao_operacional: string | null
+          peso: number
+          prioridade: string
+          queixa_id: string
+          status: string
+          tipo_relacao: string
+          tratamento_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          observacao_doutrinaria?: string | null
+          observacao_operacional?: string | null
+          peso?: number
+          prioridade?: string
+          queixa_id: string
+          status?: string
+          tipo_relacao?: string
+          tratamento_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          observacao_doutrinaria?: string | null
+          observacao_operacional?: string | null
+          peso?: number
+          prioridade?: string
+          queixa_id?: string
+          status?: string
+          tipo_relacao?: string
+          tratamento_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_queixa_tratamento_queixa_id_fkey"
+            columns: ["queixa_id"]
+            isOneToOne: false
+            referencedRelation: "ia_queixas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_queixa_tratamento_tratamento_id_fkey"
+            columns: ["tratamento_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_tratamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ia_queixas: {
+        Row: {
+          categoria: string
+          created_at: string
+          created_by: string
+          descricao: string | null
+          id: string
+          nivel_relevancia: string
+          nome_queixa: string
+          observacoes: string | null
+          palavras_chave: string[] | null
+          sinonimos: string[] | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string
+          created_at?: string
+          created_by: string
+          descricao?: string | null
+          id?: string
+          nivel_relevancia?: string
+          nome_queixa: string
+          observacoes?: string | null
+          palavras_chave?: string[] | null
+          sinonimos?: string[] | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          created_by?: string
+          descricao?: string | null
+          id?: string
+          nivel_relevancia?: string
+          nome_queixa?: string
+          observacoes?: string | null
+          palavras_chave?: string[] | null
+          sinonimos?: string[] | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ia_sugestoes: {
+        Row: {
+          assistido_id: string
+          created_at: string
+          entrevista_id: string | null
+          entrevistador_id: string
+          id: string
+          justificativa_ia: string | null
+          materiais_consultados_json: Json | null
+          quantidades_sugeridas_json: Json | null
+          queixas_identificadas_json: Json | null
+          resumo_ia: string | null
+          status: string
+          tratamentos_sugeridos_json: Json | null
+          updated_at: string
+        }
+        Insert: {
+          assistido_id: string
+          created_at?: string
+          entrevista_id?: string | null
+          entrevistador_id: string
+          id?: string
+          justificativa_ia?: string | null
+          materiais_consultados_json?: Json | null
+          quantidades_sugeridas_json?: Json | null
+          queixas_identificadas_json?: Json | null
+          resumo_ia?: string | null
+          status?: string
+          tratamentos_sugeridos_json?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          assistido_id?: string
+          created_at?: string
+          entrevista_id?: string | null
+          entrevistador_id?: string
+          id?: string
+          justificativa_ia?: string | null
+          materiais_consultados_json?: Json | null
+          quantidades_sugeridas_json?: Json | null
+          queixas_identificadas_json?: Json | null
+          resumo_ia?: string | null
+          status?: string
+          tratamentos_sugeridos_json?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_sugestoes_assistido_id_fkey"
+            columns: ["assistido_id"]
+            isOneToOne: false
+            referencedRelation: "assistidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_sugestoes_entrevista_id_fkey"
+            columns: ["entrevista_id"]
+            isOneToOne: false
+            referencedRelation: "entrevistas_fraternas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instituicao_config: {
         Row: {
           bairro: string | null
