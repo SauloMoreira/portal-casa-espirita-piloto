@@ -317,6 +317,14 @@ export default function CoordenadorListaEspera() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Carta de Agendamento */}
+      <CartaAgendamento
+        open={cartaOpen}
+        onOpenChange={setCartaOpen}
+        assistidoId={cartaAssistidoId}
+        assistidoTratamentoIds={cartaVinculoIds}
+      />
     </div>
   );
 }
