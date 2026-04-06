@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, ArrowLeft, Users, CalendarCheck, ClipboardList, CheckCircle, CalendarX, Briefcase } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import AssistidosPorTratamento from "@/components/relatorios/AssistidosPorTratamento";
 import FrequenciaPresenca from "@/components/relatorios/FrequenciaPresenca";
 import EntrevistasRealizadas from "@/components/relatorios/EntrevistasRealizadas";
 import TratamentosConcluidos from "@/components/relatorios/TratamentosConcluidos";
 import FaltasPorPeriodo from "@/components/relatorios/FaltasPorPeriodo";
 import CargaPorTarefeiro from "@/components/relatorios/CargaPorTarefeiro";
+import PainelGerencial from "@/components/relatorios/PainelGerencial";
 
 const REPORTS = [
   { key: "assistidos", title: "Assistidos por Tratamento", icon: Users, desc: "Vínculos e status dos assistidos por tratamento" },
@@ -31,6 +33,10 @@ const COMPONENTS: Record<ReportKey, React.FC> = {
 
 export default function Relatorios() {
   const [active, setActive] = useState<ReportKey | null>(null);
+  const { role } = useAuth();
+
+  // Gerencial reports restricted to admin and coordenador
+  const showGerencial = role === "admin" || role === "coordenador_de_tratamento";
 
   if (active) {
     const report = REPORTS.find((r) => r.key === active)!;
@@ -57,6 +63,13 @@ export default function Relatorios() {
         <h1 className="text-2xl font-display font-bold text-foreground">Relatórios</h1>
         <p className="text-sm text-muted-foreground mt-1">Relatórios operacionais e gerenciais</p>
       </div>
+
+      {showGerencial && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Painel Gerencial — Mês Atual</h2>
+          <PainelGerencial />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {REPORTS.map((r) => {

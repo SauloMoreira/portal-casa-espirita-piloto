@@ -46,6 +46,7 @@ export const defaultFilters = (): FilterValues => ({
 
 export default function ReportFilters({ values, onChange, show = [] }: Props) {
   const [tratamentos, setTratamentos] = useState<Option[]>([]);
+  const [tiposTratamento, setTiposTratamento] = useState<string[]>([]);
   const [assistidos, setAssistidos] = useState<Option[]>([]);
   const [tarefeiros, setTarefeiros] = useState<Option[]>([]);
   const [coordenadores, setCoordenadores] = useState<Option[]>([]);
@@ -57,8 +58,9 @@ export default function ReportFilters({ values, onChange, show = [] }: Props) {
 
       if (show.includes("tratamentoId") || show.includes("tipoTratamento")) {
         promises.push(
-          supabase.from("tipos_tratamento").select("id, nome").order("nome").then(({ data }) => {
-            setTratamentos((data || []).map((t) => ({ id: t.id, nome: t.nome })));
+          supabase.from("tipos_tratamento").select("id, nome, tipo").order("nome").then(({ data }) => {
+            setTratamentos((data || []).map((t: any) => ({ id: t.id, nome: t.nome })));
+            setTiposTratamento([...new Set((data || []).map((t: any) => t.tipo as string).filter(Boolean))]);
           })
         );
       }
@@ -182,6 +184,18 @@ export default function ReportFilters({ values, onChange, show = [] }: Props) {
             <SelectContent>
               <SelectItem value="todos">Todos</SelectItem>
               {entrevistadores.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {visible("tipoTratamento") && tiposTratamento.length > 0 && (
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Tipo Tratamento</Label>
+          <Select value={values.tipoTratamento} onValueChange={(v) => set("tipoTratamento", v)}>
+            <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {tiposTratamento.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
