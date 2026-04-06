@@ -16,9 +16,11 @@ const STATUS_SESSAO_LABELS: Record<string, string> = {
 };
 
 export default function MinhaAgenda() {
-  const [sessoes, setSessoes] = useState<any[]>([]);
+  const [sessoesFuturas, setSessoesFuturas] = useState<any[]>([]);
+  const [sessoesPassadas, setSessoesPassadas] = useState<any[]>([]);
   const [entrevistas, setEntrevistas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showHistorico, setShowHistorico] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -28,14 +30,20 @@ export default function MinhaAgenda() {
 
       const hoje = new Date().toISOString().split("T")[0];
 
-      const [{ data: agendaSessoes }, { data: ent }] = await Promise.all([
+      const [{ data: futuras }, { data: passadas }, { data: ent }] = await Promise.all([
         supabase.from("agenda_tratamentos_assistido")
           .select("id, tratamento_id, data_sessao, horario, status")
           .eq("assistido_id", assistido.id)
           .eq("status", "agendado")
           .gte("data_sessao", hoje)
           .order("data_sessao", { ascending: true })
-          .limit(20),
+          .limit(30),
+        supabase.from("agenda_tratamentos_assistido")
+          .select("id, tratamento_id, data_sessao, horario, status")
+          .eq("assistido_id", assistido.id)
+          .in("status", ["realizado", "ausente", "cancelado", "remarcado"])
+          .order("data_sessao", { ascending: false })
+          .limit(30),
         supabase.from("entrevistas_fraternas")
           .select("id, data, tipo_entrevista, status")
           .eq("assistido_id", assistido.id)
@@ -43,14 +51,14 @@ export default function MinhaAgenda() {
           .order("data"),
       ]);
 
-      if (agendaSessoes && agendaSessoes.length > 0) {
-        const tratIds = [...new Set(agendaSessoes.map((s) => s.tratamento_id))];
+      const allSessoes = [...(futuras || []), ...(passadas || [])];
+      if (allSessoes.length > 0) {
+        const tratIds = [...new Set(allSessoes.map((s) => s.tratamento_id))];
         const { data: tipos } = await supabase.from("tipos_tratamento").select("id, nome").in("id", tratIds);
         const tipoMap = Object.fromEntries((tipos || []).map((t) => [t.id, t]));
-        setSessoes(agendaSessoes.map((s) => ({
-          ...s,
-          tratamento_nome: tipoMap[s.tratamento_id]?.nome || "—",
-        })));
+        const addNome = (s: any) => ({ ...s, tratamento_nome: tipoMap[s.tratamento_id]?.nome || "—" });
+        setSessoesFuturas((futuras || []).map(addNome));
+        setSessoesPassadas((passadas || []).map(addNome));
       }
 
       setEntrevistas(ent || []);
@@ -58,7 +66,6 @@ export default function MinhaAgenda() {
     };
     fetchData();
   }, [user]);
-
   if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>;
 
   return (
