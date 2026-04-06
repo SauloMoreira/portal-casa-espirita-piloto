@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Link2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Link2, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIAS = [
@@ -70,6 +70,8 @@ export default function QueixasTratamentos() {
   const [sinonimos, setSinonimos] = useState("");
   const [nivelRelevancia, setNivelRelevancia] = useState("media");
   const [observacoes, setObservacoes] = useState("");
+  const [selectedTratamentos, setSelectedTratamentos] = useState<string[]>([]);
+  const [tratSearch, setTratSearch] = useState("");
 
   // Vinculos
   const [showVinculos, setShowVinculos] = useState<string | null>(null);
@@ -107,9 +109,11 @@ export default function QueixasTratamentos() {
     setSinonimos("");
     setNivelRelevancia("media");
     setObservacoes("");
+    setSelectedTratamentos([]);
+    setTratSearch("");
   };
 
-  const openEdit = (q: Queixa) => {
+  const openEdit = async (q: Queixa) => {
     setEditId(q.id);
     setNome(q.nome_queixa);
     setCategoria(q.categoria);
@@ -118,6 +122,10 @@ export default function QueixasTratamentos() {
     setSinonimos((q.sinonimos || []).join(", "));
     setNivelRelevancia(q.nivel_relevancia);
     setObservacoes(q.observacoes || "");
+    // Load existing vinculos for this queixa
+    const { data } = await supabase.from("ia_queixa_tratamento").select("tratamento_id").eq("queixa_id", q.id);
+    setSelectedTratamentos((data || []).map(v => v.tratamento_id));
+    setTratSearch("");
     setShowForm(true);
   };
 
@@ -134,15 +142,33 @@ export default function QueixasTratamentos() {
       created_by: user!.id,
     };
 
+    let queixaId = editId;
+
     if (editId) {
       const { error } = await supabase.from("ia_queixas").update(payload).eq("id", editId);
       if (error) { toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Queixa atualizada" });
     } else {
-      const { error } = await supabase.from("ia_queixas").insert(payload);
+      const { data, error } = await supabase.from("ia_queixas").insert(payload).select("id").single();
       if (error) { toast({ title: "Erro ao criar", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Queixa criada" });
+      queixaId = data.id;
     }
+
+    // Sync tratamentos vinculos
+    if (queixaId) {
+      // Remove existing vinculos
+      await supabase.from("ia_queixa_tratamento").delete().eq("queixa_id", queixaId);
+      // Insert new vinculos
+      if (selectedTratamentos.length > 0) {
+        const vinculosPayload = selectedTratamentos.map(tId => ({
+          queixa_id: queixaId!,
+          tratamento_id: tId,
+          created_by: user!.id,
+        }));
+        await supabase.from("ia_queixa_tratamento").insert(vinculosPayload);
+      }
+    }
+
+    toast({ title: editId ? "Queixa atualizada" : "Queixa criada" });
     setShowForm(false);
     resetForm();
     fetchQueixas();
@@ -284,6 +310,48 @@ export default function QueixasTratamentos() {
               </Select>
             </div>
             <div><Label>Observações internas</Label><Textarea value={observacoes} onChange={e => setObservacoes(e.target.value)} rows={2} /></div>
+            <div>
+              <Label>Tratamentos adequados</Label>
+              <div className="border rounded-md p-2 space-y-2 mt-1">
+                {selectedTratamentos.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedTratamentos.map(tId => {
+                      const t = tratamentos.find(tr => tr.id === tId);
+                      return (
+                        <Badge key={tId} variant="secondary" className="gap-1 pr-1">
+                          {t?.nome || "—"}
+                          <button type="button" onClick={() => setSelectedTratamentos(prev => prev.filter(id => id !== tId))} className="hover:bg-muted rounded-full p-0.5">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+                <Input
+                  placeholder="Buscar tratamento..."
+                  value={tratSearch}
+                  onChange={e => setTratSearch(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                {tratSearch && (
+                  <div className="max-h-32 overflow-y-auto border rounded-md">
+                    {tratamentos
+                      .filter(t => !selectedTratamentos.includes(t.id) && t.nome.toLowerCase().includes(tratSearch.toLowerCase()))
+                      .map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors"
+                          onClick={() => { setSelectedTratamentos(prev => [...prev, t.id]); setTratSearch(""); }}
+                        >
+                          {t.nome}
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           <DialogFooter><Button onClick={handleSave}>{editId ? "Salvar" : "Criar"}</Button></DialogFooter>
         </DialogContent>
