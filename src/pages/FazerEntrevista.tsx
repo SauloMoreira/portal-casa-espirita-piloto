@@ -150,6 +150,7 @@ export default function FazerEntrevista() {
   const [isRecording, setIsRecording] = useState(false);
   const isRecordingRef = useRef(false);
   const recognitionRef = useRef<any>(null);
+  const transcriptBaseRef = useRef("");
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -684,14 +685,14 @@ export default function FazerEntrevista() {
       return;
     }
 
-    const startRecognition = (seedTranscript: string) => {
+    transcriptBaseRef.current = observacoes.trim();
+
+    const startRecognition = () => {
       const recognition = new SpeechRecognition();
       recognition.lang = "pt-BR";
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
-
-      let finalTranscript = seedTranscript.trim();
       recognitionRef.current = recognition;
 
       recognition.onresult = (event: any) => {
@@ -702,13 +703,13 @@ export default function FazerEntrevista() {
           if (!transcript) continue;
 
           if (event.results[i].isFinal) {
-            finalTranscript = [finalTranscript, transcript].filter(Boolean).join(" ").trim();
+            transcriptBaseRef.current = [transcriptBaseRef.current, transcript].filter(Boolean).join(" ").trim();
           } else {
             interimTranscript = [interimTranscript, transcript].filter(Boolean).join(" ").trim();
           }
         }
 
-        const combinedTranscript = [finalTranscript, interimTranscript].filter(Boolean).join(" ").trim();
+        const combinedTranscript = [transcriptBaseRef.current, interimTranscript].filter(Boolean).join(" ").trim();
         setObservacoes(combinedTranscript);
       };
 
@@ -752,7 +753,7 @@ export default function FazerEntrevista() {
 
         window.setTimeout(() => {
           if (isRecordingRef.current) {
-            startRecognition(finalTranscript);
+            startRecognition();
           }
         }, 250);
       };
@@ -762,7 +763,7 @@ export default function FazerEntrevista() {
 
     isRecordingRef.current = true;
     setIsRecording(true);
-    startRecognition(observacoes);
+    startRecognition();
     toast({ title: "🎙️ Gravando...", description: "Fale normalmente. O texto será transcrito automaticamente." });
   };
 
@@ -916,7 +917,11 @@ export default function FazerEntrevista() {
                 )}
                 <Textarea
                   value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    transcriptBaseRef.current = nextValue;
+                    setObservacoes(nextValue);
+                  }}
                   rows={5}
                   placeholder="Registre observações importantes da entrevista ou use o botão Gravar Voz..."
                 />
