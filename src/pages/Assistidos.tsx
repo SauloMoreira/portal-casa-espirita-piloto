@@ -324,6 +324,15 @@ export default function Assistidos() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        {a.user_id ? (
+                          <Badge variant="outline" className="text-xs text-green-600 border-green-300">Ativo</Badge>
+                        ) : (
+                          <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => { setAcessoAssistido(a); setAcessoOpen(true); }}>
+                            <KeyRound className="h-3.5 w-3.5" /> Gerar
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(a)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
