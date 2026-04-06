@@ -12,7 +12,7 @@ interface TermoAdesaoProps {
   funcoesNomes?: string[];
 }
 
-export function TermoAdesao({ open, onClose, voluntario, instituicao }: TermoAdesaoProps) {
+export function TermoAdesao({ open, onClose, voluntario, instituicao, funcoesNomes }: TermoAdesaoProps) {
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
