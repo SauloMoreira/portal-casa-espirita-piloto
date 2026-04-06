@@ -41,9 +41,15 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const ThemeLoader = ({ children }: { children: React.ReactNode }) => {
+  useThemeColors();
+  return <>{children}</>;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <ThemeLoader>
       <TooltipProvider>
         <Toaster />
         <Sonner />
