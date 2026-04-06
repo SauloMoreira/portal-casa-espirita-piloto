@@ -666,8 +666,10 @@ export default function FazerEntrevista() {
       return;
     }
 
-    if (isRecording && recognitionRef[0]) {
-      recognitionRef[0].stop();
+    if (isRecording && recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+      isRecordingRef.current = false;
       setIsRecording(false);
       return;
     }
