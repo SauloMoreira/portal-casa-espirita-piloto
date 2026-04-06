@@ -168,6 +168,8 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
           .signature { margin-top: 40px; display: flex; justify-content: space-around; }
           .signature-line { text-align: center; width: 200px; }
           .signature-line hr { border: none; border-top: 1px solid #333; margin-bottom: 4px; }
+          ul.recomendacoes { list-style: disc; padding-left: 20px; margin: 0; }
+          ul.recomendacoes li { margin-bottom: 6px; line-height: 1.5; }
           @media print { body { padding: 16px; } }
         </style>
       </head>
@@ -334,13 +336,13 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
               <div style={{ fontSize: 13, fontWeight: "bold", borderBottom: "1px solid #ccc", paddingBottom: 4, marginBottom: 8 }}>
                 Recomendações
               </div>
-              <ul style={{ fontSize: 11, lineHeight: 1.6, paddingLeft: 18, margin: 0, color: "#333" }}>
-                <li>Não comer carne de nenhuma espécie nos dias dos tratamentos (bovina, suína, frango, peixes, frutos do mar em geral, enlatados e embutidos).</li>
-                <li>É permitida a ingestão de ovos, leite e derivados, frutas, legumes, vegetais e cereais.</li>
-                <li>Não é necessário vir de branco, mas são recomendáveis roupas leves, confortáveis e, se possível, de cor clara.</li>
-                <li>Evitar decotes, shorts curtos, saias curtas; não será permitido o uso de roupas de praia.</li>
-                <li>Ficar atento à agenda dos trabalhos holísticos.</li>
-                <li>Nos trabalhos de Acupuntura, Apoio Psicológico e Homeopatia, o responsável pelo tratamento entrará em contato para agendar o dia e horário.</li>
+              <ul className="recomendacoes" style={{ fontSize: 11, listStyle: "disc", paddingLeft: 20, margin: 0, color: "#333" }}>
+                <li style={{ marginBottom: 6 }}>Não comer carne de nenhuma espécie nos dias dos tratamentos (bovina, suína, frango, peixes, frutos do mar em geral, enlatados e embutidos).</li>
+                <li style={{ marginBottom: 6 }}>É permitida a ingestão de ovos, leite e derivados, frutas, legumes, vegetais e cereais.</li>
+                <li style={{ marginBottom: 6 }}>Não é necessário vir de branco, mas são recomendáveis roupas leves, confortáveis e, se possível, de cor clara.</li>
+                <li style={{ marginBottom: 6 }}>Evitar decotes, shorts curtos, saias curtas; não será permitido o uso de roupas de praia.</li>
+                <li style={{ marginBottom: 6 }}>Ficar atento à agenda dos trabalhos holísticos.</li>
+                <li style={{ marginBottom: 0 }}>Nos trabalhos de Acupuntura, Apoio Psicológico e Homeopatia, o responsável pelo tratamento entrará em contato para agendar o dia e o horário.</li>
               </ul>
             </div>
 
