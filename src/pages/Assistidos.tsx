@@ -72,7 +72,9 @@ export default function Assistidos() {
   const [loading, setLoading] = useState(false);
   const [acessoOpen, setAcessoOpen] = useState(false);
   const [acessoAssistido, setAcessoAssistido] = useState<Assistido | null>(null);
-  const { user } = useAuth();
+  const [resetAssistido, setResetAssistido] = useState<Assistido | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const { user, role } = useAuth();
   const { toast } = useToast();
 
   const fetchAssistidos = async () => {
