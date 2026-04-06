@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Cog, Save } from "lucide-react";
+import { Cog, Save, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Regra {
@@ -34,8 +34,13 @@ export default function RegrasOperacionais() {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Regras da Entrevista Fraterna (from configuracoes_gerais)
+  const [minPalestras, setMinPalestras] = useState("3");
+  const [permitirLivre, setPermitirLivre] = useState(true);
+  const [loadingEntrevista, setLoadingEntrevista] = useState(false);
+
   useEffect(() => {
-    const load = async () => {
+    const loadRegras = async () => {
       const { data } = await supabase
         .from("regras_operacionais")
         .select("*")
@@ -47,7 +52,19 @@ export default function RegrasOperacionais() {
         setEditValues(vals);
       }
     };
-    load();
+
+    const loadEntrevista = async () => {
+      const { data } = await supabase.from("configuracoes_gerais").select("chave, valor");
+      if (data) {
+        const minP = data.find((c) => c.chave === "quantidade_minima_palestras");
+        const livre = data.find((c) => c.chave === "permitir_entrevista_livre");
+        if (minP) setMinPalestras(minP.valor);
+        if (livre) setPermitirLivre(livre.valor === "true");
+      }
+    };
+
+    loadRegras();
+    loadEntrevista();
   }, []);
 
   const handleSave = async () => {
@@ -66,15 +83,68 @@ export default function RegrasOperacionais() {
     setLoading(false);
   };
 
+  const handleSaveEntrevista = async () => {
+    setLoadingEntrevista(true);
+    const configs = [
+      { chave: "quantidade_minima_palestras", valor: minPalestras, descricao: "Quantidade mínima de palestras para entrevista fraterna" },
+      { chave: "permitir_entrevista_livre", valor: permitirLivre.toString(), descricao: "Permite agendar entrevista sem o mínimo de palestras" },
+    ];
+
+    for (const c of configs) {
+      const { data: existing } = await supabase.from("configuracoes_gerais").select("id").eq("chave", c.chave).maybeSingle();
+      if (existing) {
+        await supabase.from("configuracoes_gerais").update({ valor: c.valor, updated_by: user?.id }).eq("chave", c.chave);
+      } else {
+        await supabase.from("configuracoes_gerais").insert({ ...c, updated_by: user?.id });
+      }
+    }
+
+    toast({ title: "Regras da entrevista salvas" });
+    setLoadingEntrevista(false);
+  };
+
   const isBooleanRule = (chave: string) => chave === "retorno_fraterno_pos_conclusao";
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-display font-bold text-foreground">Regras Operacionais</h1>
-        <p className="text-sm text-muted-foreground mt-1">Configure os parâmetros de automação e alertas do sistema</p>
+        <p className="text-sm text-muted-foreground mt-1">Configure os parâmetros de automação, alertas e regras de negócio do sistema</p>
       </div>
 
+      {/* Regras da Entrevista Fraterna */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-primary" />
+            Regras da Entrevista Fraterna
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="min-palestras">Quantidade mínima de palestras para entrevista</Label>
+            <Input id="min-palestras" type="number" min={0} value={minPalestras} onChange={(e) => setMinPalestras(e.target.value)} className="max-w-32" />
+            <p className="text-xs text-muted-foreground">
+              Assistido deve ter este número de palestras para ser elegível à entrevista fraterna regular
+            </p>
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <Label>Permitir entrevista fraterna livre</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Permite agendar entrevistas sem atingir o mínimo de palestras
+              </p>
+            </div>
+            <Switch checked={permitirLivre} onCheckedChange={setPermitirLivre} />
+          </div>
+          <Button onClick={handleSaveEntrevista} disabled={loadingEntrevista} className="gap-2">
+            <Save className="h-4 w-4" />
+            {loadingEntrevista ? "Salvando..." : "Salvar Regras da Entrevista"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Motor de Regras */}
       <Card className="glass-card">
         <CardHeader>
           <CardTitle className="text-base font-semibold flex items-center gap-2">

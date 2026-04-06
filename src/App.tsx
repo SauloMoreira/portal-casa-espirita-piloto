@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { useThemeColors } from "@/hooks/useThemeColors";
 
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -23,6 +24,7 @@ import MinhaAgenda from "./pages/MinhaAgenda";
 import MeuPerfil from "./pages/MeuPerfil";
 import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
+import GestaoCores from "./pages/GestaoCores";
 import Auditoria from "./pages/Auditoria";
 import RegrasOperacionais from "./pages/RegrasOperacionais";
 import Excecoes from "./pages/Excecoes";
@@ -39,9 +41,15 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const ThemeLoader = ({ children }: { children: React.ReactNode }) => {
+  useThemeColors();
+  return <>{children}</>;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <ThemeLoader>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -71,6 +79,7 @@ const App = () => (
               <Route path="/coordenador-agenda" element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}><CoordenadorAgenda /></ProtectedRoute>} />
               <Route path="/relatorios" element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "coordenador_de_tratamento", "tarefeiro"]}><Relatorios /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute allowedRoles={["admin"]}><Configuracoes /></ProtectedRoute>} />
+              <Route path="/configuracoes/cores" element={<ProtectedRoute allowedRoles={["admin"]}><GestaoCores /></ProtectedRoute>} />
               <Route path="/auditoria" element={<ProtectedRoute allowedRoles={["admin"]}><Auditoria /></ProtectedRoute>} />
               <Route path="/regras" element={<ProtectedRoute allowedRoles={["admin"]}><RegrasOperacionais /></ProtectedRoute>} />
               <Route path="/excecoes" element={<ProtectedRoute allowedRoles={["admin"]}><Excecoes /></ProtectedRoute>} />
@@ -84,6 +93,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+      </ThemeLoader>
     </AuthProvider>
   </QueryClientProvider>
 );

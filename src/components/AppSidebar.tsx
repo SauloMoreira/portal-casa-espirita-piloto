@@ -22,6 +22,7 @@ import {
   Stethoscope,
   BarChart3,
   Landmark,
+  Palette,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -119,6 +120,7 @@ const navGroups: NavGroup[] = [
       { title: "Instituição", url: "/instituicao", icon: Building2, roles: ["admin"] },
       { title: "Regras Operacionais", url: "/regras", icon: Cog, roles: ["admin"] },
       { title: "Configurações", url: "/configuracoes", icon: Settings, roles: ["admin"] },
+      { title: "Gestão de Cores", url: "/configuracoes/cores", icon: Palette, roles: ["admin"] },
     ],
   },
 ];
@@ -159,7 +161,7 @@ export function AppSidebar() {
   useEffect(() => {
     const newOpen: Record<string, boolean> = {};
     navGroups.forEach((group) => {
-      const hasActive = group.items.some((item) => location.pathname === item.url);
+      const hasActive = group.items.some((item) => location.pathname === item.url || location.pathname.startsWith(item.url + "/"));
       if (hasActive) newOpen[group.label] = true;
     });
     setOpenGroups((prev) => ({ ...prev, ...newOpen }));
