@@ -696,9 +696,13 @@ export default function FazerEntrevista() {
       // "aborted" and "no-speech" are non-critical – don't show error toast
       if (event.error === "not-allowed") {
         toast({ title: "Microfone bloqueado", description: "Permita o acesso ao microfone nas configurações do navegador.", variant: "destructive" });
+        isRecordingRef.current = false;
+        recognitionRef.current = null;
         setIsRecording(false);
       } else if (event.error !== "no-speech" && event.error !== "aborted") {
         toast({ title: "Erro no reconhecimento de voz", description: event.error, variant: "destructive" });
+        isRecordingRef.current = false;
+        recognitionRef.current = null;
         setIsRecording(false);
       }
     };
