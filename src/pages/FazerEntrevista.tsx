@@ -753,7 +753,7 @@ export default function FazerEntrevista() {
 
         window.setTimeout(() => {
           if (isRecordingRef.current) {
-            startRecognition(finalTranscript);
+            startRecognition();
           }
         }, 250);
       };
@@ -763,7 +763,7 @@ export default function FazerEntrevista() {
 
     isRecordingRef.current = true;
     setIsRecording(true);
-    startRecognition(observacoes);
+    startRecognition();
     toast({ title: "🎙️ Gravando...", description: "Fale normalmente. O texto será transcrito automaticamente." });
   };
 
