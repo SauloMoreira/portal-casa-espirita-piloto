@@ -628,6 +628,34 @@ export default function FazerEntrevista() {
     setSaving(false);
   };
 
+  const handleAiAssistant = async () => {
+    if (!observacoes.trim()) {
+      toast({ title: "Preencha as observações antes de usar o assistente", variant: "destructive" });
+      return;
+    }
+    setAiLoading(true);
+    setAiSugestao("");
+    setAiOpen(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("assistente-entrevista", {
+        body: {
+          observacoes,
+          assistido_nome: selectedAssistido?.nome || "",
+          tratamentos_disponiveis: tratamentos.map(t => ({ nome: t.nome, tipo: t.tipo, quantidade_padrao_sessoes: t.quantidade_padrao_sessoes })),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiSugestao(data.sugestao || "Sem resposta.");
+    } catch (e: any) {
+      const msg = e?.message || "Erro ao consultar assistente";
+      setAiSugestao(`❌ ${msg}`);
+      toast({ title: "Erro no assistente IA", description: msg, variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
