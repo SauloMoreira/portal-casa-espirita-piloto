@@ -148,7 +148,7 @@ export default function FazerEntrevista() {
     const fetchData = async () => {
       const [{ data: assist }, { data: trat }, { data: config }] = await Promise.all([
         supabase.from("assistidos").select("id, nome, cpf, celular, email, status, quantidade_palestras").is("deleted_at", null).order("nome"),
-        supabase.from("tipos_tratamento").select("id, nome, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade, status, ordem_tratamento, tratamento_livre, bloqueia_proximo_tratamento, modo_agendamento").eq("status", "ativo"),
+        supabase.from("tipos_tratamento").select("id, nome, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade, status, ordem_tratamento, tratamento_livre, bloqueia_proximo_tratamento, modo_agendamento, quantidade_padrao_sessoes").eq("status", "ativo"),
         supabase.from("configuracoes_gerais").select("chave, valor"),
       ]);
       if (assist) setAssistidos(assist as Assistido[]);
