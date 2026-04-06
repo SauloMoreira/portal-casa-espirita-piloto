@@ -20,6 +20,7 @@ import Agenda from "./pages/Agenda";
 import Presenca from "./pages/Presenca";
 import MeusTratamentos from "./pages/MeusTratamentos";
 import MinhaAgenda from "./pages/MinhaAgenda";
+import MeuPerfil from "./pages/MeuPerfil";
 import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
 import Auditoria from "./pages/Auditoria";
