@@ -69,7 +69,8 @@ export default function TarefeiroDashboard() {
       .filter((s) => {
         const trat = tratMap[s.tratamento_id];
         if (!trat) return false;
-        if (trat.tarefeiro_id !== user.id) return false;
+        // Show all sessions if tarefeiro_id not set, or only the tarefeiro's own
+        if (trat.tarefeiro_id && trat.tarefeiro_id !== user.id) return false;
         return vinculoMap[s.assistido_tratamento_id] != null;
       })
       .map((s) => {
