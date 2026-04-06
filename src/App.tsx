@@ -33,6 +33,7 @@ import CoordenadorAgenda from "./pages/CoordenadorAgenda";
 import Notificacoes from "./pages/Notificacoes";
 import MeusDocumentos from "./pages/MeusDocumentos";
 import CentralIA from "./pages/CentralIA";
+import Voluntarios from "./pages/Voluntarios";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
