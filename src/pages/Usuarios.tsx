@@ -368,7 +368,12 @@ export default function Usuarios() {
                           {u.profile?.status === "ativo" ? "Ativo" : "Inativo"}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="flex items-center gap-1">
+                        {role === "admin" && (
+                          <Button variant="ghost" size="icon" title="Redefinir senha" onClick={() => { setResetTarget(u); setResetOpen(true); }}>
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -381,6 +386,15 @@ export default function Usuarios() {
           )}
         </CardContent>
       </Card>
+
+      {resetTarget && (
+        <ResetPasswordDialog
+          open={resetOpen}
+          onOpenChange={setResetOpen}
+          targetUserId={resetTarget.user_id}
+          targetUserName={resetTarget.profile?.nome_completo || resetTarget.user_id.substring(0, 8)}
+        />
+      )}
     </div>
   );
 }
