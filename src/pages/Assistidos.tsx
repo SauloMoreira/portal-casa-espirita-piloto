@@ -16,6 +16,7 @@ import { PhotoUpload } from "@/components/PhotoUpload";
 import { AddressFields } from "@/components/AddressFields";
 import { isValidCPF, isValidEmail, isValidPhone, maskCPF, maskPhone } from "@/lib/validators";
 import { GerarAcessoAssistido } from "@/components/GerarAcessoAssistido";
+import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 
 interface Assistido {
   id: string;
