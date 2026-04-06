@@ -329,8 +329,28 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
               </div>
             ))}
 
+            {/* Recomendações */}
+            <div style={{ marginTop: 20, pageBreakInside: "avoid" }}>
+              <div style={{ fontSize: 13, fontWeight: "bold", borderBottom: "1px solid #ccc", paddingBottom: 4, marginBottom: 8 }}>
+                Recomendações
+              </div>
+              <ul style={{ fontSize: 11, lineHeight: 1.6, paddingLeft: 18, margin: 0, color: "#333" }}>
+                <li>Não comer carne de nenhuma espécie nos dias dos tratamentos (bovina, suína, frango, peixes, frutos do mar em geral, enlatados e embutidos).</li>
+                <li>É permitida a ingestão de ovos, leite e derivados, frutas, legumes, vegetais e cereais.</li>
+                <li>Não é necessário vir de branco, mas são recomendáveis roupas leves, confortáveis e, se possível, de cor clara.</li>
+                <li>Evitar decotes, shorts curtos, saias curtas; não será permitido o uso de roupas de praia.</li>
+                <li>Ficar atento à agenda dos trabalhos holísticos.</li>
+                <li>Nos trabalhos de Acupuntura, Apoio Psicológico e Homeopatia, o responsável pelo tratamento entrará em contato para agendar o dia e horário.</li>
+              </ul>
+            </div>
+
+            {/* Orientação sobre o app */}
+            <div style={{ marginTop: 14, padding: "8px 12px", background: "#f0f7ff", border: "1px solid #cce0f5", borderRadius: 4, fontSize: 11, color: "#1a1a1a", lineHeight: 1.5, pageBreakInside: "avoid" }}>
+              <strong>📱 Acompanhe pelo celular:</strong> Para sua comodidade, você também pode acompanhar pelo celular, no app disponibilizado para você, seus tratamentos, agendamentos e próximas sessões.
+            </div>
+
             {/* Footer */}
-            <div style={{ marginTop: 24, fontSize: 11, color: "#555", textAlign: "center" }}>
+            <div style={{ marginTop: 20, fontSize: 11, color: "#555", textAlign: "center" }}>
               <p>Pedimos que compareça pontualmente nos dias e horários indicados.</p>
               <p>Em caso de impossibilidade, entre em contato com antecedência.</p>
             </div>
