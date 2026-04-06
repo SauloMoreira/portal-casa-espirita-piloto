@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Calendar, Heart, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,9 +17,11 @@ const STATUS_SESSAO_LABELS: Record<string, string> = {
 };
 
 export default function MinhaAgenda() {
-  const [sessoes, setSessoes] = useState<any[]>([]);
+  const [sessoesFuturas, setSessoesFuturas] = useState<any[]>([]);
+  const [sessoesPassadas, setSessoesPassadas] = useState<any[]>([]);
   const [entrevistas, setEntrevistas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showHistorico, setShowHistorico] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -28,14 +31,20 @@ export default function MinhaAgenda() {
 
       const hoje = new Date().toISOString().split("T")[0];
 
-      const [{ data: agendaSessoes }, { data: ent }] = await Promise.all([
+      const [{ data: futuras }, { data: passadas }, { data: ent }] = await Promise.all([
         supabase.from("agenda_tratamentos_assistido")
           .select("id, tratamento_id, data_sessao, horario, status")
           .eq("assistido_id", assistido.id)
           .eq("status", "agendado")
           .gte("data_sessao", hoje)
           .order("data_sessao", { ascending: true })
-          .limit(20),
+          .limit(30),
+        supabase.from("agenda_tratamentos_assistido")
+          .select("id, tratamento_id, data_sessao, horario, status")
+          .eq("assistido_id", assistido.id)
+          .in("status", ["realizado", "ausente", "cancelado", "remarcado"])
+          .order("data_sessao", { ascending: false })
+          .limit(30),
         supabase.from("entrevistas_fraternas")
           .select("id, data, tipo_entrevista, status")
           .eq("assistido_id", assistido.id)
@@ -43,14 +52,14 @@ export default function MinhaAgenda() {
           .order("data"),
       ]);
 
-      if (agendaSessoes && agendaSessoes.length > 0) {
-        const tratIds = [...new Set(agendaSessoes.map((s) => s.tratamento_id))];
+      const allSessoes = [...(futuras || []), ...(passadas || [])];
+      if (allSessoes.length > 0) {
+        const tratIds = [...new Set(allSessoes.map((s) => s.tratamento_id))];
         const { data: tipos } = await supabase.from("tipos_tratamento").select("id, nome").in("id", tratIds);
         const tipoMap = Object.fromEntries((tipos || []).map((t) => [t.id, t]));
-        setSessoes(agendaSessoes.map((s) => ({
-          ...s,
-          tratamento_nome: tipoMap[s.tratamento_id]?.nome || "—",
-        })));
+        const addNome = (s: any) => ({ ...s, tratamento_nome: tipoMap[s.tratamento_id]?.nome || "—" });
+        setSessoesFuturas((futuras || []).map(addNome));
+        setSessoesPassadas((passadas || []).map(addNome));
       }
 
       setEntrevistas(ent || []);
@@ -58,7 +67,6 @@ export default function MinhaAgenda() {
     };
     fetchData();
   }, [user]);
-
   if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>;
 
   return (
@@ -98,15 +106,15 @@ export default function MinhaAgenda() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {sessoes.length === 0 ? (
+          {sessoesFuturas.length === 0 ? (
             <div className="flex flex-col items-center py-8 text-muted-foreground">
               <Heart className="h-8 w-8 mb-2 opacity-30" />
-              <p className="text-sm">Nenhuma sessão agendada</p>
+              <p className="text-sm">Nenhuma sessão agendada no momento</p>
               <p className="text-xs mt-1">Quando suas sessões forem confirmadas, elas aparecerão aqui</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {sessoes.map((s) => {
+              {sessoesFuturas.map((s) => {
                 const dataObj = new Date(s.data_sessao + "T12:00:00");
                 return (
                   <div key={s.id} className="flex items-center justify-between rounded-lg border p-3">
@@ -127,6 +135,46 @@ export default function MinhaAgenda() {
           )}
         </CardContent>
       </Card>
+
+      {/* Histórico de sessões */}
+      {sessoesPassadas.length > 0 && (
+        <Card className="glass-card">
+          <CardHeader className="flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-muted-foreground" /> Histórico
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setShowHistorico(!showHistorico)}>
+              {showHistorico ? "Ocultar" : `Ver (${sessoesPassadas.length})`}
+            </Button>
+          </CardHeader>
+          {showHistorico && (
+            <CardContent>
+              <div className="space-y-2">
+                {sessoesPassadas.map((s) => {
+                  const dataObj = new Date(s.data_sessao + "T12:00:00");
+                  return (
+                    <div key={s.id} className="flex items-center justify-between rounded-lg border border-border/60 p-3 opacity-80">
+                      <div>
+                        <p className="text-sm font-medium">{s.tratamento_nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(dataObj, "dd/MM/yyyy")} — {DIAS_SEMANA[dataObj.getDay()]}
+                          {s.horario && ` às ${s.horario.slice(0, 5)}`}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={s.status === "realizado" ? "default" : s.status === "ausente" ? "destructive" : "secondary"}
+                        className="text-[10px]"
+                      >
+                        {STATUS_SESSAO_LABELS[s.status] || s.status}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
