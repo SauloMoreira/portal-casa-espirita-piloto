@@ -265,6 +265,45 @@ export type Database = {
         }
         Relationships: []
       }
+      avisos_internos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          destinatario_id: string
+          id: string
+          lido: boolean
+          lido_em: string | null
+          link: string | null
+          mensagem: string
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          destinatario_id: string
+          id?: string
+          lido?: boolean
+          lido_em?: string | null
+          link?: string | null
+          mensagem: string
+          tipo?: string
+          titulo: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          destinatario_id?: string
+          id?: string
+          lido?: boolean
+          lido_em?: string | null
+          link?: string | null
+          mensagem?: string
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: []
+      }
       configuracoes_gerais: {
         Row: {
           chave: string

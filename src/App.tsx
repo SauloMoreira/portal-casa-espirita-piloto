@@ -28,6 +28,7 @@ import Instituicao from "./pages/Instituicao";
 import CoordenadorListaEspera from "./pages/CoordenadorListaEspera";
 import CoordenadorTratamentos from "./pages/CoordenadorTratamentos";
 import CoordenadorAgenda from "./pages/CoordenadorAgenda";
+import Notificacoes from "./pages/Notificacoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/meus-tratamentos" element={<ProtectedRoute allowedRoles={["assistido"]}><MeusTratamentos /></ProtectedRoute>} />
               <Route path="/minha-agenda" element={<ProtectedRoute allowedRoles={["assistido"]}><MinhaAgenda /></ProtectedRoute>} />
               <Route path="/meu-perfil" element={<ProtectedRoute allowedRoles={["assistido"]}><MeuPerfil /></ProtectedRoute>} />
+              <Route path="/notificacoes" element={<Notificacoes />} />
               <Route path="/lista-espera" element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}><CoordenadorListaEspera /></ProtectedRoute>} />
               <Route path="/coordenador-tratamentos" element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}><CoordenadorTratamentos /></ProtectedRoute>} />
               <Route path="/coordenador-agenda" element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}><CoordenadorAgenda /></ProtectedRoute>} />

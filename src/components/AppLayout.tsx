@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function AppLayout() {
   const [nomeFantasia, setNomeFantasia] = useState<string | null>(null);
@@ -26,9 +27,10 @@ export function AppLayout() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center border-b bg-card px-4 shrink-0">
             <SidebarTrigger className="mr-4" />
-            <h1 className="text-sm font-medium text-foreground truncate">
+            <h1 className="text-sm font-medium text-foreground truncate flex-1">
               {nomeFantasia || "Casa Espírita"} — Sistema de Gestão
             </h1>
+            <NotificationBell />
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-6">
             <Outlet />

@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAvisos } from "@/hooks/useAvisos";
 import { StatCard } from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart, Calendar, CheckCircle, Clock } from "lucide-react";
+import { Heart, Calendar, CheckCircle, Clock, Bell } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const STATUS_LABELS: Record<string, string> = {
@@ -17,6 +21,8 @@ export default function AssistidoDashboard() {
   const [stats, setStats] = useState({ ativos: 0, realizadas: 0, faltantes: 0 });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { avisos, naoLidos, marcarComoLido } = useAvisos();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetch = async () => {
@@ -100,6 +106,39 @@ export default function AssistidoDashboard() {
               <p className="text-sm">Você ainda não possui tratamentos designados</p>
               <p className="text-xs mt-1">Após sua entrevista fraterna, seus tratamentos aparecerão aqui</p>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Avisos recentes */}
+      {avisos.length > 0 && (
+        <Card className="glass-card">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Bell className="h-4 w-4 text-primary" /> Avisos Recentes
+              {naoLidos > 0 && <Badge className="text-xs">{naoLidos}</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {avisos.slice(0, 3).map((a) => (
+              <div
+                key={a.id}
+                onClick={async () => {
+                  if (!a.lido) await marcarComoLido(a.id);
+                  if (a.link) navigate(a.link);
+                }}
+                className={`rounded-lg border p-3 cursor-pointer hover:bg-muted/30 transition-colors ${!a.lido ? "border-primary/30 bg-primary/5" : ""}`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{a.titulo}</p>
+                  {!a.lido && <span className="h-2 w-2 rounded-full bg-primary" />}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{a.mensagem}</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-1">
+                  {formatDistanceToNow(new Date(a.created_at), { addSuffix: true, locale: ptBR })}
+                </p>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
