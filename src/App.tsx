@@ -29,6 +29,7 @@ import CoordenadorListaEspera from "./pages/CoordenadorListaEspera";
 import CoordenadorTratamentos from "./pages/CoordenadorTratamentos";
 import CoordenadorAgenda from "./pages/CoordenadorAgenda";
 import Notificacoes from "./pages/Notificacoes";
+import MeusDocumentos from "./pages/MeusDocumentos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
