@@ -28,6 +28,7 @@ import Instituicao from "./pages/Instituicao";
 import CoordenadorListaEspera from "./pages/CoordenadorListaEspera";
 import CoordenadorTratamentos from "./pages/CoordenadorTratamentos";
 import CoordenadorAgenda from "./pages/CoordenadorAgenda";
+import Notificacoes from "./pages/Notificacoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
