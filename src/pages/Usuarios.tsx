@@ -68,7 +68,9 @@ export default function Usuarios() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [editUserId, setEditUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const [resetTarget, setResetTarget] = useState<MergedUser | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const { user, role } = useAuth();
   const { toast } = useToast();
 
   const fetchUsers = async () => {
