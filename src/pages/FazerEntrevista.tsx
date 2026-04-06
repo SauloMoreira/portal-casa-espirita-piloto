@@ -596,36 +596,12 @@ export default function FazerEntrevista() {
       }
     }
 
-    // Process Group A (sequential blocking) — only first gets agenda, rest await release
+    // Process Group A (sequential blocking) — schedule ALL in chain
+    // Each treatment starts after the last session of the previous one
     if (groupA.length > 0) {
-      // First blocking treatment: create with aguardando_inicio + generate agenda
-      await createTratamentoSchedule(groupA[0], entrevistaDate);
-
-      // Remaining blocking treatments: create with aguardando_liberacao, NO agenda
-      for (let i = 1; i < groupA.length; i++) {
-        const d = groupA[i];
-        const trat = tratamentoMap[d.tratamento_id];
-        if (!trat) continue;
-
-        const existingVinculo = await findExistingActiveVinculo(d.tratamento_id);
-        if (existingVinculo) {
-          const newTotal = Math.max(d.quantidade_total, existingVinculo.quantidade_realizada);
-          await supabase.from("assistido_tratamentos").update({
-            quantidade_total: newTotal,
-            entrevista_id: entrevista.id,
-            status: "aguardando_liberacao",
-          }).eq("id", existingVinculo.id);
-        } else {
-          await supabase.from("assistido_tratamentos").insert({
-            assistido_id: selectedAssistido!.id,
-            tratamento_id: d.tratamento_id,
-            quantidade_total: d.quantidade_total,
-            quantidade_realizada: 0,
-            status: "aguardando_liberacao",
-            entrevista_id: entrevista.id,
-            created_by: user!.id,
-          } as any);
-        }
+      let chainStartDate = entrevistaDate;
+      for (const d of groupA) {
+        chainStartDate = await createTratamentoSchedule(d, chainStartDate);
       }
     }
 

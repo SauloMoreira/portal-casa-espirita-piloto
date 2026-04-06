@@ -311,20 +311,11 @@ export default function Entrevistas() {
     // Group C (agendado_por_data_inicial): start from interview date (in edit mode, no manual date available)
     for (const d of groupC) await createSchedule(d, entrevistaDate);
 
-    // Group A (sequential): only first gets agenda, rest get aguardando_liberacao
+    // Group A (sequential): schedule ALL in chain, each starts after the previous
     if (groupA.length > 0) {
-      await createSchedule(groupA[0], entrevistaDate);
-      for (let i = 1; i < groupA.length; i++) {
-        const d = groupA[i];
-        await supabase.from("assistido_tratamentos").insert({
-          assistido_id: selectedEntrevista!.assistido_id,
-          tratamento_id: d.tratamento_id,
-          quantidade_total: d.quantidade_total,
-          quantidade_realizada: 0,
-          status: "aguardando_liberacao",
-          entrevista_id: selectedEntrevista!.id,
-          created_by: user!.id,
-        } as any);
+      let chainStartDate = entrevistaDate;
+      for (const d of groupA) {
+        chainStartDate = await createSchedule(d, chainStartDate);
       }
     }
 

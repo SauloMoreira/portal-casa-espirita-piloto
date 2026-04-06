@@ -323,7 +323,7 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
                   </table>
                 ) : (
                   <div style={{ padding: "8px 10px", fontSize: 11, border: "1px solid #ccc", borderTop: 0, fontStyle: "italic", color: "#666" }}>
-                    Sessões ainda não agendadas (aguardando agendamento pelo coordenador)
+                    Sessões ainda não agendadas (aguardando definição de data inicial)
                   </div>
                 )}
               </div>
