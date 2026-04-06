@@ -9,14 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, UserPlus, BookOpen, Heart, CheckCircle, RotateCcw, Printer } from "lucide-react";
+import { Search, UserPlus, BookOpen, Heart, CheckCircle, RotateCcw, Printer, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { AddressFields } from "@/components/AddressFields";
 import { isValidCPF, isValidEmail, isValidPhone, maskCPF, maskPhone } from "@/lib/validators";
 import { addDays, addWeeks, addMonths, getDay, setDay, startOfDay, format } from "date-fns";
 import { CartaAgendamento } from "@/components/CartaAgendamento";
-
+import ReactMarkdown from "react-markdown";
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
 interface Assistido {
@@ -144,6 +144,9 @@ export default function FazerEntrevista() {
   const [cartaOpen, setCartaOpen] = useState(false);
   const [cartaAssistidoId, setCartaAssistidoId] = useState("");
   const [cartaEntrevistaId, setCartaEntrevistaId] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSugestao, setAiSugestao] = useState("");
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -625,6 +628,34 @@ export default function FazerEntrevista() {
     setSaving(false);
   };
 
+  const handleAiAssistant = async () => {
+    if (!observacoes.trim()) {
+      toast({ title: "Preencha as observações antes de usar o assistente", variant: "destructive" });
+      return;
+    }
+    setAiLoading(true);
+    setAiSugestao("");
+    setAiOpen(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("assistente-entrevista", {
+        body: {
+          observacoes,
+          assistido_nome: selectedAssistido?.nome || "",
+          tratamentos_disponiveis: tratamentos.map(t => ({ nome: t.nome, tipo: t.tipo, quantidade_padrao_sessoes: t.quantidade_padrao_sessoes })),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAiSugestao(data.sugestao || "Sem resposta.");
+    } catch (e: any) {
+      const msg = e?.message || "Erro ao consultar assistente";
+      setAiSugestao(`❌ ${msg}`);
+      toast({ title: "Erro no assistente IA", description: msg, variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div>
@@ -741,7 +772,20 @@ export default function FazerEntrevista() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Observações</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Observações</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={handleAiAssistant}
+                    disabled={aiLoading || !observacoes.trim()}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Assistente IA
+                  </Button>
+                </div>
                 <Textarea
                   value={observacoes}
                   onChange={(e) => setObservacoes(e.target.value)}
@@ -926,6 +970,35 @@ export default function FazerEntrevista() {
               {savingAssistido ? "Salvando..." : "Cadastrar Assistido"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assistente IA Dialog */}
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Assistente IA da Entrevista
+            </DialogTitle>
+          </DialogHeader>
+          {aiLoading ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Analisando observações...</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <ReactMarkdown>{aiSugestao}</ReactMarkdown>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  ⚠️ Esta é apenas uma sugestão gerada por IA. A decisão final é sempre do entrevistador.
+                </p>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
