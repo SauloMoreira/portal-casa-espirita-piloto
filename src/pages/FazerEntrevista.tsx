@@ -192,12 +192,27 @@ export default function FazerEntrevista() {
     setDataEntrevista(new Date().toISOString().split("T")[0]);
   };
 
-  const setQtd = (tratId: string, val: number) => {
-    setQuantidades((prev) => ({ ...prev, [tratId]: Math.max(0, val) }));
+  const setQtd = (tratId: string, val: string) => {
+    setQuantidades((prev) => ({ ...prev, [tratId]: val }));
+  };
+
+  const toggleTratamento = (tratId: string) => {
+    setQuantidades((prev) => {
+      if (tratId in prev) {
+        const next = { ...prev };
+        delete next[tratId];
+        return next;
+      }
+      return { ...prev, [tratId]: "" };
+    });
   };
 
   const clearQtd = (tratId: string) => {
-    setQuantidades((prev) => ({ ...prev, [tratId]: 0 }));
+    setQuantidades((prev) => {
+      const next = { ...prev };
+      delete next[tratId];
+      return next;
+    });
   };
 
   const tratamentoMap = useMemo(() =>
