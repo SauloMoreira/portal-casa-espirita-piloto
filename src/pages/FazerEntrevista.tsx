@@ -124,6 +124,7 @@ function generateSessionDates(
 }
 
 export default function FazerEntrevista() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [assistidos, setAssistidos] = useState<Assistido[]>([]);
   const [selectedAssistido, setSelectedAssistido] = useState<Assistido | null>(null);
@@ -152,6 +153,7 @@ export default function FazerEntrevista() {
   const isRecordingRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const transcriptBaseRef = useRef("");
+  const [agendaEntrevistaId, setAgendaEntrevistaId] = useState<string | null>(null);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -170,6 +172,47 @@ export default function FazerEntrevista() {
         const livre = config.find((c) => c.chave === "permitir_entrevista_livre");
         if (minP) setMinPalestras(parseInt(minP.valor));
         if (livre) setPermitirLivre(livre.valor === "true");
+      }
+
+      // Auto-select from agenda URL params
+      const paramAssistidoId = searchParams.get("assistido_id");
+      const paramEntrevistaId = searchParams.get("entrevista_id");
+      const paramTipo = searchParams.get("tipo_entrevista");
+
+      if (paramAssistidoId && assist) {
+        const found = (assist as Assistido[]).find((a) => a.id === paramAssistidoId);
+        if (found) {
+          setSelectedAssistido(found);
+          setSearchTerm("");
+        }
+      }
+      if (paramEntrevistaId) {
+        setAgendaEntrevistaId(paramEntrevistaId);
+        // Fetch entrevista data to pre-fill date
+        const { data: entrevista } = await supabase
+          .from("entrevistas_fraternas")
+          .select("data, tipo_entrevista, observacoes")
+          .eq("id", paramEntrevistaId)
+          .maybeSingle();
+        if (entrevista) {
+          const d = new Date(entrevista.data);
+          setDataEntrevista(d.toISOString().split("T")[0]);
+          if (entrevista.tipo_entrevista === "livre" || entrevista.tipo_entrevista === "regular") {
+            setTipoEntrevista(entrevista.tipo_entrevista as "regular" | "livre");
+          }
+          if (entrevista.observacoes) {
+            setObservacoes(entrevista.observacoes);
+            transcriptBaseRef.current = entrevista.observacoes;
+          }
+        }
+      }
+      if (paramTipo === "livre" || paramTipo === "regular") {
+        setTipoEntrevista(paramTipo);
+      }
+
+      // Clear URL params after reading
+      if (paramAssistidoId || paramEntrevistaId) {
+        setSearchParams({}, { replace: true });
       }
     };
     fetchData();
