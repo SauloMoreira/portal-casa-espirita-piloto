@@ -639,6 +639,48 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog: Aguardando Agendamento */}
+      <Dialog open={aguardandoOpen} onOpenChange={setAguardandoOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Assistidos Aguardando Agendamento
+            </DialogTitle>
+          </DialogHeader>
+          {aguardandoList.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Nenhum item aguardando agendamento.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Assistido</TableHead>
+                  <TableHead>Tratamento</TableHead>
+                  <TableHead>Prioridade</TableHead>
+                  <TableHead>Desde</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {aguardandoList.map((item: any) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.assistido_nome}</TableCell>
+                    <TableCell>{item.tratamento_nome}</TableCell>
+                    <TableCell>
+                      <Badge variant={item.prioridade === "alta" || item.prioridade === "urgente" ? "destructive" : "secondary"}>
+                        {item.prioridade === "alta" ? "Alta" : item.prioridade === "urgente" ? "Urgente" : "Normal"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {format(new Date(item.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
