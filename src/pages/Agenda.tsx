@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import {
   Clock,
   User,
   Filter,
+  BookOpen,
 } from "lucide-react";
 import {
   format,
@@ -68,6 +70,7 @@ type ViewMode = "dia" | "semana" | "mes";
 
 export default function Agenda() {
   const { user, role } = useAuth();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [entrevistas, setEntrevistas] = useState<Entrevista[]>([]);
   const [loading, setLoading] = useState(true);
@@ -411,6 +414,23 @@ export default function Agenda() {
                   <p className="text-muted-foreground text-xs mb-1">Observações</p>
                   <p className="text-sm bg-muted/50 rounded-md p-2">{selectedEntrevista.observacoes}</p>
                 </div>
+              )}
+              {/* Fazer Entrevista button - only for admin/entrevistador and agendada status */}
+              {(role === "admin" || role === "entrevistador") && selectedEntrevista.status === "agendada" && (
+                <Button
+                  className="w-full gap-2"
+                  onClick={() => {
+                    const params = new URLSearchParams({
+                      entrevista_id: selectedEntrevista.id,
+                      assistido_id: selectedEntrevista.assistido_id,
+                      tipo_entrevista: selectedEntrevista.tipo_entrevista,
+                    });
+                    navigate(`/fazer-entrevista?${params.toString()}`);
+                  }}
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Fazer Entrevista
+                </Button>
               )}
             </div>
           </DialogContent>

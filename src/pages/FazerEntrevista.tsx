@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,6 +124,7 @@ function generateSessionDates(
 }
 
 export default function FazerEntrevista() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [assistidos, setAssistidos] = useState<Assistido[]>([]);
   const [selectedAssistido, setSelectedAssistido] = useState<Assistido | null>(null);
@@ -151,6 +153,7 @@ export default function FazerEntrevista() {
   const isRecordingRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const transcriptBaseRef = useRef("");
+  const [agendaEntrevistaId, setAgendaEntrevistaId] = useState<string | null>(null);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -169,6 +172,47 @@ export default function FazerEntrevista() {
         const livre = config.find((c) => c.chave === "permitir_entrevista_livre");
         if (minP) setMinPalestras(parseInt(minP.valor));
         if (livre) setPermitirLivre(livre.valor === "true");
+      }
+
+      // Auto-select from agenda URL params
+      const paramAssistidoId = searchParams.get("assistido_id");
+      const paramEntrevistaId = searchParams.get("entrevista_id");
+      const paramTipo = searchParams.get("tipo_entrevista");
+
+      if (paramAssistidoId && assist) {
+        const found = (assist as Assistido[]).find((a) => a.id === paramAssistidoId);
+        if (found) {
+          setSelectedAssistido(found);
+          setSearchTerm("");
+        }
+      }
+      if (paramEntrevistaId) {
+        setAgendaEntrevistaId(paramEntrevistaId);
+        // Fetch entrevista data to pre-fill date
+        const { data: entrevista } = await supabase
+          .from("entrevistas_fraternas")
+          .select("data, tipo_entrevista, observacoes")
+          .eq("id", paramEntrevistaId)
+          .maybeSingle();
+        if (entrevista) {
+          const d = new Date(entrevista.data);
+          setDataEntrevista(d.toISOString().split("T")[0]);
+          if (entrevista.tipo_entrevista === "livre" || entrevista.tipo_entrevista === "regular") {
+            setTipoEntrevista(entrevista.tipo_entrevista as "regular" | "livre");
+          }
+          if (entrevista.observacoes) {
+            setObservacoes(entrevista.observacoes);
+            transcriptBaseRef.current = entrevista.observacoes;
+          }
+        }
+      }
+      if (paramTipo === "livre" || paramTipo === "regular") {
+        setTipoEntrevista(paramTipo);
+      }
+
+      // Clear URL params after reading
+      if (paramAssistidoId || paramEntrevistaId) {
+        setSearchParams({}, { replace: true });
       }
     };
     fetchData();
@@ -420,20 +464,40 @@ export default function FazerEntrevista() {
       }
     }
 
-    // Create the interview
-    const { data: entrevista, error: entErr } = await supabase.from("entrevistas_fraternas").insert({
-      assistido_id: selectedAssistido.id,
-      entrevistador_id: user!.id,
-      data: dataEntrevista + "T00:00:00",
-      tipo_entrevista: tipoEntrevista,
-      observacoes: observacoes || null,
-      status: "realizada",
-    }).select("id").single();
+    // Create or update the interview
+    let entrevistaId: string;
+    if (agendaEntrevistaId) {
+      // Update the existing scheduled interview from the agenda
+      const { error: updErr } = await supabase.from("entrevistas_fraternas").update({
+        entrevistador_id: user!.id,
+        data: dataEntrevista + "T00:00:00",
+        tipo_entrevista: tipoEntrevista,
+        observacoes: observacoes || null,
+        status: "realizada",
+      }).eq("id", agendaEntrevistaId);
 
-    if (entErr || !entrevista) {
-      toast({ title: "Erro ao salvar entrevista", description: entErr?.message, variant: "destructive" });
-      setSaving(false);
-      return;
+      if (updErr) {
+        toast({ title: "Erro ao atualizar entrevista", description: updErr.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      entrevistaId = agendaEntrevistaId;
+    } else {
+      const { data: entrevista, error: entErr } = await supabase.from("entrevistas_fraternas").insert({
+        assistido_id: selectedAssistido.id,
+        entrevistador_id: user!.id,
+        data: dataEntrevista + "T00:00:00",
+        tipo_entrevista: tipoEntrevista,
+        observacoes: observacoes || null,
+        status: "realizada",
+      }).select("id").single();
+
+      if (entErr || !entrevista) {
+        toast({ title: "Erro ao salvar entrevista", description: entErr?.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      entrevistaId = entrevista.id;
     }
 
     const entrevistaDate = new Date(dataEntrevista + "T12:00:00");
@@ -496,7 +560,7 @@ export default function FazerEntrevista() {
         const newTotal = Math.max(d.quantidade_total, existingVinculo.quantidade_realizada);
         await supabase.from("assistido_tratamentos").update({
           quantidade_total: newTotal,
-          entrevista_id: entrevista.id,
+          entrevista_id: entrevistaId,
         }).eq("id", existingVinculo.id);
         vinculoId = existingVinculo.id;
 
@@ -534,7 +598,7 @@ export default function FazerEntrevista() {
         quantidade_total: d.quantidade_total,
         quantidade_realizada: 0,
         status: "aguardando_inicio",
-        entrevista_id: entrevista.id,
+        entrevista_id: entrevistaId,
         created_by: user!.id,
       }).select("id").single();
 
@@ -586,7 +650,7 @@ export default function FazerEntrevista() {
           const newTotal = Math.max(d.quantidade_total, existingVinculo.quantidade_realizada);
           await supabase.from("assistido_tratamentos").update({
             quantidade_total: newTotal,
-            entrevista_id: entrevista.id,
+            entrevista_id: entrevistaId,
             status: "aguardando_agendamento",
           }).eq("id", existingVinculo.id);
         } else {
@@ -596,7 +660,7 @@ export default function FazerEntrevista() {
             quantidade_total: d.quantidade_total,
             quantidade_realizada: 0,
             status: "aguardando_agendamento",
-            entrevista_id: entrevista.id,
+            entrevista_id: entrevistaId,
             created_by: user!.id,
           } as any);
         }
@@ -624,7 +688,7 @@ export default function FazerEntrevista() {
     // Show scheduling letter if treatments were assigned
     if (validDesignacoes.length > 0) {
       setCartaAssistidoId(selectedAssistido.id);
-      setCartaEntrevistaId(entrevista.id);
+      setCartaEntrevistaId(entrevistaId);
       setCartaOpen(true);
     }
     
