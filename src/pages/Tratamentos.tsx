@@ -109,6 +109,12 @@ export default function Tratamentos() {
       modo_agendamento: form.modo_agendamento,
       coordenador_responsavel_id: form.coordenador_responsavel_id || null,
       quantidade_padrao_sessoes: qtdPadrao,
+      trabalho_publico: form.trabalho_publico,
+      permite_entrada_sem_agendamento: form.permite_entrada_sem_agendamento,
+      exige_controle_presenca: form.exige_controle_presenca,
+      modo_checkin: form.modo_checkin,
+      permite_cadastro_rapido: form.permite_cadastro_rapido,
+      permite_registro_manual: form.permite_registro_manual,
     };
 
     let error;
@@ -143,6 +149,12 @@ export default function Tratamentos() {
       modo_agendamento: (t as any).modo_agendamento || "sequencial_bloqueante",
       coordenador_responsavel_id: (t as any).coordenador_responsavel_id || "",
       quantidade_padrao_sessoes: (t as any).quantidade_padrao_sessoes?.toString() || "1",
+      trabalho_publico: t.trabalho_publico ?? false,
+      permite_entrada_sem_agendamento: t.permite_entrada_sem_agendamento ?? false,
+      exige_controle_presenca: t.exige_controle_presenca ?? true,
+      modo_checkin: (t as any).modo_checkin || "qr_do_dia",
+      permite_cadastro_rapido: t.permite_cadastro_rapido ?? false,
+      permite_registro_manual: t.permite_registro_manual ?? false,
     });
     setOpen(true);
   };
