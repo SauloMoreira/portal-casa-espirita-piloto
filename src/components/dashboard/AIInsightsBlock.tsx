@@ -3,8 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, RefreshCw, Lightbulb, AlertCircle, ArrowRight, Megaphone, Settings2, HeartHandshake, BarChart3 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { Sparkles, RefreshCw, Lightbulb, AlertCircle, Megaphone, Settings2, HeartHandshake, BarChart3 } from "lucide-react";
 
 interface Insight {
   titulo: string;
