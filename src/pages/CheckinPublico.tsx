@@ -30,7 +30,7 @@ export default function CheckinPublico() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, nome: "__validate__" }),
+          body: JSON.stringify({ token, action: "validate" }),
         }
       );
 

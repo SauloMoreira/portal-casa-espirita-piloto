@@ -17,13 +17,35 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { token, assistido_id, nome, celular, faixa_etaria, modo_checkin } =
+    const { token, action, assistido_id, nome, celular, faixa_etaria, modo_checkin } =
       await req.json();
 
     if (!token) {
       return new Response(
         JSON.stringify({ error: "Token da sessão é obrigatório" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate-only mode: just check if session exists
+    if (action === "validate") {
+      const { data: sessao } = await supabase
+        .from("sessoes_publicas")
+        .select("id, data_sessao, tratamento_id, tipos_tratamento:tratamento_id(nome)")
+        .eq("token", token)
+        .eq("status", "aberta")
+        .maybeSingle();
+
+      if (!sessao) {
+        return new Response(
+          JSON.stringify({ error: "Sessão não encontrada ou encerrada" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ valid: true, sessao_id: sessao.id, trabalho: (sessao as any).tipos_tratamento?.nome, data: sessao.data_sessao }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
