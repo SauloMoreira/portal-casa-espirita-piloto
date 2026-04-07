@@ -497,7 +497,7 @@ export default function FazerEntrevista() {
         setSaving(false);
         return;
       }
-      entrevistaId = entrevista.id;
+      entrevistaId = entrevistaId;
     }
 
     const entrevistaDate = new Date(dataEntrevista + "T12:00:00");
@@ -560,7 +560,7 @@ export default function FazerEntrevista() {
         const newTotal = Math.max(d.quantidade_total, existingVinculo.quantidade_realizada);
         await supabase.from("assistido_tratamentos").update({
           quantidade_total: newTotal,
-          entrevista_id: entrevista.id,
+          entrevista_id: entrevistaId,
         }).eq("id", existingVinculo.id);
         vinculoId = existingVinculo.id;
 
@@ -598,7 +598,7 @@ export default function FazerEntrevista() {
         quantidade_total: d.quantidade_total,
         quantidade_realizada: 0,
         status: "aguardando_inicio",
-        entrevista_id: entrevista.id,
+        entrevista_id: entrevistaId,
         created_by: user!.id,
       }).select("id").single();
 
@@ -650,7 +650,7 @@ export default function FazerEntrevista() {
           const newTotal = Math.max(d.quantidade_total, existingVinculo.quantidade_realizada);
           await supabase.from("assistido_tratamentos").update({
             quantidade_total: newTotal,
-            entrevista_id: entrevista.id,
+            entrevista_id: entrevistaId,
             status: "aguardando_agendamento",
           }).eq("id", existingVinculo.id);
         } else {
@@ -660,7 +660,7 @@ export default function FazerEntrevista() {
             quantidade_total: d.quantidade_total,
             quantidade_realizada: 0,
             status: "aguardando_agendamento",
-            entrevista_id: entrevista.id,
+            entrevista_id: entrevistaId,
             created_by: user!.id,
           } as any);
         }
@@ -688,7 +688,7 @@ export default function FazerEntrevista() {
     // Show scheduling letter if treatments were assigned
     if (validDesignacoes.length > 0) {
       setCartaAssistidoId(selectedAssistido.id);
-      setCartaEntrevistaId(entrevista.id);
+      setCartaEntrevistaId(entrevistaId);
       setCartaOpen(true);
     }
     
