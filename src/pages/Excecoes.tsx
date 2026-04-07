@@ -49,7 +49,6 @@ export default function Excecoes() {
       valor: aguardando?.length || 0,
       icon: Clock,
       cor: "text-amber-500",
-      link: "/lista-espera",
       tab: "aguardando",
     });
 
