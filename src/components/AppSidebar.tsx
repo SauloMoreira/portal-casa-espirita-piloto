@@ -74,7 +74,6 @@ const navGroups: NavGroup[] = [
     icon: HandHeart,
     items: [
       { title: "Assistidos", url: "/assistidos", icon: HandHeart, roles: ["admin", "entrevistador"] },
-      { title: "Agend. Entrevistas", url: "/entrevistas", icon: BookOpen, roles: ["admin", "entrevistador"] },
       { title: "Fazer Entrevista", url: "/fazer-entrevista", icon: ClipboardCheck, roles: ["admin", "entrevistador"] },
       { title: "Agenda", url: "/agenda", icon: Calendar, roles: ["admin", "entrevistador"] },
       { title: "Presença", url: "/presenca", icon: Heart, roles: ["admin", "tarefeiro"] },
