@@ -295,7 +295,9 @@ export default function AdminDashboard() {
         <StatCard title="Maior Carga" value={topTarefeiro?.nome?.split(" ")[0] || "—"} subtitle={`${topTarefeiro?.total || 0} vínculos`} icon={Briefcase} />
         <StatCard title="Palestras" value={publicoPalestras} subtitle="Presenças no período" icon={BookOpen} />
         <StatCard title="Faltas" value={faltasMes} subtitle="No período" icon={CalendarX} />
-        <StatCard title="Aguardando Agend." value={aguardandoAgend} subtitle="Assistidos" icon={Clock} />
+        <div className="cursor-pointer" onClick={handleOpenAguardando}>
+          <StatCard title="Aguardando Agend." value={aguardandoAgend} subtitle="Ver detalhes ›" icon={Clock} />
+        </div>
       </div>
 
       {/* Age group mini-cards */}
@@ -319,7 +321,10 @@ export default function AdminDashboard() {
                 return (
                   <div
                     key={i}
-                    onClick={() => navigate(p.path)}
+                    onClick={() => {
+                      if (p.action === "aguardando") handleOpenAguardando();
+                      else if (p.path) navigate(p.path);
+                    }}
                     className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-card hover:bg-secondary/50 cursor-pointer transition-colors"
                   >
                     <Icon className="h-5 w-5 text-warning shrink-0" />
