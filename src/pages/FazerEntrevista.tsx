@@ -464,20 +464,40 @@ export default function FazerEntrevista() {
       }
     }
 
-    // Create the interview
-    const { data: entrevista, error: entErr } = await supabase.from("entrevistas_fraternas").insert({
-      assistido_id: selectedAssistido.id,
-      entrevistador_id: user!.id,
-      data: dataEntrevista + "T00:00:00",
-      tipo_entrevista: tipoEntrevista,
-      observacoes: observacoes || null,
-      status: "realizada",
-    }).select("id").single();
+    // Create or update the interview
+    let entrevistaId: string;
+    if (agendaEntrevistaId) {
+      // Update the existing scheduled interview from the agenda
+      const { error: updErr } = await supabase.from("entrevistas_fraternas").update({
+        entrevistador_id: user!.id,
+        data: dataEntrevista + "T00:00:00",
+        tipo_entrevista: tipoEntrevista,
+        observacoes: observacoes || null,
+        status: "realizada",
+      }).eq("id", agendaEntrevistaId);
 
-    if (entErr || !entrevista) {
-      toast({ title: "Erro ao salvar entrevista", description: entErr?.message, variant: "destructive" });
-      setSaving(false);
-      return;
+      if (updErr) {
+        toast({ title: "Erro ao atualizar entrevista", description: updErr.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      entrevistaId = agendaEntrevistaId;
+    } else {
+      const { data: entrevista, error: entErr } = await supabase.from("entrevistas_fraternas").insert({
+        assistido_id: selectedAssistido.id,
+        entrevistador_id: user!.id,
+        data: dataEntrevista + "T00:00:00",
+        tipo_entrevista: tipoEntrevista,
+        observacoes: observacoes || null,
+        status: "realizada",
+      }).select("id").single();
+
+      if (entErr || !entrevista) {
+        toast({ title: "Erro ao salvar entrevista", description: entErr?.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+      entrevistaId = entrevista.id;
     }
 
     const entrevistaDate = new Date(dataEntrevista + "T12:00:00");
