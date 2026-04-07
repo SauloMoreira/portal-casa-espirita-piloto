@@ -564,6 +564,24 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
+      {/* BLOCK — AI Insights */}
+      <AIInsightsBlock dashboardData={{
+        totalAssistidos: assistidos.length,
+        tratAtivos,
+        tratConcluidos,
+        entAgendadas,
+        presencasHoje,
+        listaEspera,
+        faltasMes,
+        aguardandoAgend,
+        publicoPalestras,
+        periodo: `${range.start} a ${range.end}`,
+        faixaEtaria: ageData,
+        tratPorTipo,
+        cargaTarefeiros,
+        entrevistasPorTipo,
+      }} />
+
       {/* BLOCK 9 — Shortcuts */}
       <Card>
         <CardHeader className="pb-3">
