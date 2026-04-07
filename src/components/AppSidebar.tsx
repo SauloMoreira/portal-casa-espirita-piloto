@@ -23,6 +23,7 @@ import {
   BarChart3,
   Landmark,
   Palette,
+  QrCode,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -78,6 +79,7 @@ const navGroups: NavGroup[] = [
       { title: "Realizar Entrevista", url: "/fazer-entrevista", icon: ClipboardCheck, roles: ["admin", "entrevistador"] },
       { title: "Agenda", url: "/agenda", icon: BookOpen, roles: ["admin", "entrevistador"] },
       { title: "Presença", url: "/presenca", icon: Heart, roles: ["admin", "tarefeiro"] },
+      { title: "Sessões Públicas", url: "/sessoes-publicas", icon: QrCode, roles: ["admin", "tarefeiro"] },
     ],
   },
   {
