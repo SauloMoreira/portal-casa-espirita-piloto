@@ -97,7 +97,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      resultMessage = "Senha temporária gerada com sucesso";
+      // Force the user to change this temporary password on next login.
+      await adminClient
+        .from("profiles")
+        .update({ senha_temporaria: true })
+        .eq("user_id", target_user_id);
+      resultMessage = "Senha temporária gerada com sucesso. O usuário deverá trocá-la no próximo acesso.";
     } else {
       // mode === "email"
       if (!targetUser.email) {
@@ -106,18 +111,19 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // Generate a password recovery link
-      const { error: linkErr } = await adminClient.auth.admin.generateLink({
-        type: "recovery",
-        email: targetUser.email,
+      // Actually send the recovery email through the configured email provider.
+      const siteUrl = Deno.env.get("SITE_URL") || req.headers.get("origin") || "";
+      const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+      const { error: sendErr } = await anonClient.auth.resetPasswordForEmail(targetUser.email, {
+        redirectTo: siteUrl ? `${siteUrl}/reset-password` : undefined,
       });
-      if (linkErr) {
-        return new Response(JSON.stringify({ error: linkErr.message }), {
+      if (sendErr) {
+        return new Response(JSON.stringify({ error: sendErr.message }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      resultMessage = "Link de redefinição enviado com sucesso";
+      resultMessage = "Link de redefinição enviado para o e-mail do usuário.";
     }
 
     // Audit log (no password stored)
