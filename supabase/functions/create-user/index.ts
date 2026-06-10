@@ -90,6 +90,7 @@ Deno.serve(async (req) => {
 
     // Rollback helper: if any post-creation step fails, remove the orphan auth user.
     const rollback = async (reason: string) => {
+      log.error("create_rolled_back", { reason, userId });
       await adminClient.auth.admin.deleteUser(userId).catch(() => {});
       return new Response(
         JSON.stringify({ error: `Falha ao criar usuário: ${reason}. Operação revertida.` }),
