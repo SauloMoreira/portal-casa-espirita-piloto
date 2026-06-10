@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +18,7 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const log = createLogger("reset-password", req);
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -59,6 +61,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { target_user_id, mode } = body;
+    log.info("reset_requested", { by: caller.id, target_user_id, mode });
 
     if (!target_user_id || !mode) {
       return new Response(JSON.stringify({ error: "Campos obrigatórios: target_user_id, mode" }), {
@@ -139,6 +142,7 @@ Deno.serve(async (req) => {
       },
     });
 
+    log.info("reset_succeeded", { target_user_id, mode });
     return new Response(JSON.stringify({
       success: true,
       message: resultMessage,
@@ -148,6 +152,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    log.error("reset_failed", { message: err.message });
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

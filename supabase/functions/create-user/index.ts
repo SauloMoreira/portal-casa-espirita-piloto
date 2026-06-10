@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createLogger } from "../_shared/logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,7 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const log = createLogger("create-user", req);
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -88,6 +90,7 @@ Deno.serve(async (req) => {
 
     // Rollback helper: if any post-creation step fails, remove the orphan auth user.
     const rollback = async (reason: string) => {
+      log.error("create_rolled_back", { reason, userId });
       await adminClient.auth.admin.deleteUser(userId).catch(() => {});
       return new Response(
         JSON.stringify({ error: `Falha ao criar usuário: ${reason}. Operação revertida.` }),
@@ -124,11 +127,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    log.info("user_created", { by: caller.id, userId, role });
     return new Response(JSON.stringify({ success: true, user_id: userId }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    log.error("create_failed", { message: err.message });
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

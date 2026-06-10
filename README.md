@@ -37,8 +37,18 @@ backend, nunca no front.
 | `bun run build:dev`| Build em modo desenvolvimento      |
 | `bun run preview`  | Pré-visualiza o build              |
 | `bun run lint`     | ESLint                             |
-| `bun run test`     | Testes (Vitest, execução única)    |
+| `bun run typecheck`| Checagem de tipos (`tsc --noEmit`) |
+| `bun run test`     | Testes unitários + integração (Vitest) |
+| `bun run test:unit`| Apenas testes unitários            |
+| `bun run test:integration` | Apenas testes de integração |
+| `bun run test:e2e` | Testes ponta a ponta (Playwright)  |
 | `bun run test:watch` | Testes em modo watch             |
+| `bun run validate` | lint + typecheck + testes + build  |
+
+Estratégia de testes, cobertura, pipeline CI/CD e observabilidade:
+[`docs/TESTING.md`](docs/TESTING.md).
+
+
 
 ## Arquitetura
 
