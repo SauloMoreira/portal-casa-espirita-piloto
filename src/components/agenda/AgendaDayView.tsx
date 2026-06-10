@@ -39,6 +39,3 @@ export function AgendaDayView({ currentDate, entrevistas, onSelectEntrevista }: 
     </Card>
   );
 }
-
-// re-export parseISO usage guard (kept for parity); no behavior change.
-export const __agendaDayViewParse = parseISO;
