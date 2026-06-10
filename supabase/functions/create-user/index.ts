@@ -86,24 +86,42 @@ Deno.serve(async (req) => {
 
     const userId = newUser.user.id;
 
+    // Rollback helper: if any post-creation step fails, remove the orphan auth user.
+    const rollback = async (reason: string) => {
+      await adminClient.auth.admin.deleteUser(userId).catch(() => {});
+      return new Response(
+        JSON.stringify({ error: `Falha ao criar usuário: ${reason}. Operação revertida.` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    };
+
     // Insert role
-    await adminClient.from("user_roles").insert({ user_id: userId, role });
+    const { error: roleErr } = await adminClient.from("user_roles").insert({ user_id: userId, role });
+    if (roleErr) {
+      return await rollback("não foi possível gravar o papel");
+    }
 
     // Insert profile
     if (profile) {
-      await adminClient.from("profiles").insert({
+      const { error: profileErr } = await adminClient.from("profiles").insert({
         ...profile,
         user_id: userId,
         created_by: caller.id,
       });
+      if (profileErr) {
+        return await rollback("não foi possível gravar o perfil");
+      }
     }
 
     // Link assistido to user if assistido_id provided
     if (assistido_id) {
-      await adminClient.from("assistidos").update({
+      const { error: linkErr } = await adminClient.from("assistidos").update({
         user_id: userId,
         ...(assistido_update || {}),
       }).eq("id", assistido_id);
+      if (linkErr) {
+        return await rollback("não foi possível vincular o assistido");
+      }
     }
 
     return new Response(JSON.stringify({ success: true, user_id: userId }), {

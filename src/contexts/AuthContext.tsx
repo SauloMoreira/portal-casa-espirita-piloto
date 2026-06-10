@@ -10,6 +10,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 interface UserProfile {
   nome_completo: string | null;
   foto_url: string | null;
+  senha_temporaria: boolean | null;
 }
 
 interface AuthContextType {
@@ -43,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetch(`${SUPABASE_URL}/rest/v1/user_roles?user_id=eq.${userId}&select=role&limit=1`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` },
         }),
-        fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=nome_completo,foto_url&limit=1`, {
+        fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=nome_completo,foto_url,senha_temporaria&limit=1`, {
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` },
         }),
       ]);

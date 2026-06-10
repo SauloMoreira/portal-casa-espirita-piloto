@@ -100,7 +100,7 @@ export function ResetPasswordDialog({
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Informe esta senha ao usuário. Recomenda-se que ele altere no próximo acesso.
+                  Informe esta senha ao usuário. Ele será obrigado a definir uma nova senha no próximo acesso.
                 </p>
               </div>
               <Button variant="outline" className="w-full" onClick={() => handleClose(false)}>
