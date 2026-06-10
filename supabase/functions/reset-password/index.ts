@@ -18,6 +18,7 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const log = createLogger("reset-password", req);
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
