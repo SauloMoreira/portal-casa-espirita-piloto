@@ -24,6 +24,14 @@ import type {
   EntrevistaAssistidoForm,
   TipoEntrevista,
 } from "@/types/fazerEntrevista";
+import type {
+  SpeechRecognitionLike,
+  SpeechRecognitionConstructor,
+  SpeechRecognitionEventLike,
+  SpeechRecognitionErrorEventLike,
+} from "@/types/speech";
+
+
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
