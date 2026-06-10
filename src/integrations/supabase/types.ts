@@ -310,6 +310,33 @@ export type Database = {
         }
         Relationships: []
       }
+      checkin_tentativas: {
+        Row: {
+          created_at: string
+          id: string
+          ip: string | null
+          motivo: string | null
+          sucesso: boolean
+          token: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          motivo?: string | null
+          sucesso?: boolean
+          token?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip?: string | null
+          motivo?: string | null
+          sucesso?: boolean
+          token?: string | null
+        }
+        Relationships: []
+      }
       checkins_publicos: {
         Row: {
           assistido_id: string | null
@@ -1064,6 +1091,7 @@ export type Database = {
           logradouro: string | null
           nome_completo: string | null
           numero: string | null
+          senha_temporaria: boolean
           status: string
           updated_at: string
           user_id: string
@@ -1083,6 +1111,7 @@ export type Database = {
           logradouro?: string | null
           nome_completo?: string | null
           numero?: string | null
+          senha_temporaria?: boolean
           status?: string
           updated_at?: string
           user_id: string
@@ -1102,6 +1131,7 @@ export type Database = {
           logradouro?: string | null
           nome_completo?: string | null
           numero?: string | null
+          senha_temporaria?: boolean
           status?: string
           updated_at?: string
           user_id?: string
