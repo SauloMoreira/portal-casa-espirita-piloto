@@ -427,7 +427,7 @@ export function useFazerEntrevista() {
         setObservacoes(combined);
       };
 
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEventLike) => {
         console.error("Speech recognition error:", event.error);
         if (["not-allowed", "service-not-allowed"].includes(event.error)) {
           isRecordingRef.current = false;
