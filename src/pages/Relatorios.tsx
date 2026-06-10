@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, ArrowLeft, Users, CalendarCheck, ClipboardList, CheckCircle, CalendarX, Briefcase } from "lucide-react";
+import { FileText, ArrowLeft, Users, CalendarCheck, ClipboardList, CheckCircle, CalendarX, Briefcase, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AssistidosPorTratamento from "@/components/relatorios/AssistidosPorTratamento";
 import FrequenciaPresenca from "@/components/relatorios/FrequenciaPresenca";
@@ -9,6 +9,7 @@ import EntrevistasRealizadas from "@/components/relatorios/EntrevistasRealizadas
 import TratamentosConcluidos from "@/components/relatorios/TratamentosConcluidos";
 import FaltasPorPeriodo from "@/components/relatorios/FaltasPorPeriodo";
 import CargaPorTarefeiro from "@/components/relatorios/CargaPorTarefeiro";
+import TrabalhosPublicos from "@/components/relatorios/TrabalhosPublicos";
 import PainelGerencial from "@/components/relatorios/PainelGerencial";
 
 const REPORTS = [
