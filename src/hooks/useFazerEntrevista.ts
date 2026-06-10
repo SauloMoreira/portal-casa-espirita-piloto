@@ -406,7 +406,7 @@ export function useFazerEntrevista() {
       recognition.maxAlternatives = 1;
       recognitionRef.current = recognition;
 
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
+      recognition.onresult = (event: SpeechRecognitionEventLike) => {
         let interimTranscript = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = String(event.results[i][0]?.transcript || "").trim();
