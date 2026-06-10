@@ -22,7 +22,7 @@ export function VoluntarioEnderecoSection({ form, errors, onChange }: Props) {
           estado: form.estado,
         }}
         onChange={(addr) => onChange(addr)}
-        errors={errors as Partial<Record<string, string>>}
+        errors={errors}
       />
     </div>
   );
