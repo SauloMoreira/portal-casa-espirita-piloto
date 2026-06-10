@@ -362,9 +362,9 @@ export function useFazerEntrevista() {
 
   const toggleRecording = useCallback(async () => {
     const SpeechRecognitionImpl =
-      (window as unknown as { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition })
+      (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor })
         .SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+      (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition;
     if (!SpeechRecognitionImpl) {
       toast({
         title: ENTREVISTA_MESSAGES.navegadorSemVoz,
