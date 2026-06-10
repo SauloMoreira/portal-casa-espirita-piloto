@@ -19,6 +19,7 @@ const REPORTS = [
   { key: "concluidos", title: "Tratamentos Concluídos", icon: CheckCircle, desc: "Tratamentos finalizados no período" },
   { key: "faltas", title: "Faltas por Período", icon: CalendarX, desc: "Ausências detalhadas por assistido" },
   { key: "carga", title: "Carga por Tarefeiro", icon: Briefcase, desc: "Volume de trabalho por tarefeiro" },
+  { key: "trabalhos_publicos", title: "Trabalhos Públicos", icon: Megaphone, desc: "Demografia, novos vs recorrentes e retorno nos trabalhos públicos" },
 ] as const;
 
 type ReportKey = typeof REPORTS[number]["key"];
@@ -30,6 +31,7 @@ const COMPONENTS: Record<ReportKey, React.FC> = {
   concluidos: TratamentosConcluidos,
   faltas: FaltasPorPeriodo,
   carga: CargaPorTarefeiro,
+  trabalhos_publicos: TrabalhosPublicos,
 };
 
 export default function Relatorios() {
