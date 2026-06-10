@@ -267,7 +267,7 @@ export function useFazerEntrevista() {
     }
 
     const dateCheck = validateDatasIniciais(quantidades, datasIniciais, tratamentoMap, DIAS_SEMANA);
-    if (!dateCheck.ok) {
+    if (dateCheck.ok === false) {
       toast({
         title: "Data incompatível",
         description: `A data informada para "${dateCheck.tratamento}" não é ${dateCheck.dia}`,
