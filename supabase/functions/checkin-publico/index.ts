@@ -34,6 +34,8 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const log = createLogger("checkin-publico", req);
+
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("cf-connecting-ip") ||
@@ -50,11 +52,14 @@ Deno.serve(async (req) => {
 
   const reject = async (status: number, error: string, token: string | null, extra: Record<string, unknown> = {}) => {
     await logAttempt(token, false, error);
+    if (status >= 500) log.error("checkin_rejected", { status, error });
+    else log.warn("checkin_rejected", { status, error });
     return new Response(JSON.stringify({ error, ...extra }), {
       status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   };
+
 
   try {
     // --- Rate limiting per IP ---
