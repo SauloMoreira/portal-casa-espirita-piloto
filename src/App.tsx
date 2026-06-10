@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { withErrorBoundary as guard } from "@/components/ErrorBoundary";
 import { useThemeColors } from "@/hooks/useThemeColors";
 import { ROUTES } from "@/constants";
 
