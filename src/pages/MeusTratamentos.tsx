@@ -119,7 +119,7 @@ export default function MeusTratamentos() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-screen-xl mx-auto w-full">
       <div>
         <h1 className="text-2xl font-display font-bold text-foreground">Meus Tratamentos</h1>
         <p className="text-sm text-muted-foreground mt-1">Acompanhe seus tratamentos e sessões agendadas</p>
