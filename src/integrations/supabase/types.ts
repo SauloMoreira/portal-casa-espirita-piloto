@@ -930,6 +930,192 @@ export type Database = {
         }
         Relationships: []
       }
+      notificacoes_fila: {
+        Row: {
+          assistido_id: string | null
+          canal: Database["public"]["Enums"]["notif_canal"]
+          created_at: string
+          dedupe_key: string
+          erro: string | null
+          evento_origem: Database["public"]["Enums"]["notif_evento"]
+          external_message_id: string | null
+          id: string
+          payload_json: Json
+          retry_count: number
+          scheduled_at: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notif_status"]
+          telefone_normalizado: string | null
+          template_codigo: string | null
+          updated_at: string
+        }
+        Insert: {
+          assistido_id?: string | null
+          canal?: Database["public"]["Enums"]["notif_canal"]
+          created_at?: string
+          dedupe_key: string
+          erro?: string | null
+          evento_origem: Database["public"]["Enums"]["notif_evento"]
+          external_message_id?: string | null
+          id?: string
+          payload_json?: Json
+          retry_count?: number
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notif_status"]
+          telefone_normalizado?: string | null
+          template_codigo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assistido_id?: string | null
+          canal?: Database["public"]["Enums"]["notif_canal"]
+          created_at?: string
+          dedupe_key?: string
+          erro?: string | null
+          evento_origem?: Database["public"]["Enums"]["notif_evento"]
+          external_message_id?: string | null
+          id?: string
+          payload_json?: Json
+          retry_count?: number
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notif_status"]
+          telefone_normalizado?: string | null
+          template_codigo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacoes_fila_assistido_id_fkey"
+            columns: ["assistido_id"]
+            isOneToOne: false
+            referencedRelation: "assistidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificacoes_log: {
+        Row: {
+          created_at: string
+          direcao: string
+          erro: string | null
+          fila_id: string | null
+          id: string
+          payload_enviado: Json | null
+          payload_recebido: Json | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string
+          direcao: string
+          erro?: string | null
+          fila_id?: string | null
+          id?: string
+          payload_enviado?: Json | null
+          payload_recebido?: Json | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string
+          direcao?: string
+          erro?: string | null
+          fila_id?: string | null
+          id?: string
+          payload_enviado?: Json | null
+          payload_recebido?: Json | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacoes_log_fila_id_fkey"
+            columns: ["fila_id"]
+            isOneToOne: false
+            referencedRelation: "notificacoes_fila"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificacoes_preferencias: {
+        Row: {
+          assistido_id: string
+          created_at: string
+          horario_fim_envio: string
+          horario_inicio_envio: string
+          id: string
+          opt_out_at: string | null
+          opt_out_motivo: string | null
+          updated_at: string
+          whatsapp_ativo: boolean
+        }
+        Insert: {
+          assistido_id: string
+          created_at?: string
+          horario_fim_envio?: string
+          horario_inicio_envio?: string
+          id?: string
+          opt_out_at?: string | null
+          opt_out_motivo?: string | null
+          updated_at?: string
+          whatsapp_ativo?: boolean
+        }
+        Update: {
+          assistido_id?: string
+          created_at?: string
+          horario_fim_envio?: string
+          horario_inicio_envio?: string
+          id?: string
+          opt_out_at?: string | null
+          opt_out_motivo?: string | null
+          updated_at?: string
+          whatsapp_ativo?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacoes_preferencias_assistido_id_fkey"
+            columns: ["assistido_id"]
+            isOneToOne: true
+            referencedRelation: "assistidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificacoes_templates: {
+        Row: {
+          ativo: boolean
+          canal: Database["public"]["Enums"]["notif_canal"]
+          codigo_template: string
+          corpo_template: string
+          created_at: string
+          id: string
+          tipo_evento: Database["public"]["Enums"]["notif_evento"]
+          titulo_interno: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          canal?: Database["public"]["Enums"]["notif_canal"]
+          codigo_template: string
+          corpo_template: string
+          created_at?: string
+          id?: string
+          tipo_evento: Database["public"]["Enums"]["notif_evento"]
+          titulo_interno: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          canal?: Database["public"]["Enums"]["notif_canal"]
+          codigo_template?: string
+          corpo_template?: string
+          created_at?: string
+          id?: string
+          tipo_evento?: Database["public"]["Enums"]["notif_evento"]
+          titulo_interno?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       orientacoes_assistido: {
         Row: {
           assistido_id: string
@@ -1452,6 +1638,97 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_conversas: {
+        Row: {
+          assistido_id: string | null
+          atendente_responsavel: string | null
+          created_at: string
+          em_handoff: boolean
+          id: string
+          status_conversa: Database["public"]["Enums"]["conversa_status"]
+          telefone: string
+          ultimo_contato_em: string
+          updated_at: string
+        }
+        Insert: {
+          assistido_id?: string | null
+          atendente_responsavel?: string | null
+          created_at?: string
+          em_handoff?: boolean
+          id?: string
+          status_conversa?: Database["public"]["Enums"]["conversa_status"]
+          telefone: string
+          ultimo_contato_em?: string
+          updated_at?: string
+        }
+        Update: {
+          assistido_id?: string | null
+          atendente_responsavel?: string | null
+          created_at?: string
+          em_handoff?: boolean
+          id?: string
+          status_conversa?: Database["public"]["Enums"]["conversa_status"]
+          telefone?: string
+          ultimo_contato_em?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversas_assistido_id_fkey"
+            columns: ["assistido_id"]
+            isOneToOne: false
+            referencedRelation: "assistidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_handoffs: {
+        Row: {
+          atendente_id: string | null
+          classificado_por_ia: boolean
+          closed_at: string | null
+          conversa_id: string
+          created_at: string
+          id: string
+          motivo: string | null
+          opened_at: string
+          status: Database["public"]["Enums"]["handoff_status"]
+          updated_at: string
+        }
+        Insert: {
+          atendente_id?: string | null
+          classificado_por_ia?: boolean
+          closed_at?: string | null
+          conversa_id: string
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          opened_at?: string
+          status?: Database["public"]["Enums"]["handoff_status"]
+          updated_at?: string
+        }
+        Update: {
+          atendente_id?: string | null
+          classificado_por_ia?: boolean
+          closed_at?: string | null
+          conversa_id?: string
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          opened_at?: string
+          status?: Database["public"]["Enums"]["handoff_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_handoffs_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1469,6 +1746,18 @@ export type Database = {
         Args: { _assistido_id: string; _coordinator_id: string }
         Returns: boolean
       }
+      fn_enqueue_notificacao: {
+        Args: {
+          p_assistido_id: string
+          p_dedupe_key: string
+          p_evento: Database["public"]["Enums"]["notif_evento"]
+          p_payload: Json
+          p_scheduled_at: string
+          p_template: string
+        }
+        Returns: undefined
+      }
+      fn_normalize_phone: { Args: { p: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1551,6 +1840,17 @@ export type Database = {
         | "tarefeiro"
         | "assistido"
         | "coordenador_de_tratamento"
+      conversa_status: "ativa" | "encerrada"
+      handoff_status: "aberto" | "em_atendimento" | "fechado"
+      notif_canal: "whatsapp"
+      notif_evento:
+        | "entrevista_criada"
+        | "entrevista_lembrete"
+        | "sessao_criada"
+        | "sessao_lembrete"
+        | "remarcacao"
+        | "cancelamento"
+      notif_status: "pendente" | "agendado" | "enviado" | "falha" | "cancelado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1685,6 +1985,18 @@ export const Constants = {
         "assistido",
         "coordenador_de_tratamento",
       ],
+      conversa_status: ["ativa", "encerrada"],
+      handoff_status: ["aberto", "em_atendimento", "fechado"],
+      notif_canal: ["whatsapp"],
+      notif_evento: [
+        "entrevista_criada",
+        "entrevista_lembrete",
+        "sessao_criada",
+        "sessao_lembrete",
+        "remarcacao",
+        "cancelamento",
+      ],
+      notif_status: ["pendente", "agendado", "enviado", "falha", "cancelado"],
     },
   },
 } as const
