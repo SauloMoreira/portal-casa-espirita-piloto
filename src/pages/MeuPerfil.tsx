@@ -182,6 +182,8 @@ export default function MeuPerfil() {
         </CardContent>
       </Card>
 
+      {assistidoId && <WhatsappPreferenciaCard assistidoId={assistidoId} />}
+
       <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
         <Save className="h-4 w-4" />
         {saving ? "Salvando..." : "Salvar Perfil"}
