@@ -3,9 +3,6 @@ import { format, subDays, startOfMonth, endOfMonth, startOfYear } from "date-fns
 import type {
   AdminDashboardData,
   DashboardAguardandoItem,
-  DashboardCargaTarefeiro,
-  DashboardEntrevistaRecente,
-  DashboardTratamentoTipo,
   DateRange,
   PeriodKey,
 } from "@/types/adminDashboard";
@@ -31,135 +28,90 @@ export function getPeriodRange(key: PeriodKey): DateRange {
   }
 }
 
+const EMPTY = (range: DateRange): AdminDashboardData => ({
+  range,
+  assistidosTotal: 0,
+  tratAtivos: 0,
+  tratConcluidos: 0,
+  entAgendadas: 0,
+  presencasHoje: 0,
+  listaEspera: 0,
+  aguardandoAgend: 0,
+  faltasMes: 0,
+  publicoPalestras: 0,
+  entRecentes: [],
+  tratPorTipo: [],
+  cargaTarefeiros: [],
+  presencaPontos: [],
+  entrevistasPorTipo: { regulares: 0, livres: 0, realizadas: 0, total: 0 },
+  faixaEtaria: [],
+});
+
 /**
- * Load and normalize all data blocks for the admin dashboard for one period.
- * Centralizes every Supabase query + aggregation so the UI stays declarative.
+ * Load every dashboard block for one period in a single server-side RPC call
+ * (`dashboard_admin`). All aggregation happens in the database, so the client
+ * only normalizes the typed payload.
  */
 export async function fetchAdminDashboard(
   period: PeriodKey,
 ): Promise<AdminDashboardData> {
   const range = getPeriodRange(period);
-  const today = format(new Date(), "yyyy-MM-dd");
 
-  const [
-    { data: assistidosData },
-    { count: tratAtivosC },
-    { count: tratConcluidosC },
-    { count: entAgendasC },
-    { count: presencasHojeC },
-    { count: listaEsperaC },
-    { count: aguardAgendC },
-    { data: recentesData },
-    { data: tratData },
-    { data: presData },
-    { data: palData },
-    { data: entData },
-    { count: faltasMesC },
-    { data: tiposTrat },
-  ] = await Promise.all([
-    supabase.from("assistidos").select("id, nome, data_nascimento, status, created_at, quantidade_palestras").is("deleted_at", null).limit(5000),
-    supabase.from("assistido_tratamentos").select("*", { count: "exact", head: true }).in("status", ["aguardando_inicio", "em_andamento"]),
-    supabase.from("assistido_tratamentos").select("*", { count: "exact", head: true }).eq("status", "concluido").gte("updated_at", range.start + "T00:00:00").lte("updated_at", range.end + "T23:59:59"),
-    supabase.from("entrevistas_fraternas").select("*", { count: "exact", head: true }).eq("status", "agendada"),
-    supabase.from("presencas_tratamentos").select("*", { count: "exact", head: true }).eq("data", today),
-    supabase.from("assistido_tratamentos").select("*", { count: "exact", head: true }).eq("status", "aguardando_liberacao"),
-    supabase.from("assistido_tratamentos").select("*", { count: "exact", head: true }).eq("status", "aguardando_agendamento"),
-    supabase.from("entrevistas_fraternas").select("id, data, status, assistido_id, entrevistador_id, tipo_entrevista").order("data", { ascending: false }).limit(5),
-    supabase.from("assistido_tratamentos").select("tratamento_id, status, tratamento:tipos_tratamento(nome, tarefeiro_id)").in("status", ["aguardando_inicio", "em_andamento"]).limit(5000),
-    supabase.from("presencas_tratamentos").select("data, status_presenca").gte("data", range.start).lte("data", range.end).limit(5000),
-    supabase.from("presencas_palestras").select("palestra_id, presente, palestra:palestras(data)").limit(5000),
-    supabase.from("entrevistas_fraternas").select("id, data, status, tipo_entrevista").gte("data", range.start + "T00:00:00").lte("data", range.end + "T23:59:59").limit(5000),
-    supabase.from("presencas_tratamentos").select("*", { count: "exact", head: true }).eq("status_presenca", "ausente").gte("data", range.start).lte("data", range.end),
-    supabase.from("tipos_tratamento").select("id, nome, tarefeiro_id, coordenador_responsavel_id").eq("status", "ativo"),
-  ]);
+  const { data, error } = await supabase.rpc("dashboard_admin", {
+    p_inicio: range.start,
+    p_fim: range.end,
+  });
+  if (error) throw error;
 
-  const entRecentes = await buildEntrevistasRecentes((recentesData ?? []) as unknown as RecenteRow[]);
-  const tratPorTipo = buildTratamentoDistribuicao((tratData ?? []) as unknown as TratRow[]);
-  const cargaTarefeiros = await buildCargaTarefeiros((tratData ?? []) as unknown as TratRow[]);
-  const publicoPalestras = (palData ?? []).filter((p) => p.presente).length;
+  const p = (data ?? {}) as any;
+  if (!p.autorizado) return EMPTY(range);
 
+  const et = p.entrevistas_por_tipo ?? {};
   return {
     range,
-    assistidos: (assistidosData ?? []) as AdminDashboardData["assistidos"],
-    tratAtivos: tratAtivosC ?? 0,
-    tratConcluidos: tratConcluidosC ?? 0,
-    entAgendadas: entAgendasC ?? 0,
-    presencasHoje: presencasHojeC ?? 0,
-    listaEspera: listaEsperaC ?? 0,
-    aguardandoAgend: aguardAgendC ?? 0,
-    faltasMes: faltasMesC ?? 0,
-    publicoPalestras,
-    entRecentes,
-    tratPorTipo,
-    presencas: (presData ?? []) as AdminDashboardData["presencas"],
-    cargaTarefeiros,
-    entrevistas: (entData ?? []) as AdminDashboardData["entrevistas"],
+    assistidosTotal: Number(p.assistidos_total ?? 0),
+    tratAtivos: Number(p.trat_ativos ?? 0),
+    tratConcluidos: Number(p.trat_concluidos ?? 0),
+    entAgendadas: Number(p.ent_agendadas ?? 0),
+    presencasHoje: Number(p.presencas_hoje ?? 0),
+    listaEspera: Number(p.lista_espera ?? 0),
+    aguardandoAgend: Number(p.aguardando_agend ?? 0),
+    faltasMes: Number(p.faltas_mes ?? 0),
+    publicoPalestras: Number(p.publico_palestras ?? 0),
+    entRecentes: (p.ent_recentes ?? []).map((r: any) => ({
+      id: r.id,
+      data: r.data,
+      status: r.status,
+      assistido_id: r.assistido_id,
+      entrevistador_id: r.entrevistador_id,
+      tipo_entrevista: r.tipo_entrevista,
+      assistido_nome: r.assistido_nome ?? "—",
+      entrevistador_nome: r.entrevistador_nome ?? "—",
+    })),
+    tratPorTipo: (p.trat_por_tipo ?? []).map((r: any) => ({
+      nome: r.nome ?? "—",
+      count: Number(r.count ?? 0),
+    })),
+    cargaTarefeiros: (p.carga_tarefeiros ?? []).map((r: any) => ({
+      nome: r.nome ?? "—",
+      total: Number(r.total ?? 0),
+    })),
+    presencaPontos: (p.presenca_pontos ?? []).map((r: any) => ({
+      data: r.data,
+      presentes: Number(r.presentes ?? 0),
+      ausentes: Number(r.ausentes ?? 0),
+    })),
+    entrevistasPorTipo: {
+      regulares: Number(et.regulares ?? 0),
+      livres: Number(et.livres ?? 0),
+      realizadas: Number(et.realizadas ?? 0),
+      total: Number(et.total ?? 0),
+    },
+    faixaEtaria: (p.faixa_etaria ?? []).map((r: any) => ({
+      name: r.name ?? "—",
+      value: Number(r.value ?? 0),
+    })),
   };
-}
-
-interface RecenteRow {
-  id: string;
-  data: string;
-  status: string;
-  assistido_id: string;
-  entrevistador_id: string | null;
-  tipo_entrevista: string | null;
-}
-
-async function buildEntrevistasRecentes(
-  recentes: RecenteRow[],
-): Promise<DashboardEntrevistaRecente[]> {
-  if (recentes.length === 0) return [];
-  const ids = [...new Set(recentes.map((r) => r.assistido_id))];
-  const entIds = [...new Set(recentes.map((r) => r.entrevistador_id).filter(Boolean))] as string[];
-  const [{ data: nomes }, { data: entNomes }] = await Promise.all([
-    supabase.from("assistidos").select("id, nome").in("id", ids),
-    supabase.rpc("staff_names", { _ids: entIds }),
-  ]);
-  const nomeMap = new Map((nomes ?? []).map((n) => [n.id, n.nome]));
-  const entMap = new Map((entNomes ?? []).map((n) => [n.user_id, n.nome_completo]));
-  return recentes.map((r) => ({
-    ...r,
-    assistido_nome: nomeMap.get(r.assistido_id) ?? "—",
-    entrevistador_nome: (r.entrevistador_id && entMap.get(r.entrevistador_id)) || "—",
-  }));
-}
-
-interface TratRow {
-  tratamento_id: string;
-  status: string;
-  tratamento: { nome: string; tarefeiro_id: string | null } | null;
-}
-
-function buildTratamentoDistribuicao(
-  tratData: TratRow[],
-): DashboardTratamentoTipo[] {
-  const map = new Map<string, DashboardTratamentoTipo>();
-  tratData.forEach((d) => {
-    if (!d.tratamento) return;
-    const key = d.tratamento_id;
-    if (!map.has(key)) map.set(key, { nome: d.tratamento.nome, count: 0 });
-    map.get(key)!.count++;
-  });
-  return [...map.values()].sort((a, b) => b.count - a.count);
-}
-
-async function buildCargaTarefeiros(
-  tratData: TratRow[],
-): Promise<DashboardCargaTarefeiro[]> {
-  const tarefeiroMap = new Map<string, number>();
-  tratData.forEach((d) => {
-    const tarefeiroId = d.tratamento?.tarefeiro_id;
-    if (!tarefeiroId) return;
-    tarefeiroMap.set(tarefeiroId, (tarefeiroMap.get(tarefeiroId) ?? 0) + 1);
-  });
-  const tIds = [...tarefeiroMap.keys()];
-  if (tIds.length === 0) return [];
-  const { data: profiles } = await supabase.rpc("staff_names", { _ids: tIds });
-  const pMap = new Map((profiles ?? []).map((p) => [p.user_id, p.nome_completo || "Sem nome"]));
-  return [...tarefeiroMap.entries()]
-    .map(([id, total]) => ({ nome: pMap.get(id) || id.slice(0, 8), total }))
-    .sort((a, b) => b.total - a.total);
 }
 
 /** Load the "aguardando agendamento" detail list shown in the dialog. */
