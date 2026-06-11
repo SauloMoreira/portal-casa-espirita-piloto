@@ -82,7 +82,7 @@ export default function Tratamentos() {
     const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "coordenador_de_tratamento");
     if (roles && roles.length > 0) {
       const userIds = roles.map((r: any) => r.user_id);
-      const { data: profiles } = await supabase.from("profiles").select("user_id, nome_completo").in("user_id", userIds);
+      const { data: profiles } = await supabase.rpc("staff_names", { _ids: userIds });
       setCoordenadores((profiles || []).map((p: any) => ({ id: p.user_id, nome: p.nome_completo || p.user_id })));
     }
   };
