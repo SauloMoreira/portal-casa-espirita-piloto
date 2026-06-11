@@ -312,6 +312,28 @@ export function useFazerEntrevista() {
         setCartaOpen(true);
       }
 
+      // Fecha o ciclo supervisionado da IA: registra a decisão final humana
+      // (comparação sugestão x atribuição) quando houve sugestão da IA.
+      if (aiSugestaoId && aiEstruturada) {
+        try {
+          const atribuidos: IaTratamentoAtribuido[] = Object.entries(quantidades)
+            .filter(([, q]) => Number(q) > 0)
+            .map(([tratId, q]) => ({
+              tratamento_id: tratId,
+              nome: tratamentoMap[tratId]?.nome ?? tratId,
+              quantidade: Number(q),
+            }));
+          await recordDecisaoFinal({
+            sugestaoId: aiSugestaoId,
+            avaliadorId: user!.id,
+            sugeridos: aiEstruturada.tratamentos_sugeridos as IaTratamentoSugerido[],
+            atribuidos,
+          });
+        } catch (fbErr) {
+          console.error("Erro ao registrar feedback da IA:", fbErr);
+        }
+      }
+
       clearSelection();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao salvar entrevista";
@@ -330,6 +352,8 @@ export function useFazerEntrevista() {
     tipoEntrevista,
     observacoes,
     agendaEntrevistaId,
+    aiSugestaoId,
+    aiEstruturada,
     toast,
     clearSelection,
   ]);
