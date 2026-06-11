@@ -6,6 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface TratamentoDisponivel {
+  id?: string;
+  nome: string;
+  tipo?: string;
+  quantidade_padrao_sessoes?: number;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -30,7 +37,12 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Sem permissão" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { observacoes, assistido_nome, tratamentos_disponiveis } = await req.json();
+    const body = await req.json();
+    const observacoes: string = body.observacoes;
+    const assistido_nome: string = body.assistido_nome;
+    const assistido_id: string | null = body.assistido_id ?? null;
+    const entrevista_id: string | null = body.entrevista_id ?? null;
+    const tratamentos_disponiveis: TratamentoDisponivel[] = body.tratamentos_disponiveis || [];
 
     if (!observacoes || !observacoes.trim()) {
       return new Response(JSON.stringify({ error: "Observações da entrevista são obrigatórias" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -44,22 +56,20 @@ serve(async (req) => {
     // ── Consultar base de conhecimento da Central de IA ──
     const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // 1. Configurações da IA
     const { data: configRows } = await serviceClient.from("ia_configuracoes").select("*").limit(1);
     const config = configRows?.[0] || null;
 
-    // 2. Queixas ativas com palavras-chave e sinônimos
     const { data: queixas } = await serviceClient.from("ia_queixas").select("id, nome_queixa, categoria, descricao, palavras_chave, sinonimos, nivel_relevancia").eq("status", "ativo").order("nivel_relevancia");
 
-    // 3. Vínculos queixa ↔ tratamento
     const { data: vinculos } = await serviceClient.from("ia_queixa_tratamento").select("queixa_id, tratamento_id, prioridade, peso, tipo_relacao, observacao_operacional, observacao_doutrinaria").eq("status", "ativo");
 
-    // 4. Biblioteca doutrinária (apenas materiais marcados para uso na IA)
     let bibliotecaTexto = "";
+    const materiaisConsultados: Array<{ titulo: string; tipo_material?: string | null }> = [];
     if (config?.usar_base_doutrinaria) {
-      const { data: materiais } = await serviceClient.from("ia_biblioteca").select("titulo, autor, tema, resumo, texto_indexavel").eq("status", "ativo").eq("usar_na_ia", true).limit(20);
+      const { data: materiais } = await serviceClient.from("ia_biblioteca").select("titulo, autor, tema, tipo_material, resumo, texto_indexavel").eq("status", "ativo").eq("usar_na_ia", true).limit(20);
       if (materiais && materiais.length > 0) {
-        bibliotecaTexto = materiais.map((m: any) => {
+        for (const m of materiais as Array<Record<string, string>>) materiaisConsultados.push({ titulo: m.titulo, tipo_material: m.tipo_material });
+        bibliotecaTexto = (materiais as Array<Record<string, string>>).map((m) => {
           let entry = `- "${m.titulo}"`;
           if (m.autor) entry += ` (${m.autor})`;
           entry += ` — Tema: ${m.tema}`;
@@ -70,24 +80,24 @@ serve(async (req) => {
       }
     }
 
-    // ── Montar mapa de queixas e seus tratamentos recomendados ──
+    // ── Mapa de tratamentos disponíveis (id -> nome) ──
     const tratamentosMap: Record<string, string> = {};
-    (tratamentos_disponiveis || []).forEach((t: any) => { tratamentosMap[t.id] = t.nome; });
+    tratamentos_disponiveis.forEach((t) => { if (t.id) tratamentosMap[t.id] = t.nome; });
 
     let queixasComTratamentos = "";
     if (queixas && queixas.length > 0) {
-      queixasComTratamentos = queixas.map((q: any) => {
-        const vinculosQueixa = (vinculos || []).filter((v: any) => v.queixa_id === q.id);
+      queixasComTratamentos = (queixas as Array<Record<string, unknown>>).map((q) => {
+        const vinculosQueixa = (vinculos || []).filter((v: Record<string, unknown>) => v.queixa_id === q.id);
         let entry = `### ${q.nome_queixa} (categoria: ${q.categoria}, relevância: ${q.nivel_relevancia})`;
         if (q.descricao) entry += `\nDescrição: ${q.descricao}`;
-        if (q.palavras_chave?.length) entry += `\nPalavras-chave: ${q.palavras_chave.join(", ")}`;
-        if (q.sinonimos?.length) entry += `\nSinônimos: ${q.sinonimos.join(", ")}`;
+        if (Array.isArray(q.palavras_chave) && q.palavras_chave.length) entry += `\nPalavras-chave: ${(q.palavras_chave as string[]).join(", ")}`;
+        if (Array.isArray(q.sinonimos) && q.sinonimos.length) entry += `\nSinônimos: ${(q.sinonimos as string[]).join(", ")}`;
         if (vinculosQueixa.length > 0) {
           entry += `\nTratamentos recomendados:`;
           vinculosQueixa
-            .sort((a: any, b: any) => b.peso - a.peso)
-            .forEach((v: any) => {
-              const nomeT = tratamentosMap[v.tratamento_id] || v.tratamento_id;
+            .sort((a: Record<string, number>, b: Record<string, number>) => (b.peso as number) - (a.peso as number))
+            .forEach((v: Record<string, unknown>) => {
+              const nomeT = tratamentosMap[v.tratamento_id as string] || (v.tratamento_id as string);
               entry += `\n  - ${nomeT} (prioridade: ${v.prioridade}, peso: ${v.peso}, tipo: ${v.tipo_relacao})`;
               if (v.observacao_operacional) entry += ` | Obs operacional: ${v.observacao_operacional}`;
               if (v.observacao_doutrinaria) entry += ` | Obs doutrinária: ${v.observacao_doutrinaria}`;
@@ -97,80 +107,56 @@ serve(async (req) => {
       }).join("\n\n");
     }
 
-    // ── Montar prompt ──
-    const tratamentosLista = (tratamentos_disponiveis || [])
-      .map((t: any) => `- ${t.nome} (tipo: ${t.tipo}, sessões padrão: ${t.quantidade_padrao_sessoes})`)
+    const tratamentosLista = tratamentos_disponiveis
+      .map((t) => `- id="${t.id ?? ""}" | ${t.nome} (tipo: ${t.tipo}, sessões padrão: ${t.quantidade_padrao_sessoes})`)
       .join("\n");
 
     const pesoOp = config?.peso_base_operacional ?? 7;
     const pesoDout = config?.peso_base_doutrinaria ?? 5;
 
-    let systemPrompt = `Você é um assistente de apoio à equipe de entrevista fraterna de uma instituição espírita.
-Sua função é analisar as observações registradas pelo entrevistador e fornecer:
-
-1. **Resumo**: Um resumo objetivo e respeitoso das observações.
-2. **Pontos de atenção**: Queixas, dores emocionais, físicas ou espirituais mencionadas.
-3. **Sugestões de tratamentos**: Com base na BASE DE CONHECIMENTO abaixo (queixas cadastradas e seus tratamentos recomendados), sugira os tratamentos mais adequados e a quantidade de sessões.
+    let systemPrompt = `Você é um assistente de APOIO à equipe de entrevista fraterna de uma instituição espírita.
+Sua função é analisar as observações registradas pelo entrevistador e devolver uma análise estruturada.
 
 REGRAS IMPORTANTES:
-- Suas sugestões são apenas apoio. A decisão final é SEMPRE do entrevistador.
-- Seja respeitoso e empático.
-- Não faça diagnósticos médicos ou psicológicos.
+- Suas sugestões são apenas APOIO. A decisão final é SEMPRE do entrevistador.
+- Seja respeitoso e empático. Não faça diagnósticos médicos ou psicológicos.
 - Baseie-se nas observações E na base de conhecimento cadastrada.
-- PRIORIZE os tratamentos que estão vinculados às queixas identificadas na base de conhecimento.
-- Considere o peso e a prioridade dos vínculos ao recomendar tratamentos.
-- Peso da base operacional (queixas/tratamentos): ${pesoOp}/10
-- Peso da base doutrinária: ${pesoDout}/10
+- PRIORIZE os tratamentos vinculados às queixas identificadas na base de conhecimento, considerando peso e prioridade.
+- Use SOMENTE tratamentos da lista de TRATAMENTOS DISPONÍVEIS e retorne o "tratamento_id" exato de cada um. Se não houver id adequado, use null.
+- Peso base operacional: ${pesoOp}/10. Peso base doutrinária: ${pesoDout}/10.
 
 ## TRATAMENTOS DISPONÍVEIS NO SISTEMA
 ${tratamentosLista || "Nenhum tratamento cadastrado."}`;
 
     if (queixasComTratamentos) {
-      systemPrompt += `
-
-## BASE DE CONHECIMENTO — QUEIXAS E TRATAMENTOS RECOMENDADOS
-Use esta base para identificar queixas nas observações e recomendar os tratamentos vinculados:
-
-${queixasComTratamentos}`;
+      systemPrompt += `\n\n## BASE DE CONHECIMENTO — QUEIXAS E TRATAMENTOS RECOMENDADOS\n${queixasComTratamentos}`;
     }
-
     if (bibliotecaTexto) {
-      systemPrompt += `
-
-## REFERÊNCIAS DOUTRINÁRIAS
-Considere estas referências ao elaborar sua análise:
-
-${bibliotecaTexto}`;
+      systemPrompt += `\n\n## REFERÊNCIAS DOUTRINÁRIAS\n${bibliotecaTexto}`;
     }
 
-    if (config?.exibir_justificativa) {
-      systemPrompt += `
+    systemPrompt += `\n\nResponda ESTRITAMENTE com um objeto JSON válido (sem cercas de código), no formato:
+{
+  "resumo": "resumo objetivo e respeitoso das observações",
+  "queixas_identificadas": [{ "nome": "...", "categoria": "..." }],
+  "tratamentos_sugeridos": [{ "tratamento_id": "id-da-lista-ou-null", "nome": "...", "quantidade": 0 }],
+  "justificativa": "explicação breve do porquê de cada tratamento, citando queixas e referências",
+  "texto": "versão markdown legível com seções Resumo, Pontos de Atenção, Sugestões de Tratamento${config?.exibir_justificativa ? ", Justificativa" : ""}"
+}
+Para cada tratamento, "quantidade" é o número de sessões recomendado (inteiro).`;
 
-Ao final, inclua uma seção **Justificativa** explicando brevemente por que cada tratamento foi sugerido, citando queixas identificadas e referências quando aplicável.`;
-    }
-
-    systemPrompt += `
-
-Responda em formato estruturado com as seções: Resumo, Pontos de Atenção, Sugestões de Tratamento${config?.exibir_justificativa ? ", Justificativa" : ""}.
-Para cada tratamento sugerido, indique o nome e a quantidade de sessões recomendada.`;
-
-    const userMessage = `Assistido: ${assistido_nome || "Não informado"}
-
-Observações da entrevista:
-${observacoes}`;
+    const userMessage = `Assistido: ${assistido_nome || "Não informado"}\n\nObservações da entrevista:\n${observacoes}`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage },
         ],
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -187,21 +173,75 @@ ${observacoes}`;
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "Sem resposta do assistente.";
+    const content: string = aiData.choices?.[0]?.message?.content || "";
+
+    // ── Parse robusto do JSON ──
+    let estruturada: Record<string, unknown> | null = null;
+    try {
+      const cleaned = content.replace(/```json\s*|\s*```/g, "").trim();
+      estruturada = JSON.parse(cleaned);
+    } catch {
+      const match = content.match(/\{[\s\S]*\}/);
+      if (match) {
+        try { estruturada = JSON.parse(match[0]); } catch { estruturada = null; }
+      }
+    }
+
+    const resumo = (estruturada?.resumo as string) || "";
+    const queixasIdent = Array.isArray(estruturada?.queixas_identificadas) ? estruturada!.queixas_identificadas : [];
+    const tratamentosSug = Array.isArray(estruturada?.tratamentos_sugeridos) ? estruturada!.tratamentos_sugeridos : [];
+    const justificativa = (estruturada?.justificativa as string) || "";
+    const texto = (estruturada?.texto as string) || content || "Sem resposta do assistente.";
+    const quantidadesSug = (tratamentosSug as Array<Record<string, unknown>>).reduce((acc: Record<string, number>, t) => {
+      if (t.tratamento_id) acc[t.tratamento_id as string] = Number(t.quantidade) || 0;
+      return acc;
+    }, {});
+
+    // ── Persistir a sugestão (status pendente) ──
+    let sugestaoId: string | null = null;
+    const { data: inserted, error: insErr } = await serviceClient
+      .from("ia_sugestoes")
+      .insert({
+        entrevista_id,
+        assistido_id,
+        entrevistador_id: user.id,
+        resumo_ia: resumo || texto.slice(0, 1000),
+        queixas_identificadas_json: queixasIdent,
+        tratamentos_sugeridos_json: tratamentosSug,
+        quantidades_sugeridas_json: quantidadesSug,
+        justificativa_ia: justificativa,
+        materiais_consultados_json: materiaisConsultados,
+        status: "pendente",
+      })
+      .select("id")
+      .single();
+    if (insErr) {
+      console.error("Erro ao persistir sugestão:", insErr.message);
+    } else {
+      sugestaoId = inserted?.id ?? null;
+    }
 
     // Log audit
     await serviceClient.from("audit_logs").insert({
       user_id: user.id,
-      tabela: "entrevistas_fraternas",
+      tabela: "ia_sugestoes",
       acao: "ASSISTENTE_IA",
-      registro_id: null,
+      registro_id: sugestaoId,
       dados_novos: { assistido_nome, observacoes_length: observacoes.length, queixas_consultadas: queixas?.length || 0, biblioteca_consultada: config?.usar_base_doutrinaria || false },
     });
 
-    return new Response(JSON.stringify({ sugestao: content }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({
+      sugestao_id: sugestaoId,
+      sugestao: texto,
+      estruturada: {
+        resumo,
+        queixas_identificadas: queixasIdent,
+        tratamentos_sugeridos: tratamentosSug,
+        justificativa,
+        materiais_consultados: materiaisConsultados,
+        texto,
+      },
+    }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("assistente-entrevista error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro interno" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
