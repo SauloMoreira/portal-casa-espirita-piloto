@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { progressoPct, diaSemanaDe, horarioCurto } from "@/lib/assistido";
 
-const DIAS_SEMANA = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+
 
 const STATUS_TRAT_LABELS: Record<string, string> = {
   aguardando_inicio: "Aguardando Início",
