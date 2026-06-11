@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 export function AppLayout() {
   const [nomeFantasia, setNomeFantasia] = useState<string | null>(null);
   const { toast } = useToast();
+  const { role } = useAuth();
+  const isAssistido = role === "assistido";
 
   const fetchInst = () => {
     supabase.from("instituicao_config").select("nome_fantasia").limit(1).then(({ data }) => {
