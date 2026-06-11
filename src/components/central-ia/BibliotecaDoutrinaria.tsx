@@ -237,6 +237,13 @@ export default function BibliotecaDoutrinaria() {
           <DialogFooter><Button onClick={handleSave}>{editId ? "Salvar" : "Criar"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MaterialRelacoesDialog
+        materialId={relacoesMaterial?.id ?? null}
+        materialTitulo={relacoesMaterial?.titulo ?? ""}
+        isAdmin={isAdmin}
+        onOpenChange={(v) => { if (!v) setRelacoesMaterial(null); }}
+      />
     </div>
   );
 }
