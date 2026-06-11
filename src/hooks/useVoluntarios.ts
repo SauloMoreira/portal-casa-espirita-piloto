@@ -3,6 +3,7 @@
  * search, selection, create/edit form state, submission and dialog control.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getRange, DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
