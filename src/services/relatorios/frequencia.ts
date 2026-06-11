@@ -4,6 +4,7 @@
 // A função no banco aplica os mesmos filtros e a visão por perfil.
 // ============================================================================
 import { supabase } from "@/integrations/supabase/client";
+import { measureAsync } from "@/lib/perfMonitor";
 import type {
   FrequenciaResult,
   PaginacaoParams,
