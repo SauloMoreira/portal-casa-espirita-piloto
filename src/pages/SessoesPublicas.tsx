@@ -405,7 +405,7 @@ export default function SessoesPublicas() {
                         <span className="text-xs font-medium flex items-center gap-1 text-muted-foreground">
                           <Clock className="h-3 w-3" />{format(new Date(c.checkin_at), "HH:mm")}
                         </span>
-                        <Badge variant="secondary" className="text-[10px]">{c.modo_checkin === "qr" ? "QR" : "Manual"}</Badge>
+                        <Badge variant="secondary" className="text-[10px]">{modoLabel(c.modo_checkin)}</Badge>
                       </div>
                     </div>
                   ))}
@@ -431,7 +431,7 @@ export default function SessoesPublicas() {
                           </TableCell>
                           <TableCell>{c.celular || "—"}</TableCell>
                           <TableCell>
-                            <Badge variant="secondary">{c.modo_checkin === "qr" ? "QR" : "Manual"}</Badge>
+                            <Badge variant="secondary">{modoLabel(c.modo_checkin)}</Badge>
                           </TableCell>
                           <TableCell>{format(new Date(c.checkin_at), "HH:mm")}</TableCell>
                         </TableRow>
