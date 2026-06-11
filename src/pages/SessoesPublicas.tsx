@@ -242,11 +242,9 @@ export default function SessoesPublicas() {
     }
   };
 
-  const qrUrl = selectedSessao
-    ? `${window.location.origin}/checkin-publico/${selectedSessao.token}`
-    : "";
+  const qrUrl = checkinUrl(window.location.origin, selectedSessao?.token);
 
-  const novos = useMemo(() => checkins.filter((c) => c.cadastro_rapido).length, [checkins]);
+  const novos = useMemo(() => contarNovos(checkins), [checkins]);
   const sessaoNome = (s?: Sessao | null) => (s as any)?.tipos_tratamento?.nome || "—";
 
   return (
