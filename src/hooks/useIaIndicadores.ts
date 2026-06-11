@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { fetchIndicadoresIA } from "@/services/ia/indicadores";
+import { fetchIndicadoresIA, type IndicadoresFiltro } from "@/services/ia/indicadores";
 import type { IaIndicadores } from "@/types/ia";
 
 const EMPTY: IaIndicadores = {
@@ -21,22 +21,24 @@ const EMPTY: IaIndicadores = {
   evolucao: [],
 };
 
-export function useIaIndicadores() {
+export function useIaIndicadores(filtro: IndicadoresFiltro = {}) {
   const [data, setData] = useState<IaIndicadores>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { inicio, fim } = filtro;
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setData(await fetchIndicadoresIA());
+      setData(await fetchIndicadoresIA({ inicio, fim }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao carregar indicadores");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [inicio, fim]);
 
   useEffect(() => {
     load();
