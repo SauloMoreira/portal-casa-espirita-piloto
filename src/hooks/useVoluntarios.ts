@@ -3,6 +3,7 @@
  * search, selection, create/edit form state, submission and dialog control.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getRange, DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -244,6 +245,21 @@ export function useVoluntarios() {
     });
   }, [voluntarios, filters, voluntarioFuncoesMap]);
 
+  // Paginação (sobre o conjunto já filtrado, preservando o filtro por função).
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters.search, filters.status, filters.tipo, filters.funcao, pageSize]);
+
+  const total = filtered.length;
+  const paginated = useMemo(() => {
+    const { from, to } = getRange(page, pageSize);
+    return filtered.slice(from, to + 1);
+  }, [filtered, page, pageSize]);
+
+
   const toggleTipo = useCallback((tipo: string) => {
     setForm((prev) => ({
       ...prev,
@@ -267,6 +283,12 @@ export function useVoluntarios() {
     allFuncoes,
     instData,
     filtered,
+    paginated,
+    page,
+    pageSize,
+    total,
+    setPage,
+    setPageSize,
     availableFuncoes,
     getFuncaoNames,
     // filters

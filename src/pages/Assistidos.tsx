@@ -17,6 +17,8 @@ import { AddressFields } from "@/components/AddressFields";
 import { isValidCPF, isValidEmail, isValidPhone, maskCPF, maskPhone } from "@/lib/validators";
 import { GerarAcessoAssistido } from "@/components/GerarAcessoAssistido";
 import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import { getRange, DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 
 interface Assistido {
   id: string;
@@ -70,6 +72,10 @@ export default function Assistidos() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [total, setTotal] = useState(0);
   const [acessoOpen, setAcessoOpen] = useState(false);
   const [acessoAssistido, setAcessoAssistido] = useState<Assistido | null>(null);
   const [resetAssistido, setResetAssistido] = useState<Assistido | null>(null);
@@ -77,12 +83,46 @@ export default function Assistidos() {
   const { user, role } = useAuth();
   const { toast } = useToast();
 
-  const fetchAssistidos = async () => {
-    const { data } = await supabase.from("assistidos").select("*").is("deleted_at", null).order("nome");
-    if (data) setAssistidos(data as any);
+  // Paginação real (server-side) respeitando busca e filtro de status.
+  const fetchAssistidos = async (opts?: { page?: number }) => {
+    const targetPage = opts?.page ?? page;
+    setListLoading(true);
+    const { from, to } = getRange(targetPage, pageSize);
+    let q = supabase
+      .from("assistidos")
+      .select("*", { count: "exact" })
+      .is("deleted_at", null);
+
+    if (statusFilter !== "todos") q = q.eq("status", statusFilter);
+
+    const term = search.trim();
+    if (term) {
+      const digits = term.replace(/\D/g, "");
+      const ors = [`nome.ilike.%${term}%`];
+      if (digits) ors.push(`cpf.ilike.%${digits}%`, `celular.ilike.%${digits}%`);
+      q = q.or(ors.join(","));
+    }
+
+    const { data, count } = await q.order("nome").range(from, to);
+    setAssistidos((data as any) || []);
+    setTotal(count ?? 0);
+    setListLoading(false);
   };
 
-  useEffect(() => { fetchAssistidos(); }, []);
+  // Debounce de busca + reset de página ao mudar filtros.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setPage(1);
+      fetchAssistidos({ page: 1 });
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, statusFilter, pageSize]);
+
+  useEffect(() => {
+    fetchAssistidos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const validate = (): FormErrors => {
     const e: FormErrors = {};
@@ -186,15 +226,8 @@ export default function Assistidos() {
 
   const openNew = () => { setEditId(null); setForm(emptyForm); setErrors({}); setOpen(true); };
 
-  const filtered = assistidos.filter((a) => {
-    const s = search.toLowerCase();
-    const matchSearch = a.nome.toLowerCase().includes(s) ||
-      (a.cpf && a.cpf.includes(search.replace(/\D/g, ""))) ||
-      (a.celular && a.celular.includes(search.replace(/\D/g, ""))) ||
-      (a.telefone && a.telefone.includes(search));
-    const matchStatus = statusFilter === "todos" || a.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  // Busca e filtro de status são aplicados server-side (paginação real).
+  const filtered = assistidos;
 
   return (
     <div className="space-y-6">
@@ -295,7 +328,11 @@ export default function Assistidos() {
           </div>
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
+          {listLoading && filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <p className="text-sm">Carregando...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <HandHeart className="h-10 w-10 mb-3 opacity-30" />
               <p className="text-sm font-medium">Nenhum assistido encontrado</p>
@@ -352,6 +389,16 @@ export default function Assistidos() {
                 </TableBody>
               </Table>
             </div>
+          )}
+          {total > 0 && (
+            <PaginationControls
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              loading={listLoading}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           )}
         </CardContent>
       </Card>
