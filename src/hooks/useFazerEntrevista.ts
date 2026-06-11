@@ -365,13 +365,18 @@ export function useFazerEntrevista() {
     }
     setAiLoading(true);
     setAiSugestao("");
+    setAiSugestaoId(null);
+    setAiEstruturada(null);
     setAiOpen(true);
     try {
       const { data, error } = await supabase.functions.invoke("assistente-entrevista", {
         body: {
           observacoes,
           assistido_nome: selectedAssistido?.nome || "",
+          assistido_id: selectedAssistido?.id || null,
+          entrevista_id: agendaEntrevistaId,
           tratamentos_disponiveis: tratamentos.map((t) => ({
+            id: t.id,
             nome: t.nome,
             tipo: t.tipo,
             quantidade_padrao_sessoes: t.quantidade_padrao_sessoes,
@@ -381,6 +386,8 @@ export function useFazerEntrevista() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setAiSugestao(data.sugestao || "Sem resposta.");
+      setAiSugestaoId(data.sugestao_id ?? null);
+      setAiEstruturada(data.estruturada ?? null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao consultar assistente";
       setAiSugestao(`❌ ${msg}`);
@@ -388,7 +395,33 @@ export function useFazerEntrevista() {
     } finally {
       setAiLoading(false);
     }
-  }, [observacoes, selectedAssistido, tratamentos, toast]);
+  }, [observacoes, selectedAssistido, agendaEntrevistaId, tratamentos, toast]);
+
+  /**
+   * Aplica os tratamentos sugeridos pela IA ao formulário (pré-preenchimento).
+   * Nunca atribui automaticamente: apenas preenche os campos para o
+   * entrevistador revisar, ajustar ou remover antes de salvar.
+   */
+  const applySugestaoIA = useCallback(() => {
+    if (!aiEstruturada) return;
+    const validos = aiEstruturada.tratamentos_sugeridos.filter(
+      (t) => t.tratamento_id && tratamentoMap[t.tratamento_id],
+    );
+    if (validos.length === 0) {
+      toast({ title: "Nenhum tratamento sugerido pôde ser aplicado", variant: "destructive" });
+      return;
+    }
+    setQuantidades((prev) => {
+      const next = { ...prev };
+      for (const t of validos) {
+        const q = Number(t.quantidade) > 0 ? String(t.quantidade) : "";
+        next[t.tratamento_id as string] = q;
+      }
+      return next;
+    });
+    setAiOpen(false);
+    toast({ title: `${validos.length} tratamento(s) pré-preenchido(s)`, description: "Revise e ajuste antes de salvar." });
+  }, [aiEstruturada, tratamentoMap, toast]);
 
   const setObservacoesManual = useCallback((value: string) => {
     transcriptBaseRef.current = value;
