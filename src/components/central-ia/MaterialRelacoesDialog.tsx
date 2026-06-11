@@ -58,7 +58,6 @@ export default function MaterialRelacoesDialog({ materialId, materialTitulo, isA
       queixa_id: alvo === "queixa" ? alvoId : null,
       tratamento_id: alvo === "tratamento" ? alvoId : null,
       tipo_relacao: "apoio",
-      created_by: user!.id,
     };
     const { error } = await supabase.from("ia_biblioteca_relacoes").insert([payload]);
     if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); return; }
