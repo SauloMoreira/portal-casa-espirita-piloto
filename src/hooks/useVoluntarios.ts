@@ -283,6 +283,12 @@ export function useVoluntarios() {
     allFuncoes,
     instData,
     filtered,
+    paginated,
+    page,
+    pageSize,
+    total,
+    setPage,
+    setPageSize,
     availableFuncoes,
     getFuncaoNames,
     // filters
