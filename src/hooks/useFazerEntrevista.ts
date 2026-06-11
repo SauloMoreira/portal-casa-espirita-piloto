@@ -30,6 +30,12 @@ import type {
   SpeechRecognitionEventLike,
   SpeechRecognitionErrorEventLike,
 } from "@/types/speech";
+import type {
+  IaSugestaoEstruturada,
+  IaTratamentoAtribuido,
+  IaTratamentoSugerido,
+} from "@/types/ia";
+import { recordDecisaoFinal } from "@/services/ia/sugestoes";
 
 
 
