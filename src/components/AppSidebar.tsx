@@ -16,6 +16,7 @@ import {
   User,
   Building2,
   Bell,
+  MessageCircle,
   Brain,
   UserCheck,
   ChevronDown,
