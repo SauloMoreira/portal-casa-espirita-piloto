@@ -46,7 +46,7 @@ export default function CargaPorTarefeiro() {
       const tratIds = filtered.map((t) => t.id);
 
       const [{ data: profiles }, { data: sessoes }, { data: presencas }, { data: vinculos }] = await Promise.all([
-        supabase.from("profiles").select("user_id, nome_completo").in("user_id", tarefIds),
+        supabase.rpc("staff_names", { _ids: tarefIds }),
         supabase.from("agenda_tratamentos_assistido").select("tratamento_id, assistido_id").in("tratamento_id", tratIds).gte("data_sessao", filters.dataInicio).lte("data_sessao", filters.dataFim).limit(10000),
         supabase.from("presencas_tratamentos").select("status_presenca, assistido_tratamento:assistido_tratamentos(tratamento_id)").gte("data", filters.dataInicio).lte("data", filters.dataFim).limit(10000),
         supabase.from("assistido_tratamentos").select("tratamento_id, status").in("tratamento_id", tratIds).limit(5000),
