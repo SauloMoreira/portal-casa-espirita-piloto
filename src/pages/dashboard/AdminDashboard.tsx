@@ -72,6 +72,9 @@ export default function AdminDashboard() {
         cargaTarefeiros={data.cargaTarefeiros}
       />
 
+      <AdminPublicWorksSection period={period} />
+
+
       <AdminQuickLists
         entRecentes={data.entRecentes}
         ageData={ageData}
