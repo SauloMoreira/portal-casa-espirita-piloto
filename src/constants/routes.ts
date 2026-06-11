@@ -14,6 +14,7 @@ export const ROUTES = {
   home: "/",
   dashboard: "/dashboard",
   notificacoes: "/notificacoes",
+  centralNotificacoes: "/central-notificacoes",
   relatorios: "/relatorios",
 
   // Atendimento
