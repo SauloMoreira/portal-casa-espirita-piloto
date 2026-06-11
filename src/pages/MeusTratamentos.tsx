@@ -138,7 +138,7 @@ export default function MeusTratamentos() {
       ) : (
         <div className="space-y-4">
           {tratamentos.map((t) => {
-            const pct = t.quantidade_total > 0 ? (t.quantidade_realizada / t.quantidade_total) * 100 : 0;
+            const pct = progressoPct(t.quantidade_realizada, t.quantidade_total);
             const hoje = new Date().toISOString().split("T")[0];
             const proximasSessoes = t.sessoes.filter((s) => s.data_sessao >= hoje && s.status === "agendado");
             const expanded = expandedIds.has(t.id);
