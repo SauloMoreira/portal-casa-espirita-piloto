@@ -24,16 +24,18 @@ export async function fetchFrequenciaPresenca(
   filtros: RelatorioPresencaFiltros,
   paginacao: PaginacaoParams,
 ): Promise<FrequenciaResult> {
-  const { data, error } = await supabase.rpc("relatorio_frequencia_presenca", {
-    p_data_inicio: filtros.dataInicio,
-    p_data_fim: filtros.dataFim,
-    p_tratamento_id: norm(filtros.tratamentoId),
-    p_assistido_id: norm(filtros.assistidoId),
-    p_tarefeiro_id: norm(filtros.tarefeiroId),
-    p_coordenador_id: norm(filtros.coordenadorId),
-    p_page: paginacao.page,
-    p_page_size: paginacao.pageSize,
-  });
+  const { data, error } = await measureAsync("rpc:relatorio_frequencia_presenca", () =>
+    supabase.rpc("relatorio_frequencia_presenca", {
+      p_data_inicio: filtros.dataInicio,
+      p_data_fim: filtros.dataFim,
+      p_tratamento_id: norm(filtros.tratamentoId),
+      p_assistido_id: norm(filtros.assistidoId),
+      p_tarefeiro_id: norm(filtros.tarefeiroId),
+      p_coordenador_id: norm(filtros.coordenadorId),
+      p_page: paginacao.page,
+      p_page_size: paginacao.pageSize,
+    }),
+  );
 
   if (error) throw error;
 
