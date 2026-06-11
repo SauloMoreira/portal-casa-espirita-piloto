@@ -110,6 +110,7 @@ const navGroups: NavGroup[] = [
     icon: Brain,
     items: [
       { title: "Central de IA", url: "/central-ia", icon: Brain, roles: ["admin", "entrevistador"] },
+      { title: "Central de Notificações", url: "/central-notificacoes", icon: MessageCircle, roles: ["admin", "coordenador_de_tratamento"] },
       { title: "Relatórios", url: "/relatorios", icon: BarChart3, roles: ["admin", "entrevistador", "coordenador_de_tratamento", "tarefeiro"] },
       { title: "Exceções", url: "/excecoes", icon: AlertTriangle, roles: ["admin"] },
       { title: "Auditoria", url: "/auditoria", icon: Shield, roles: ["admin"] },
