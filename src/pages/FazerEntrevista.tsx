@@ -85,7 +85,10 @@ export default function FazerEntrevista() {
         onOpenChange={e.setAiOpen}
         loading={e.aiLoading}
         sugestao={e.aiSugestao}
+        estruturada={e.aiEstruturada}
+        onApply={e.applySugestaoIA}
       />
+
 
       <CartaAgendamento
         open={e.cartaOpen}
