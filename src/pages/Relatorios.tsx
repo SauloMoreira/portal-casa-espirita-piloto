@@ -75,7 +75,9 @@ export default function Relatorios() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {REPORTS.filter((r) => !(r.key === "carga" && (role === "tarefeiro" || role === "coordenador_de_tratamento"))).map((r) => {
+        {REPORTS.filter((r) => !(r.key === "carga" && (role === "tarefeiro" || role === "coordenador_de_tratamento")))
+          .filter((r) => !(r.key === "trabalhos_publicos" && !(role === "admin" || role === "coordenador_de_tratamento" || role === "tarefeiro")))
+          .map((r) => {
           const Icon = r.icon;
           return (
           <Card key={r.key} className="glass-card hover:shadow-md transition-shadow cursor-pointer group" onClick={() => setActive(r.key)}>
