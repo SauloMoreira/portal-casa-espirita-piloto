@@ -75,7 +75,7 @@ export default function TratamentosConcluidos() {
       const allIds = [...new Set([...tarefIds, ...coordIds])];
       let nameMap = new Map<string, string>();
       if (allIds.length > 0) {
-        const { data: profiles } = await supabase.from("profiles").select("user_id, nome_completo").in("user_id", allIds);
+        const { data: profiles } = await supabase.rpc("staff_names", { _ids: allIds });
         (profiles || []).forEach((p) => nameMap.set(p.user_id, p.nome_completo || "Sem nome"));
       }
 
