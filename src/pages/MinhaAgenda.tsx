@@ -70,7 +70,7 @@ export default function MinhaAgenda() {
   if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Carregando...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-screen-xl mx-auto w-full">
       <div>
         <h1 className="text-2xl font-display font-bold text-foreground">Minha Agenda</h1>
         <p className="text-sm text-muted-foreground mt-1">Seus próximos atendimentos confirmados</p>
