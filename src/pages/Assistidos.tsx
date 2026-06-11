@@ -390,6 +390,16 @@ export default function Assistidos() {
               </Table>
             </div>
           )}
+          {total > 0 && (
+            <PaginationControls
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              loading={listLoading}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          )}
         </CardContent>
       </Card>
 
