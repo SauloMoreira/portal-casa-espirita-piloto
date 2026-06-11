@@ -1,49 +1,51 @@
+# Consolidação da Central de IA — plano incremental
 
-# Central de Apoio e Calibração da IA — Plano Faseado
+## Situação atual (já existe, não será refeito)
+- **Schema completo**: `ia_queixas`, `ia_queixa_tratamento`, `ia_sugestoes`, `ia_feedback`, `ia_biblioteca`, `ia_biblioteca_relacoes`, `ia_configuracoes` — todas as colunas exigidas pelas Ondas 1–3 já estão lá.
+- **UI completa**: as 6 abas em `CentralIA.tsx` (Queixas/Tratamentos, Biblioteca, Sugestões, Feedback, Indicadores, Configurações).
+- **Edge function `assistente-entrevista`**: já lê configurações, queixas, vínculos e biblioteca e monta o prompt.
+- **Auditoria parcial**: triggers em queixas, queixa_tratamento, biblioteca e configurações.
 
-## Fase 1 — Estrutura de Dados (Migração)
-Criar todas as tabelas necessárias com RLS:
-- `ia_queixas` — cadastro de queixas/dores/sinais
-- `ia_queixa_tratamento` — relação queixa ↔ tratamento
-- `ia_biblioteca` — materiais doutrinários
-- `ia_biblioteca_relacoes` — relação material ↔ queixa/tratamento
-- `ia_sugestoes` — histórico de sugestões da IA
-- `ia_feedback` — feedback supervisionado
-- `ia_configuracoes` — configurações da IA
+## Lacuna central (o que realmente falta)
+O ciclo supervisionado está **aberto**:
+- A IA devolve só texto markdown livre; **nada é gravado em `ia_sugestoes`**.
+- Como `ia_sugestoes` fica vazio, **Feedback e Indicadores não têm dados reais**.
+- O diálogo da entrevista (`AssistenteIaDialog`) só exibe texto — sem aceitar/ajustar/rejeitar nem registrar a decisão final.
+- Sem trigger de auditoria em `ia_sugestoes`/`ia_feedback` (quem avaliou).
 
-**Acesso:** admin (total), entrevistador (leitura + feedback)
+O foco da consolidação é **fechar esse ciclo** mantendo a regra: IA é apoio, decisão é humana.
 
-## Fase 2 — Subárea 1: Queixas e Tratamentos
-- CRUD de queixas (nome, categoria, palavras-chave, sinônimos, etc.)
-- CRUD de relações queixa ↔ tratamento (prioridade, peso, tipo)
-- Tabelas filtráveis e formulários
+## Trabalho proposto
 
-## Fase 3 — Subárea 2: Biblioteca Doutrinária
-- CRUD de materiais (título, autor, tipo, tema, upload de arquivo)
-- Associação material ↔ queixas/tratamentos
-- Toggle "usar na IA"
+### Onda A — Sugestão estruturada + persistência (núcleo)
+- Alterar `assistente-entrevista` para retornar, além do texto, um JSON estruturado (queixas identificadas, tratamentos sugeridos com quantidade, justificativa, materiais consultados) usando saída estruturada do modelo.
+- Persistir cada análise em `ia_sugestoes` (resumo, queixas/tratamentos/quantidades JSON, justificativa, materiais, `status='pendente'`, vínculo a entrevista/assistido/entrevistador).
+- Retornar o `id` da sugestão ao cliente para ligar à decisão final.
 
-## Fase 4 — Subárea 3: Sugestões da IA
-- Registro automático das sugestões ao usar o Assistente IA na entrevista
-- Listagem histórica com filtros
+### Onda B — Integração supervisionada na entrevista (Onda 4 do pedido)
+- Evoluir `AssistenteIaDialog` para mostrar a sugestão estruturada com ações **aceitar / ajustar / rejeitar** por tratamento, sem autoatribuição e sem poluição visual.
+- Ao aceitar/ajustar, pré-preencher os tratamentos/quantidades já existentes no fluxo (sem mudar a regra de negócio de agendamento).
+- Ao salvar a entrevista, registrar a **decisão final** e disparar `ia_feedback` (classificação + diferenças sugerido×atribuído) — opcionalmente exigido conforme `exigir_feedback`.
 
-## Fase 5 — Subárea 4: Feedback e Aprendizado
-- Comparação sugestão IA × atribuição final
-- Classificação (acertou totalmente / parcialmente / inadequada)
-- Registro de motivo e observações
+### Onda C — Indicadores com dados reais
+- Camada `services/ia` + hook para métricas: total com IA, aderência total/parcial, divergência, tratamentos mais sugeridos×atribuídos, queixas com maior acerto/divergência, evolução no tempo.
+- Reaproveitar/atualizar `IndicadoresAssertividade.tsx` para consumir esses dados (cards + gráficos + tabela comparativa).
 
-## Fase 6 — Subárea 5: Indicadores de Assertividade
-- Cards-resumo e gráficos (taxa de aderência, divergência, evolução)
+### Onda D — Auditoria, permissões e testes
+- Migration: trigger de auditoria em `ia_sugestoes` e `ia_feedback`.
+- Conferir permissões (admin total; entrevistador usa IA + feedback; demais sem acesso à administração da IA) em rotas e RLS.
+- Testes unitários: cálculo de aderência/divergência, classificação de feedback e agregação dos indicadores.
 
-## Fase 7 — Subárea 6: Configurações da IA
-- Painel de pesos, toggles e parâmetros
+## Detalhes técnicos
+- Arquitetura nova: `src/types/ia.ts`, `src/services/ia/*`, `src/hooks/use*`, componentes focados.
+- Saída estruturada via Lovable AI Gateway (tool/JSON) com fallback para texto se o modelo não retornar JSON válido.
+- Nenhuma alteração nas regras de agendamento (`agenda_tratamentos_assistido` permanece fonte única) nem nos fluxos de tratamentos/relatórios.
+- Migrations apenas para triggers de auditoria (sem mudança destrutiva de schema).
 
-## Fase 8 — Integração com o Assistente IA
-- Alterar a edge function `assistente-entrevista` para consultar a base de queixas, biblioteca e histórico supervisionado
-- Gravar automaticamente as sugestões em `ia_sugestoes`
+## Critérios de aceite
+Mapeiam 1:1 os do pedido: base de queixas, relação queixa↔tratamento, registro de sugestão, registro de decisão humana, feedback supervisionado, indicadores de assertividade, biblioteca utilizável, IA integrada de forma supervisionada, tudo auditável, sem regressão.
 
----
-
-**Recomendação:** Implementar fase por fase, validando cada uma antes de avançar. Começar pela **Fase 1 (migração)** + **Fase 2 (Queixas e Tratamentos)**.
-
-Deseja que eu inicie pela Fase 1 (criação das tabelas) e Fase 2 (tela de Queixas e Tratamentos)?
+## Confirmação
+Como o módulo já existe e a Onda B altera o fluxo consolidado de entrevista, quero confirmar antes de codar:
+1. Posso evoluir o ciclo nesta ordem (A→B→C→D)?
+2. O feedback no fim da entrevista deve ser **obrigatório** (respeitando `exigir_feedback`) ou sempre opcional?
