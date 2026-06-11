@@ -98,7 +98,7 @@ export default function ReportFilters({ values, onChange, show = [] }: Props) {
           supabase.from("user_roles").select("user_id").eq("role", "entrevistador").then(async ({ data }) => {
             const ids = (data || []).map((r) => r.user_id);
             if (ids.length > 0) {
-              const { data: profiles } = await supabase.from("profiles").select("user_id, nome_completo").in("user_id", ids);
+              const { data: profiles } = await supabase.rpc("staff_names", { _ids: ids });
               setEntrevistadores((profiles || []).map((p) => ({ id: p.user_id, nome: p.nome_completo || "Sem nome" })));
             }
           })
