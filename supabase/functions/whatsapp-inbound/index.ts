@@ -427,6 +427,8 @@ Deno.serve(async (req) => {
     const { data: convExist } = await admin
       .from("whatsapp_conversas").select("*").eq("telefone", telefone).maybeSingle();
     const jaSaudado = jaSaudadoRecentemente(convExist?.ultimo_contato_em);
+    // Last reply we sent (short context) for anti-repetition of the wording.
+    const ultimaRespostaIA: string | null = convExist?.ultima_resposta_ia ?? null;
     if (convExist) {
       conversaId = convExist.id;
       await admin.from("whatsapp_conversas").update({
