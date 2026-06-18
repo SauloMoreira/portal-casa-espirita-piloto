@@ -45,6 +45,8 @@ export const ROUTES = {
   // Inteligência / institucional
   centralIa: "/central-ia",
   excecoes: "/excecoes",
+  excecoesOperacionais: "/excecoes-operacionais",
+  programacaoPadrao: "/programacao-padrao",
   auditoria: "/auditoria",
   regras: "/regras",
   configuracoes: "/configuracoes",
