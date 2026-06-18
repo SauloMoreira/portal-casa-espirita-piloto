@@ -2,9 +2,14 @@ import { useState, useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AssistidoMobileNav } from "@/components/AssistidoMobileNav";
-import { Outlet } from "react-router-dom";
+import { Outlet, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
+import { HelpButton } from "@/components/help/HelpButton";
+import { OnboardingTour } from "@/components/help/OnboardingTour";
+import { Button } from "@/components/ui/button";
+import { LifeBuoy } from "lucide-react";
+import { ROUTES } from "@/constants/routes";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
