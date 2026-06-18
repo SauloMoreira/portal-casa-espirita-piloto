@@ -148,7 +148,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { role, user, profile, signOut } = useAuth();
+  const { role, isMaster, user, profile, signOut } = useAuth();
   const [inst, setInst] = useState<{ logo_url: string | null; nome_fantasia: string | null } | null>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
