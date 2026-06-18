@@ -50,6 +50,7 @@ export function VoluntariosList({
               <TableHead className="hidden md:table-cell">Celular</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="hidden md:table-cell">Termo</TableHead>
               <TableHead className="hidden lg:table-cell">Ingresso</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
