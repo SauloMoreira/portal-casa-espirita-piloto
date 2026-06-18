@@ -133,12 +133,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRole(null);
     setRoles([]);
     setProfile(null);
+    setMfaPending(false);
   };
 
   const isMaster = roles.includes("administrador_master");
 
   return (
-    <AuthContext.Provider value={{ session, user, role, roles, isMaster, profile, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, user, role, roles, isMaster, profile, loading, mfaPending, refreshMfa, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
