@@ -99,3 +99,42 @@ export async function replaceVoluntarioFuncoes(
       .insert(funcoesIds.map((fid) => ({ voluntario_id: voluntarioId, funcao_id: fid })));
   }
 }
+
+// ---- Lifecycle management (inactivate / reactivate / check / delete) ----
+
+export interface VoluntarioActionResult {
+  success?: boolean;
+  message?: string;
+  error?: string;
+  can_delete?: boolean;
+  blockers?: string[];
+  suggestion?: string;
+}
+
+type VoluntarioAction = "inactivate" | "reactivate" | "check" | "delete";
+
+async function manageVoluntario(
+  action: VoluntarioAction,
+  voluntarioId: string,
+  motivo?: string | null,
+): Promise<VoluntarioActionResult> {
+  const { data, error } = await supabase.rpc("gerenciar_voluntario", {
+    p_action: action,
+    p_voluntario_id: voluntarioId,
+    p_motivo: motivo ?? null,
+  });
+  if (error) throw error;
+  return (data ?? {}) as VoluntarioActionResult;
+}
+
+export const inactivateVoluntario = (id: string, motivo?: string | null) =>
+  manageVoluntario("inactivate", id, motivo);
+
+export const reactivateVoluntario = (id: string, motivo?: string | null) =>
+  manageVoluntario("reactivate", id, motivo);
+
+export const checkVoluntarioDeletion = (id: string) =>
+  manageVoluntario("check", id);
+
+export const deleteVoluntario = (id: string, motivo?: string | null) =>
+  manageVoluntario("delete", id, motivo);
