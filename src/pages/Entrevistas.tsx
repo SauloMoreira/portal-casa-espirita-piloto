@@ -121,11 +121,11 @@ export default function Entrevistas() {
   const [decisoes, setDecisoes] = useState("");
   const [designacoes, setDesignacoes] = useState<DesignacaoItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const { user, role } = useAuth();
+  const { user, role, isMaster } = useAuth();
   const { toast } = useToast();
   // Tarefeiros may schedule interviews and read availability, but the actual
   // "realizar" (which designates treatments) stays with entrevistador/admin.
-  const canRealizar = role === "admin" || role === "entrevistador";
+  const canRealizar = isMaster || role === "admin" || role === "entrevistador";
   const [cartaOpen, setCartaOpen] = useState(false);
   const [cartaAssistidoId, setCartaAssistidoId] = useState("");
   const [cartaEntrevistaId, setCartaEntrevistaId] = useState("");
