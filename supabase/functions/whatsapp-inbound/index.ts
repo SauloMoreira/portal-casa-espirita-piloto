@@ -302,46 +302,64 @@ Deno.serve(async (req) => {
         resposta = "Você pode ver seus agendamentos, tratamentos e avisos direto no app, na área 'Painel' e 'Agenda'. 🌿";
       } else if (intencao === "programacao_publica") {
         // Public, identity-free question about today's public schedule.
+        // Lookup order: (1) operational exceptions, (2) real public sessions,
+        // (3) recurring default rule, otherwise a safe "no programming" answer.
         const { data: hojeData, diaSemana } = hojeSaoPaulo();
 
-        // 1) PRIMARY: real public sessions registered for today.
+        // Fetch ALL of today's public sessions (including cancelled/rescheduled)
+        // so operational exceptions can be reported with clarity.
         const { data: sessoes } = await admin
           .from("sessoes_publicas")
           .select("horario_inicio, status, tipos_tratamento ( nome, trabalho_publico )")
-          .eq("data_sessao", hojeData)
-          .neq("status", "cancelada");
+          .eq("data_sessao", hojeData);
 
-        let itens: ItemProgramacao[] = (sessoes || [])
-          .filter((s: any) => s?.tipos_tratamento?.trabalho_publico !== false)
+        const publicas = (sessoes || [])
+          .filter((s: any) => s?.tipos_tratamento?.trabalho_publico !== false);
+
+        // 1) EXCEPTIONS: cancelled/rescheduled public sessions for today.
+        const excecoes = publicas.filter((s: any) =>
+          CANCELADO_STATUS.includes(String(s?.status || "").toLowerCase()));
+        // 2) REAL active public sessions for today.
+        const ativas: ItemProgramacao[] = publicas
+          .filter((s: any) => !CANCELADO_STATUS.includes(String(s?.status || "").toLowerCase()))
           .map((s: any) => ({
             nome: s?.tipos_tratamento?.nome || "Trabalho público",
             horario: s?.horario_inicio ?? null,
           }));
 
-        if (itens.length > 0) {
-          respostaFonte = "agenda_publica_real";
-        } else {
-          // 2) SECONDARY: configurable operational rule (fallback by weekday).
-          const { data: regra } = await admin
-            .from("regras_operacionais")
-            .select("valor, ativo")
-            .eq("chave", "programacao_publica_fallback")
-            .eq("ativo", true)
-            .maybeSingle();
-          if (regra?.valor) {
-            try {
-              const cfg = JSON.parse(regra.valor);
-              const doDia = cfg?.[String(diaSemana)] ?? cfg?.dias?.[String(diaSemana)] ?? [];
-              itens = (Array.isArray(doDia) ? doDia : [])
-                .map((i: any) => ({ nome: i?.nome, horario: i?.horario ?? null }))
-                .filter((i: ItemProgramacao) => i.nome);
-              if (itens.length > 0) respostaFonte = "regra_operacional";
-            } catch (_) { /* malformed rule -> treated as no programming */ }
-          }
-        }
+        let itens: ItemProgramacao[] = ativas;
 
-        // Always a safe, valid answer (even "no programming") -> no handoff needed.
-        resposta = montarRespostaProgramacao(itens);
+        if (ativas.length === 0 && excecoes.length > 0) {
+          // Only exceptions today: inform the cancellation/reschedule clearly.
+          respostaFonte = "excecao_operacional";
+          const e = excecoes[0] as any;
+          const nomeEx = e?.tipos_tratamento?.nome || "o trabalho público";
+          resposta = `Atenção: hoje ${nomeEx} consta como ${String(e?.status).toLowerCase()}. Em caso de dúvida, nossa equipe pode confirmar. 🌿`;
+        } else {
+          if (ativas.length > 0) {
+            respostaFonte = "agenda_publica_real";
+          } else {
+            // 3) SECONDARY: configurable operational rule (fallback by weekday).
+            const { data: regra } = await admin
+              .from("regras_operacionais")
+              .select("valor, ativo")
+              .eq("chave", "programacao_publica_fallback")
+              .eq("ativo", true)
+              .maybeSingle();
+            if (regra?.valor) {
+              try {
+                const cfg = JSON.parse(regra.valor);
+                const doDia = cfg?.[String(diaSemana)] ?? cfg?.dias?.[String(diaSemana)] ?? [];
+                itens = (Array.isArray(doDia) ? doDia : [])
+                  .map((i: any) => ({ nome: i?.nome, horario: i?.horario ?? null }))
+                  .filter((i: ItemProgramacao) => i.nome);
+                if (itens.length > 0) respostaFonte = "regra_operacional";
+              } catch (_) { /* malformed rule -> treated as no programming */ }
+            }
+          }
+          // Always a safe, valid answer (even "no programming") -> no handoff needed.
+          resposta = montarRespostaProgramacao(itens);
+        }
       }
 
       // Decide handoff: anything the IA cannot auto-resolve, or that needs an
