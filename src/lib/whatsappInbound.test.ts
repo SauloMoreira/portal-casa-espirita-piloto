@@ -335,8 +335,15 @@ describe("whatsappInbound — camada de ponte e condução da conversa", () => {
   });
 
   it("não repete a saudação quando o usuário já foi saudado", () => {
-    expect(montarRespostaConversacional("saudacao", 14, true)).toBe("Como posso te ajudar? 🌿");
-    expect(montarRespostaConversacional("saudacao", 14, false)).toMatch(/Boa tarde! 🌿/);
+    const jaSaudado = montarRespostaConversacional("saudacao", 14, true);
+    expect(jaSaudado).not.toMatch(/Bom dia|Boa tarde|Boa noite|Seja bem-vindo/);
+    expect(jaSaudado).toMatch(/🌿/);
+    expect(montarRespostaConversacional("saudacao", 14, false)).toMatch(/Boa tarde! 🌿 Seja bem-vindo/);
+  });
+
+  it("acolhe no início e encerra com gentileza da casa", () => {
+    expect(montarRespostaConversacional("saudacao", 20)).toMatch(/Boa noite! 🌿 Seja bem-vindo/);
+    expect(montarRespostaConversacional("encerramento")).toMatch(/casa está à disposição/);
   });
 
   it("jaSaudadoRecentemente detecta contato recente dentro da janela", () => {
