@@ -7,24 +7,40 @@ const corsHeaders = {
 };
 
 type Intencao =
-  | "proxima_sessao" | "horario_entrevista" | "confirmacao_agendamento"
+  | "tratamento_hoje" | "proxima_sessao" | "horario_entrevista" | "confirmacao_agendamento"
   | "onde_ver_app" | "programacao_publica" | "opt_out" | "reativar" | "complexo";
 
 const SENSITIVE = ["reclama", "absurdo", "pessimo", "péssimo", "horrivel", "horrível",
   "advogado", "processo", "denuncia", "denúncia", "urgente", "emergencia", "emergência"];
 
+// Personal intents must win over public-schedule intents so any message using
+// personal markers is answered from the assistido's REAL data, not the generic
+// house schedule.
 const KEYWORDS: Array<{ intent: Intencao; terms: string[] }> = [
   { intent: "opt_out", terms: ["parar", "cancelar mensagens", "nao quero", "não quero", "sair", "descadastr", "remover"] },
   { intent: "reativar", terms: ["voltar a receber", "reativar", "quero receber"] },
+  { intent: "horario_entrevista", terms: [
+    "entrevista", "tenho entrevista", "minha entrevista", "entrevista marcada", "entrevista fraterna",
+  ] },
+  { intent: "tratamento_hoje", terms: [
+    "tenho tratamento hoje", "tem tratamento hoje", "tratamento hoje",
+    "tenho sessao hoje", "tenho sessão hoje", "minha sessao hoje", "minha sessão hoje",
+    "tenho atendimento hoje", "tenho hoje", "sessao hoje", "sessão hoje", "atendimento hoje",
+  ] },
+  { intent: "proxima_sessao", terms: [
+    "proxima sessao", "próxima sessão", "minha sessao", "minha sessão",
+    "meu tratamento", "meu próximo", "meu proximo", "proximo tratamento", "próximo tratamento",
+    "proximo atendimento", "próximo atendimento", "meu atendimento", "minha proxima", "minha próxima",
+    "quando e minha sessao", "quando é minha sessão", "quando e meu", "quando é meu",
+    "que horas e minha", "que horas é minha", "horario da minha", "horário da minha",
+  ] },
+  { intent: "confirmacao_agendamento", terms: ["confirmar", "confirmado", "ta marcado", "tá marcado", "esta marcado"] },
   { intent: "programacao_publica", terms: [
     "palestra", "evangelhoterapia", "evangelho terapia", "passe",
     "trabalho publico", "trabalho público", "trabalhos publicos", "trabalhos públicos",
     "atendimento publico", "atendimento público", "programacao", "programação",
-    "tem hoje", "tera hoje", "terá hoje", "tem culto", "abre hoje", "vai abrir",
+    "tem palestra", "tem culto", "abre hoje", "vai abrir", "que horas e a palestra", "que horas é a palestra",
   ] },
-  { intent: "proxima_sessao", terms: ["proxima sessao", "próxima sessão", "minha sessao", "quando e minha sessao", "quando é minha sessão"] },
-  { intent: "horario_entrevista", terms: ["entrevista"] },
-  { intent: "confirmacao_agendamento", terms: ["confirmar", "confirmado", "ta marcado", "tá marcado", "esta marcado"] },
   { intent: "onde_ver_app", terms: ["app", "aplicativo", "onde vejo", "onde ver", "sistema", "site"] },
 ];
 
@@ -37,14 +53,16 @@ function classificar(msg: string): Intencao {
 }
 
 const AUTORESOLVIVEIS: Intencao[] = [
-  "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app",
+  "tratamento_hoje", "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app",
   "programacao_publica", "opt_out", "reativar",
 ];
 
 // Intents that can only be answered automatically when we know who is asking.
 const PRECISA_ASSISTIDO: Intencao[] = [
-  "proxima_sessao", "horario_entrevista", "opt_out", "reativar",
+  "tratamento_hoje", "proxima_sessao", "horario_entrevista", "opt_out", "reativar",
 ];
+
+const CANCELADO_STATUS = ["cancelado", "cancelada", "remarcado", "remarcada"];
 
 function normalizePhone(p: string): string {
   return (p || "").replace(/\D/g, "");
