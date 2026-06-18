@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -16,7 +17,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Users as UsersIcon, Pencil, KeyRound, MoreVertical, UserX, UserCheck, Trash2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Plus, Search, Users as UsersIcon, Pencil, KeyRound, MoreVertical, UserX, UserCheck, Trash2, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { AddressFields } from "@/components/AddressFields";
@@ -386,6 +388,17 @@ export default function Usuarios() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Alert className="bg-primary/5 border-primary/20">
+        <ShieldCheck className="h-4 w-4 text-primary" />
+        <AlertTitle className="text-primary">Governança de Acessos Administrativos</AlertTitle>
+        <AlertDescription className="text-primary/80">
+          Concessão e aprovação de privilégios administrativos são geridos em ambiente separado.{" "}
+          <Link to="/governanca-acessos" className="font-semibold underline hover:text-primary">
+            Ir para Governança de Acessos →
+          </Link>
+        </AlertDescription>
+      </Alert>
 
       <Card className="glass-card">
         <CardHeader className="pb-3">
