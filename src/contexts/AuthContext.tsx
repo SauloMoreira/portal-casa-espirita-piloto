@@ -11,6 +11,7 @@ interface UserProfile {
   nome_completo: string | null;
   foto_url: string | null;
   senha_temporaria: boolean | null;
+  status: string | null;
 }
 
 interface AuthContextType {
