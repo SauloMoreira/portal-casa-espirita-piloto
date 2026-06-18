@@ -163,11 +163,11 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existing) return await dupResponse();
 
-      // Try matching an existing assistido by normalized phone
+      // Try matching an existing assistido by normalized phone (digits only, sanitized)
       const { data: foundAssistido } = await supabase
         .from("assistidos")
         .select("id, nome, celular")
-        .or(`celular.eq.${celular},celular.eq.${body.celular}`)
+        .eq("celular", celular)
         .maybeSingle();
 
       if (foundAssistido) {

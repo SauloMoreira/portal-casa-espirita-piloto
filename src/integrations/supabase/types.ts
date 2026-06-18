@@ -75,6 +75,24 @@ export type Database = {
           },
         ]
       }
+      app_cron_secrets: {
+        Row: {
+          created_at: string
+          name: string
+          secret: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          secret: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          secret?: string
+        }
+        Relationships: []
+      }
       assistido_tratamentos: {
         Row: {
           agendado_por: string | null

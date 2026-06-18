@@ -493,6 +493,31 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+  // --- Webhook origin verification ---
+  // The webhook is public (Z-API cannot send a user JWT), so we require a shared
+  // secret passed by the provider either as the `?secret=` query param or the
+  // `x-webhook-secret` header. The expected value lives in the service-role-only
+  // `app_cron_secrets` table. When a secret is configured, unsigned/forged
+  // requests are rejected with 401.
+  {
+    const { data: secretRow } = await admin
+      .from("app_cron_secrets")
+      .select("secret")
+      .eq("name", "whatsapp_webhook")
+      .maybeSingle();
+    const expected = secretRow?.secret;
+    if (expected) {
+      const url = new URL(req.url);
+      const provided = url.searchParams.get("secret") || req.headers.get("x-webhook-secret");
+      if (provided !== expected) {
+        return new Response(JSON.stringify({ error: "Não autorizado" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+  }
+
   try {
     const body = await req.json().catch(() => ({}));
     // Z-API on-message-received webhook shape. Be defensive and also accept
