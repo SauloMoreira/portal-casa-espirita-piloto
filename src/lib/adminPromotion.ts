@@ -73,7 +73,10 @@ export function canApprove(ctx: ApprovalContext): ApprovalCheck {
   if (!ctx.approverIsActiveAdmin) {
     return { allowed: false, reason: "Apenas administradores ativos podem aprovar." };
   }
-  if (ctx.approverId === ctx.requestedBy) {
+  // Bootstrap exception: when the approver is the sole active administrator of
+  // the system, the "requester cannot self-approve" rule would deadlock the
+  // flow (nobody else exists to approve). Allow self-approval only then.
+  if (ctx.approverId === ctx.requestedBy && ctx.aptAdmins > 1) {
     return { allowed: false, reason: "O solicitante não pode aprovar a própria solicitação." };
   }
   if (ctx.approverId === ctx.targetUserId) {
