@@ -341,17 +341,17 @@ export function montarRespostaConversacional(
   jaSaudado?: boolean,
 ): string {
   if (intencao === "agradecimento") {
-    return "Disponha! 🌿 Se precisar de algo, é só me chamar.";
+    return "Disponha! 🌿 Fico à disposição se precisar de mais alguma informação.";
   }
   if (intencao === "encerramento") {
-    return "Combinado! Qualquer coisa, é só me chamar por aqui. Tenha um ótimo dia. 🌿";
+    return "Conte conosco. 🌿 Se precisar de mais alguma orientação, a casa está à disposição para te acolher.";
   }
   if (intencao === "pedido_informacao") {
     return "Com prazer! Você gostaria de saber sobre a programação da casa, entrevistas ou tratamentos? 🌿";
   }
   // saudacao — don't repeat the greeting if we already greeted in this conversation.
   if (jaSaudado) {
-    return "Como posso te ajudar? 🌿";
+    return "Claro, posso te ajudar com isso. 🌿 Sobre o que você gostaria de saber?";
   }
   let saudacao = "Olá";
   if (typeof horaLocal === "number") {
@@ -359,7 +359,7 @@ export function montarRespostaConversacional(
     else if (horaLocal < 18) saudacao = "Boa tarde";
     else saudacao = "Boa noite";
   }
-  return `${saudacao}! 🌿 Como posso te ajudar hoje?`;
+  return `${saudacao}! 🌿 Seja bem-vindo(a). Como posso te ajudar hoje?`;
 }
 
 /**
