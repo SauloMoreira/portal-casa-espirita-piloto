@@ -86,6 +86,7 @@ const App = () => (
                 <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                   <Route path={ROUTES.dashboard} element={guard(<Dashboard />, "Dashboard")} />
                   <Route path={ROUTES.usuarios} element={<ProtectedRoute allowedRoles={["admin"]}><Usuarios /></ProtectedRoute>} />
+                  <Route path={ROUTES.solicitacoesCadastro} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<SolicitacoesCadastro />, "Solicitações de Cadastro")}</ProtectedRoute>} />
                   <Route path={ROUTES.governancaAcessos} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<GovernancaAcessos />, "Governança de Acessos")}</ProtectedRoute>} />
 
                   <Route path={ROUTES.tratamentos} element={<ProtectedRoute allowedRoles={["admin"]}><Tratamentos /></ProtectedRoute>} />
