@@ -99,8 +99,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         if (session?.user && session.access_token) {
           await fetchRoleAndProfile(session.user.id, session.access_token);
+          // Defer AAL lookup to avoid deadlocks inside the auth callback.
+          setTimeout(() => { refreshMfa(); }, 0);
         } else {
           setRole(null);
+          setMfaPending(false);
         }
         setLoading(false);
       }
@@ -111,6 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       if (session?.user && session.access_token) {
         fetchRoleAndProfile(session.user.id, session.access_token);
+        refreshMfa();
       } else {
         setLoading(false);
       }
