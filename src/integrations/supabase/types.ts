@@ -1645,6 +1645,8 @@ export type Database = {
           created_at: string
           em_handoff: boolean
           id: string
+          revisada_em: string | null
+          revisada_por: string | null
           status_conversa: Database["public"]["Enums"]["conversa_status"]
           telefone: string
           ultima_mensagem: string | null
@@ -1657,6 +1659,8 @@ export type Database = {
           created_at?: string
           em_handoff?: boolean
           id?: string
+          revisada_em?: string | null
+          revisada_por?: string | null
           status_conversa?: Database["public"]["Enums"]["conversa_status"]
           telefone: string
           ultima_mensagem?: string | null
@@ -1669,6 +1673,8 @@ export type Database = {
           created_at?: string
           em_handoff?: boolean
           id?: string
+          revisada_em?: string | null
+          revisada_por?: string | null
           status_conversa?: Database["public"]["Enums"]["conversa_status"]
           telefone?: string
           ultima_mensagem?: string | null
