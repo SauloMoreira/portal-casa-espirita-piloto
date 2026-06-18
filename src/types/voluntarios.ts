@@ -48,6 +48,7 @@ export interface VoluntarioFilterState {
   status: string;
   tipo: string;
   funcao: string;
+  termo: string;
 }
 
 /** Map of voluntario_id -> list of funcao_id. */
