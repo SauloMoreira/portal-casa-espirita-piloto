@@ -363,9 +363,12 @@ Deno.serve(async (req) => {
     );
 
     // Upsert conversa (records the last inbound message text + timestamp).
+    // Capture whether the user was already greeted recently BEFORE we update the
+    // timestamp, so a continued conversation doesn't repeat the greeting.
     let conversaId: string;
     const { data: convExist } = await admin
       .from("whatsapp_conversas").select("*").eq("telefone", telefone).maybeSingle();
+    const jaSaudado = jaSaudadoRecentemente(convExist?.ultimo_contato_em);
     if (convExist) {
       conversaId = convExist.id;
       await admin.from("whatsapp_conversas").update({
