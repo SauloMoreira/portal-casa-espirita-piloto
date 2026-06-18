@@ -113,6 +113,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(() => { refreshMfa(); }, 0);
         } else {
           setRole(null);
+          setRoles([]);
+          setRolesResolved(false);
           setMfaPending(false);
         }
         setLoading(false);
