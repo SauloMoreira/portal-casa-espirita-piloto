@@ -1,7 +1,7 @@
 {
-  "name": "Casa Espírita — Sistema de Gestão",
-  "short_name": "Casa Espírita",
-  "description": "Plataforma para gestão de tratamentos, entrevistas, agenda, presença e voluntários em casas espíritas.",
+  "name": "Tratamentos FER — Sistema de Gestão",
+  "short_name": "Tratamentos FER",
+  "description": "Sistema de Gestão de Tratamentos e Acompanhamentos da FER — harmonia, equilíbrio e renovação.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
