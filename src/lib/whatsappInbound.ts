@@ -299,6 +299,29 @@ export function montarRespostaProximaSessao(sessao: SessaoPessoal | null): strin
   return `Sua próxima sessão é ${sessao.nome} em ${data}${hora ? " às " + hora : ""}. 🌿`;
 }
 
+/**
+ * Builds a warm, brief, human social reply for basic conversational intents
+ * (greeting / thanks). Greetings adapt to the time of day when `horaLocal`
+ * (0-23) is provided. These replies never trigger a handoff.
+ */
+export function montarRespostaConversacional(
+  intencao: Intencao,
+  horaLocal?: number,
+): string {
+  if (intencao === "agradecimento") {
+    return "Disponha! 🌿 Se precisar de algo, é só me chamar.";
+  }
+  // saudacao
+  let saudacao = "Olá";
+  if (typeof horaLocal === "number") {
+    if (horaLocal < 12) saudacao = "Bom dia";
+    else if (horaLocal < 18) saudacao = "Boa tarde";
+    else saudacao = "Boa noite";
+  }
+  return `${saudacao}! 🌿 Como posso te ajudar hoje?`;
+}
+
+
 /** Warm, precise fallback shown to the user whenever a handoff is opened. */
 export const MENSAGEM_HANDOFF =
   "Não consegui confirmar isso com segurança agora. Vou encaminhar para atendimento para te orientarmos corretamente. 🌿";
