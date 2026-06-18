@@ -389,6 +389,20 @@ export const ENCERRAMENTO_FRASES = [
   "Conte conosco. 🌿",
 ];
 
+/**
+ * When the user explicitly greets with a time-of-day phrase ("bom dia", "boa tarde",
+ * "boa noite"), we always greet back with the SAME phrase — it feels human and polite.
+ * This is checked BEFORE the generic continuation logic so even a repeated greeting
+ * within the same conversation gets a warm reply.
+ */
+export function extrairSaudacaoDoTexto(texto: string): string | null {
+  const txt = (texto || "").toLowerCase();
+  if (txt.includes("bom dia")) return "Bom dia";
+  if (txt.includes("boa tarde")) return "Boa tarde";
+  if (txt.includes("boa noite")) return "Boa noite";
+  return null;
+}
+
 /** Small, stable string hash used as a deterministic seed for variation. */
 export function hashTexto(s: string): number {
   let h = 0;
@@ -443,6 +457,20 @@ export function gerarRespostaConversacional(
 
   // saudacao
   if (ehBemEstar(ctx.texto)) return escolherFrase(BEM_ESTAR_FRASES, seed, evitar);
+
+  // If the user explicitly greets with "bom dia" / "boa tarde" / "boa noite",
+  // we greet back with the SAME phrase — polite and human, even mid-conversation.
+  const saudacaoUsuario = extrairSaudacaoDoTexto(ctx.texto);
+  if (saudacaoUsuario) {
+    const candidatos = [
+      `${saudacaoUsuario}! 🌿 Como posso te ajudar?`,
+      `${saudacaoUsuario}! 🌿 Em que posso ajudar?`,
+      `${saudacaoUsuario}! 🌿 Seja bem-vindo(a). Como posso te ajudar?`,
+      `${saudacaoUsuario}! 🌿 Fico à disposição. Como posso te ajudar?`,
+    ];
+    return escolherFrase(candidatos, seed, evitar);
+  }
+
   // Already greeted: continue the dialog without repeating a greeting.
   if (ctx.jaSaudado) return escolherFrase(CONTINUACAO_FRASES, seed, evitar);
   const saudacao = saudacaoPorHora(ctx.horaLocal);

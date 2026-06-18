@@ -6,7 +6,7 @@ import {
   resolverDataAlvo, detectarAtividade, montarRespostaExcecao,
   ehConversacional, montarRespostaConversacional, jaSaudadoRecentemente,
   gerarRespostaConversacional, escolherFrase, SAUDACAO_SUFIXOS, PONTE_FRASES,
-
+  extrairSaudacaoDoTexto,
 } from "./whatsappInbound";
 
 describe("whatsappInbound — camada conversacional básica", () => {
@@ -355,11 +355,11 @@ describe("whatsappInbound — camada de ponte e condução da conversa", () => {
 
   it("varia a formulação conforme a mensagem (não é frase fixa)", () => {
     const a = gerarRespostaConversacional("saudacao", { horaLocal: 9, texto: "bom dia" });
-    const b = gerarRespostaConversacional("saudacao", { horaLocal: 9, texto: "olá, bom dia" });
+    const b = gerarRespostaConversacional("saudacao", { horaLocal: 9, texto: "oi" });
     expect(a.startsWith("Bom dia! 🌿")).toBe(true);
     expect(b.startsWith("Bom dia! 🌿")).toBe(true);
-    // Different inbound text can map to different valid formulations.
-    expect([a, b].every((s) => SAUDACAO_SUFIXOS.some((suf) => s.endsWith(suf)))).toBe(true);
+    // Different inbound text maps to different repertoire paths, both valid.
+    expect(a).not.toBe(b);
   });
 
   it("anti-repetição: não repete verbatim a última resposta enviada", () => {
@@ -383,5 +383,41 @@ describe("whatsappInbound — camada de ponte e condução da conversa", () => {
     expect(jaSaudadoRecentemente("2026-06-18T08:00:00Z", agora)).toBe(false);
     expect(jaSaudadoRecentemente(null, agora)).toBe(false);
     expect(jaSaudadoRecentemente("data-invalida", agora)).toBe(false);
+  });
+});
+
+describe("whatsappInbound — retribuição gentil de saudação", () => {
+  it("extrai saudação de tempo do texto", () => {
+    expect(extrairSaudacaoDoTexto("bom dia")).toBe("Bom dia");
+    expect(extrairSaudacaoDoTexto("boa tarde")).toBe("Boa tarde");
+    expect(extrairSaudacaoDoTexto("boa noite")).toBe("Boa noite");
+    expect(extrairSaudacaoDoTexto("oi")).toBeNull();
+    expect(extrairSaudacaoDoTexto("olá, bom dia!")).toBe("Bom dia");
+  });
+
+  it("retribui bom dia mesmo quando já saudado", () => {
+    const r = gerarRespostaConversacional("saudacao", { horaLocal: 14, jaSaudado: true, texto: "bom dia" });
+    expect(r).toMatch(/^Bom dia! 🌿/);
+    expect(r).toMatch(/ajudar/i);
+  });
+
+  it("retribui boa tarde mesmo quando já saudado", () => {
+    const r = gerarRespostaConversacional("saudacao", { horaLocal: 9, jaSaudado: true, texto: "boa tarde" });
+    expect(r).toMatch(/^Boa tarde! 🌿/);
+    expect(r).toMatch(/ajudar/i);
+  });
+
+  it("retribui boa noite mesmo quando já saudado", () => {
+    const r = gerarRespostaConversacional("saudacao", { horaLocal: 9, jaSaudado: true, texto: "boa noite" });
+    expect(r).toMatch(/^Boa noite! 🌿/);
+    expect(r).toMatch(/ajudar/i);
+  });
+
+  it("não retribui saudação de tempo para saudação genérica (oi)", () => {
+    const r = gerarRespostaConversacional("saudacao", { horaLocal: 14, jaSaudado: true, texto: "oi" });
+    expect(r).not.toMatch(/^Bom dia! 🌿/);
+    expect(r).not.toMatch(/^Boa tarde! 🌿/);
+    expect(r).not.toMatch(/^Boa noite! 🌿/);
+    expect(r).toMatch(/🌿/);
   });
 });
