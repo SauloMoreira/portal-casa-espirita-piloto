@@ -566,9 +566,35 @@ Deno.serve(async (req) => {
     let respostaErro: string | null = null;
     let fallbackMotivo: string | null = null;
     let respostaFonte: string | null = null;
+    let ctxData: string | null = null;
+    let ctxAtividade: string | null = null;
 
     try {
       intencao = classificar(texto);
+
+      // Dynamic activity names from DB (exceptions, standard schedule, treatment
+      // types) so the IA recognizes ANY named activity (e.g. "Apometria"), not
+      // just the fixed public list — and never gets "lost" on a follow-up.
+      let atividadeMencionada: string | null = null;
+      try {
+        const [excA, progA, tiposA] = await Promise.all([
+          admin.from("excecoes_operacionais").select("atividade").eq("ativo", true),
+          admin.from("programacao_padrao").select("atividade").eq("ativo", true),
+          admin.from("tipos_tratamento").select("nome"),
+        ]);
+        const set = new Set<string>();
+        for (const r of (excA.data || [])) if ((r as any).atividade) set.add((r as any).atividade);
+        for (const r of (progA.data || [])) if ((r as any).atividade) set.add((r as any).atividade);
+        for (const r of (tiposA.data || [])) if ((r as any).nome) set.add((r as any).nome);
+        atividadeMencionada = detectarAtividadePorNome(texto, [...set]);
+      } catch (_) { /* fall back to static detection */ }
+
+      // A named activity that wasn't already routed to a data intent is a
+      // schedule question — answer it instead of escalating to a human.
+      if (atividadeMencionada && (intencao === "complexo" || intencao === "pedido_informacao")) {
+        intencao = "programacao_publica";
+      }
+
 
       if (intencao === "saudacao" || intencao === "agradecimento"
           || intencao === "pedido_informacao" || intencao === "encerramento") {
