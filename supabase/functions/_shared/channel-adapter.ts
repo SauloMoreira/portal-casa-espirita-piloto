@@ -44,10 +44,27 @@ export class ZApiAdapter implements ChannelAdapter {
   private clientToken: string;
 
   constructor(env: AdapterEnv) {
-    this.baseUrl = (env.ZAPI_BASE_URL || "https://api.z-api.io").replace(/\/+$/, "");
+    this.baseUrl = ZApiAdapter.sanitizeBaseUrl(env.ZAPI_BASE_URL);
     this.instanceId = env.ZAPI_INSTANCE_ID || "";
     this.token = env.ZAPI_INSTANCE_TOKEN || "";
     this.clientToken = env.ZAPI_CLIENT_TOKEN || "";
+  }
+
+  /**
+   * Normalize ZAPI_BASE_URL. We accept several shapes that operators may paste
+   * into the secret and reduce them all to a valid root:
+   *   - "https://api.z-api.io"                                  -> as-is
+   *   - "https://api.z-api.io/"                                 -> trailing slash trimmed
+   *   - ".../instances/<id>/token/<tok>"                        -> kept (full path)
+   *   - ".../instances/<id>/token/<tok>/send-text"             -> trailing endpoint stripped
+   * This keeps the URL builder correct regardless of how the secret was entered,
+   * without changing the decoupled adapter contract.
+   */
+  static sanitizeBaseUrl(value?: string): string {
+    let url = (value || "https://api.z-api.io").trim().replace(/\/+$/, "");
+    // Drop a trailing Z-API endpoint segment if the operator included it.
+    url = url.replace(/\/(send-text|send-message|status|messages)$/i, "");
+    return url.replace(/\/+$/, "");
   }
 
   /** Resolve the instance endpoint root, honoring a full base URL if provided. */
