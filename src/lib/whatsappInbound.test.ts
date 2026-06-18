@@ -4,7 +4,7 @@ import {
   montarRespostaProgramacao, formatarHorario, ehPerguntaPessoal,
   montarRespostaTratamentoHoje, montarRespostaProximaSessao, formatarDataCurta,
   resolverDataAlvo, detectarAtividade, montarRespostaExcecao,
-  ehConversacional, montarRespostaConversacional,
+  ehConversacional, montarRespostaConversacional, jaSaudadoRecentemente,
 } from "./whatsappInbound";
 
 describe("whatsappInbound — camada conversacional básica", () => {
@@ -295,5 +295,55 @@ describe("whatsappInbound — exceções operacionais (fonte preferencial)", () 
       atividade: "Passe", status: "remarcado", nova_data: "2026-06-25", novo_horario: "20:00",
     });
     expect(r).toMatch(/remarcada para 25\/06 às 20h/);
+  });
+});
+
+describe("whatsappInbound — camada de ponte e condução da conversa", () => {
+  it("classifica pedidos genéricos de informação como pedido_informacao", () => {
+    expect(classificarIntencao("gostaria de algumas informações")).toBe("pedido_informacao");
+    expect(classificarIntencao("queria tirar uma dúvida")).toBe("pedido_informacao");
+    expect(classificarIntencao("preciso de ajuda")).toBe("pedido_informacao");
+    expect(classificarIntencao("posso fazer uma pergunta?")).toBe("pedido_informacao");
+  });
+
+  it("continuação de conversa (saudação + pedido) vira ponte, não saudação", () => {
+    expect(classificarIntencao("tudo bem gostaria de algumas informações?")).toBe("pedido_informacao");
+  });
+
+  it("pergunta operacional vence a ponte mesmo com saudação", () => {
+    expect(classificarIntencao("boa tarde, tem palestra hoje?")).toBe("programacao_publica");
+    expect(classificarIntencao("oi, queria saber se tem palestra hoje")).toBe("programacao_publica");
+  });
+
+  it("classifica encerramentos simples", () => {
+    expect(classificarIntencao("tchau")).toBe("encerramento");
+    expect(classificarIntencao("era só isso, obrigado")).toBe("encerramento");
+  });
+
+  it("ponte e encerramento são conversacionais e não geram handoff", () => {
+    for (const i of ["pedido_informacao", "encerramento"] as const) {
+      expect(ehConversacional(i)).toBe(true);
+      const d = decidirHandoff(i, { assistidoIdentificado: false, respostaGerada: true });
+      expect(d.handoff).toBe(false);
+    }
+  });
+
+  it("resposta de ponte convida a continuar, sem repetir saudação", () => {
+    const r = montarRespostaConversacional("pedido_informacao");
+    expect(r).toMatch(/programação|programa/i);
+    expect(r).not.toMatch(/Bom dia|Boa tarde|Boa noite/);
+  });
+
+  it("não repete a saudação quando o usuário já foi saudado", () => {
+    expect(montarRespostaConversacional("saudacao", 14, true)).toBe("Como posso te ajudar? 🌿");
+    expect(montarRespostaConversacional("saudacao", 14, false)).toMatch(/Boa tarde! 🌿/);
+  });
+
+  it("jaSaudadoRecentemente detecta contato recente dentro da janela", () => {
+    const agora = Date.parse("2026-06-18T14:00:00Z");
+    expect(jaSaudadoRecentemente("2026-06-18T13:30:00Z", agora)).toBe(true);
+    expect(jaSaudadoRecentemente("2026-06-18T08:00:00Z", agora)).toBe(false);
+    expect(jaSaudadoRecentemente(null, agora)).toBe(false);
+    expect(jaSaudadoRecentemente("data-invalida", agora)).toBe(false);
   });
 });

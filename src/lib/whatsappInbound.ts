@@ -3,7 +3,7 @@
 // (every inbound produces either an IA answer or a handoff) are verifiable.
 
 export type Intencao =
-  | "saudacao" | "agradecimento"
+  | "saudacao" | "agradecimento" | "pedido_informacao" | "encerramento"
   | "tratamento_hoje" | "proxima_sessao" | "horario_entrevista" | "confirmacao_agendamento"
   | "onde_ver_app" | "programacao_publica" | "opt_out" | "reativar" | "complexo";
 
@@ -21,6 +21,28 @@ export const SAUDACAO_TERMOS = [
 export const AGRADECIMENTO_TERMOS = [
   "obrigado", "obrigada", "obrigado!", "valeu", "vlw", "agradeço", "agradecido",
   "agradecida", "muito obrigado", "muito obrigada", "ok", "okay", "certo", "blz", "beleza",
+];
+
+// "Bridge" layer: generic requests for help/information that should keep the
+// conversation flowing naturally (instead of repeating a greeting or escalating
+// to a human). They produce a warm, inviting reply asking what the person needs.
+export const PEDIDO_INFO_TERMOS = [
+  "gostaria de informa", "gostaria de algumas informa", "gostaria de saber",
+  "gostaria de uma informa", "gostaria de tirar", "queria saber", "queria uma informa",
+  "quero uma informa", "queria tirar uma duvida", "queria tirar uma dúvida",
+  "tirar uma duvida", "tirar uma dúvida", "tirar duvida", "tirar dúvida",
+  "uma duvida", "uma dúvida", "uma pergunta", "fazer uma pergunta", "posso fazer uma pergunta",
+  "preciso de ajuda", "pode me ajudar", "voce pode me ajudar", "você pode me ajudar",
+  "me ajuda", "preciso de uma informa", "uma informacao", "uma informação",
+  "algumas informacoes", "algumas informações", "quero saber", "preciso saber",
+  "informacoes", "informações",
+];
+
+// Simple, natural closings ("tchau", "era só isso") — a friendly sign-off, no handoff.
+export const ENCERRAMENTO_TERMOS = [
+  "tchau", "ate logo", "até logo", "ate mais", "até mais", "ate breve", "até breve",
+  "ate a proxima", "até a próxima", "era so isso", "era só isso", "so isso", "só isso",
+  "nada mais", "por enquanto e so", "por enquanto é só", "fica com deus",
 ];
 
 // Personal intents (about the assistido's own treatments/appointments) MUST win
@@ -58,7 +80,7 @@ export const KEYWORDS: Array<{ intent: Intencao; terms: string[] }> = [
 ];
 
 export const AUTORESOLVIVEIS: Intencao[] = [
-  "saudacao", "agradecimento",
+  "saudacao", "agradecimento", "pedido_informacao", "encerramento",
   "tratamento_hoje", "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app",
   "programacao_publica", "opt_out", "reativar",
 ];
@@ -77,8 +99,10 @@ export function ehPerguntaPessoal(intencao: Intencao): boolean {
   return PESSOAIS.includes(intencao);
 }
 
-/** True for the basic social/conversational intents (greeting, thanks). */
-export const CONVERSACIONAIS: Intencao[] = ["saudacao", "agradecimento"];
+/** True for the basic social/conversational intents (greeting, thanks, bridge, closing). */
+export const CONVERSACIONAIS: Intencao[] = [
+  "saudacao", "agradecimento", "pedido_informacao", "encerramento",
+];
 export function ehConversacional(intencao: Intencao): boolean {
   return CONVERSACIONAIS.includes(intencao);
 }
@@ -94,7 +118,11 @@ export function classificarIntencao(msg: string): Intencao {
   // Business intents win first, so "boa tarde, tem palestra hoje?" is answered
   // as an operational question (greeting + request → operational content).
   for (const { intent, terms } of KEYWORDS) if (terms.some((t) => txt.includes(t))) return intent;
-  // Isolated social messages → friendly conversational layer (no handoff).
+  // Conversational layers (no handoff), checked from most to least specific:
+  // bridge ("gostaria de informações") wins over a bare greeting so a continued
+  // conversation flows naturally instead of repeating the greeting.
+  if (contemTermo(txt, PEDIDO_INFO_TERMOS)) return "pedido_informacao";
+  if (contemTermo(txt, ENCERRAMENTO_TERMOS)) return "encerramento";
   if (contemTermo(txt, AGRADECIMENTO_TERMOS)) return "agradecimento";
   if (contemTermo(txt, SAUDACAO_TERMOS)) return "saudacao";
   return "complexo";
@@ -300,18 +328,31 @@ export function montarRespostaProximaSessao(sessao: SessaoPessoal | null): strin
 }
 
 /**
- * Builds a warm, brief, human social reply for basic conversational intents
- * (greeting / thanks). Greetings adapt to the time of day when `horaLocal`
- * (0-23) is provided. These replies never trigger a handoff.
+ * Builds a warm, brief, human social reply for the conversational layer
+ * (greeting / thanks / bridge / closing). Greetings adapt to the time of day
+ * when `horaLocal` (0-23) is provided. When `jaSaudado` is true the user was
+ * already greeted in this ongoing conversation, so an isolated greeting is NOT
+ * repeated — the IA simply offers to continue helping. These replies never
+ * trigger a handoff.
  */
 export function montarRespostaConversacional(
   intencao: Intencao,
   horaLocal?: number,
+  jaSaudado?: boolean,
 ): string {
   if (intencao === "agradecimento") {
     return "Disponha! 🌿 Se precisar de algo, é só me chamar.";
   }
-  // saudacao
+  if (intencao === "encerramento") {
+    return "Combinado! Qualquer coisa, é só me chamar por aqui. Tenha um ótimo dia. 🌿";
+  }
+  if (intencao === "pedido_informacao") {
+    return "Com prazer! Você gostaria de saber sobre a programação da casa, entrevistas ou tratamentos? 🌿";
+  }
+  // saudacao — don't repeat the greeting if we already greeted in this conversation.
+  if (jaSaudado) {
+    return "Como posso te ajudar? 🌿";
+  }
   let saudacao = "Olá";
   if (typeof horaLocal === "number") {
     if (horaLocal < 12) saudacao = "Bom dia";
@@ -319,6 +360,23 @@ export function montarRespostaConversacional(
     else saudacao = "Boa noite";
   }
   return `${saudacao}! 🌿 Como posso te ajudar hoje?`;
+}
+
+/**
+ * True when a stored conversation indicates the user was already greeted
+ * recently (within `janelaMin` minutes), so the IA should continue the dialog
+ * instead of repeating a greeting. Defensive: returns false on missing/bad data.
+ */
+export function jaSaudadoRecentemente(
+  ultimoContatoIso: string | null | undefined,
+  agoraMs: number = Date.now(),
+  janelaMin = 180,
+): boolean {
+  if (!ultimoContatoIso) return false;
+  const t = new Date(ultimoContatoIso).getTime();
+  if (isNaN(t)) return false;
+  const diffMin = (agoraMs - t) / 60000;
+  return diffMin >= 0 && diffMin <= janelaMin;
 }
 
 

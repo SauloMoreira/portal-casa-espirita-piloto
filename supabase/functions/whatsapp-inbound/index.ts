@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 type Intencao =
-  | "saudacao" | "agradecimento"
+  | "saudacao" | "agradecimento" | "pedido_informacao" | "encerramento"
   | "tratamento_hoje" | "proxima_sessao" | "horario_entrevista" | "confirmacao_agendamento"
   | "onde_ver_app" | "programacao_publica" | "opt_out" | "reativar" | "complexo";
 
@@ -23,6 +23,25 @@ const SAUDACAO_TERMOS = [
 const AGRADECIMENTO_TERMOS = [
   "obrigado", "obrigada", "valeu", "vlw", "agradeço", "agradecido",
   "agradecida", "muito obrigado", "muito obrigada", "ok", "okay", "certo", "blz", "beleza",
+];
+// Bridge layer: generic requests for help/information that keep the conversation
+// flowing naturally (instead of repeating a greeting or escalating to a human).
+const PEDIDO_INFO_TERMOS = [
+  "gostaria de informa", "gostaria de algumas informa", "gostaria de saber",
+  "gostaria de uma informa", "gostaria de tirar", "queria saber", "queria uma informa",
+  "quero uma informa", "queria tirar uma duvida", "queria tirar uma dúvida",
+  "tirar uma duvida", "tirar uma dúvida", "tirar duvida", "tirar dúvida",
+  "uma duvida", "uma dúvida", "uma pergunta", "fazer uma pergunta", "posso fazer uma pergunta",
+  "preciso de ajuda", "pode me ajudar", "voce pode me ajudar", "você pode me ajudar",
+  "me ajuda", "preciso de uma informa", "uma informacao", "uma informação",
+  "algumas informacoes", "algumas informações", "quero saber", "preciso saber",
+  "informacoes", "informações",
+];
+// Simple, natural closings — a friendly sign-off, no handoff.
+const ENCERRAMENTO_TERMOS = [
+  "tchau", "ate logo", "até logo", "ate mais", "até mais", "ate breve", "até breve",
+  "ate a proxima", "até a próxima", "era so isso", "era só isso", "so isso", "só isso",
+  "nada mais", "por enquanto e so", "por enquanto é só", "fica com deus",
 ];
 
 // Personal intents must win over public-schedule intents so any message using
@@ -66,14 +85,26 @@ function classificar(msg: string): Intencao {
   if (SENSITIVE.some((t) => txt.includes(t))) return "complexo";
   // Business intents win first (greeting + operational request -> operational).
   for (const { intent, terms } of KEYWORDS) if (terms.some((t) => txt.includes(t))) return intent;
-  // Isolated social messages -> friendly conversational layer (no handoff).
+  // Conversational layers (no handoff), most to least specific. The bridge
+  // ("gostaria de informações") wins over a bare greeting so a continued
+  // conversation flows naturally instead of repeating the greeting.
+  if (contemTermo(txt, PEDIDO_INFO_TERMOS)) return "pedido_informacao";
+  if (contemTermo(txt, ENCERRAMENTO_TERMOS)) return "encerramento";
   if (contemTermo(txt, AGRADECIMENTO_TERMOS)) return "agradecimento";
   if (contemTermo(txt, SAUDACAO_TERMOS)) return "saudacao";
   return "complexo";
 }
 
-function montarRespostaConversacional(intencao: Intencao, horaLocal?: number): string {
+function montarRespostaConversacional(
+  intencao: Intencao, horaLocal?: number, jaSaudado?: boolean,
+): string {
   if (intencao === "agradecimento") return "Disponha! 🌿 Se precisar de algo, é só me chamar.";
+  if (intencao === "encerramento") return "Combinado! Qualquer coisa, é só me chamar por aqui. Tenha um ótimo dia. 🌿";
+  if (intencao === "pedido_informacao") {
+    return "Com prazer! Você gostaria de saber sobre a programação da casa, entrevistas ou tratamentos? 🌿";
+  }
+  // saudacao — don't repeat the greeting if we already greeted in this conversation.
+  if (jaSaudado) return "Como posso te ajudar? 🌿";
   let saudacao = "Olá";
   if (typeof horaLocal === "number") {
     if (horaLocal < 12) saudacao = "Bom dia";
@@ -83,8 +114,18 @@ function montarRespostaConversacional(intencao: Intencao, horaLocal?: number): s
   return `${saudacao}! 🌿 Como posso te ajudar hoje?`;
 }
 
+// True when the conversation was already greeted recently, so the IA continues
+// the dialog instead of repeating the greeting on the next short message.
+function jaSaudadoRecentemente(ultimoContatoIso?: string | null, janelaMin = 180): boolean {
+  if (!ultimoContatoIso) return false;
+  const t = new Date(ultimoContatoIso).getTime();
+  if (isNaN(t)) return false;
+  const diffMin = (Date.now() - t) / 60000;
+  return diffMin >= 0 && diffMin <= janelaMin;
+}
+
 const AUTORESOLVIVEIS: Intencao[] = [
-  "saudacao", "agradecimento",
+  "saudacao", "agradecimento", "pedido_informacao", "encerramento",
   "tratamento_hoje", "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app",
   "programacao_publica", "opt_out", "reativar",
 ];
@@ -322,9 +363,12 @@ Deno.serve(async (req) => {
     );
 
     // Upsert conversa (records the last inbound message text + timestamp).
+    // Capture whether the user was already greeted recently BEFORE we update the
+    // timestamp, so a continued conversation doesn't repeat the greeting.
     let conversaId: string;
     const { data: convExist } = await admin
       .from("whatsapp_conversas").select("*").eq("telefone", telefone).maybeSingle();
+    const jaSaudado = jaSaudadoRecentemente(convExist?.ultimo_contato_em);
     if (convExist) {
       conversaId = convExist.id;
       await admin.from("whatsapp_conversas").update({
@@ -355,10 +399,11 @@ Deno.serve(async (req) => {
     try {
       intencao = classificar(texto);
 
-      if (intencao === "saudacao" || intencao === "agradecimento") {
-        // Basic conversational layer: friendly, brief, human. Never a handoff.
+      if (intencao === "saudacao" || intencao === "agradecimento"
+          || intencao === "pedido_informacao" || intencao === "encerramento") {
+        // Conversational layer: friendly, brief, human. Never a handoff.
         respostaFonte = "conversa_basica";
-        resposta = montarRespostaConversacional(intencao, horaSaoPaulo());
+        resposta = montarRespostaConversacional(intencao, horaSaoPaulo(), jaSaudado);
       } else if (intencao === "opt_out" && assistido) {
         await admin.from("notificacoes_preferencias").upsert({
           assistido_id: assistido.id, whatsapp_ativo: false,
