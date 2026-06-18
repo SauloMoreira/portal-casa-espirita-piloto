@@ -336,6 +336,15 @@ describe("whatsappInbound — camada de ponte e condução da conversa", () => {
     expect(r).not.toMatch(/Bom dia|Boa tarde|Boa noite/);
   });
 
+  it("apresenta a persona Daniel da FER apenas no primeiro contato", () => {
+    const inicio = gerarRespostaConversacional("saudacao", { horaLocal: 14, texto: "oi" });
+    expect(inicio).toMatch(/Sou Daniel, assistente virtual da FER/);
+    // No meio da conversa não reapresenta a persona.
+    const meio = gerarRespostaConversacional("pedido_informacao", { texto: "uma dúvida", jaSaudado: true });
+    expect(meio).not.toMatch(/Sou Daniel/);
+  });
+
+
   it("não repete a saudação nem reapresenta a persona quando já saudado", () => {
     const jaSaudado = gerarRespostaConversacional("saudacao", { horaLocal: 14, jaSaudado: true, texto: "oi" });
     expect(jaSaudado).not.toMatch(/Bom dia|Boa tarde|Boa noite/);
