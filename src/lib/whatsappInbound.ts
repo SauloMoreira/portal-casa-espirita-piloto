@@ -328,18 +328,31 @@ export function montarRespostaProximaSessao(sessao: SessaoPessoal | null): strin
 }
 
 /**
- * Builds a warm, brief, human social reply for basic conversational intents
- * (greeting / thanks). Greetings adapt to the time of day when `horaLocal`
- * (0-23) is provided. These replies never trigger a handoff.
+ * Builds a warm, brief, human social reply for the conversational layer
+ * (greeting / thanks / bridge / closing). Greetings adapt to the time of day
+ * when `horaLocal` (0-23) is provided. When `jaSaudado` is true the user was
+ * already greeted in this ongoing conversation, so an isolated greeting is NOT
+ * repeated — the IA simply offers to continue helping. These replies never
+ * trigger a handoff.
  */
 export function montarRespostaConversacional(
   intencao: Intencao,
   horaLocal?: number,
+  jaSaudado?: boolean,
 ): string {
   if (intencao === "agradecimento") {
     return "Disponha! 🌿 Se precisar de algo, é só me chamar.";
   }
-  // saudacao
+  if (intencao === "encerramento") {
+    return "Combinado! Qualquer coisa, é só me chamar por aqui. Tenha um ótimo dia. 🌿";
+  }
+  if (intencao === "pedido_informacao") {
+    return "Com prazer! Você gostaria de saber sobre a programação da casa, entrevistas ou tratamentos? 🌿";
+  }
+  // saudacao — don't repeat the greeting if we already greeted in this conversation.
+  if (jaSaudado) {
+    return "Como posso te ajudar? 🌿";
+  }
   let saudacao = "Olá";
   if (typeof horaLocal === "number") {
     if (horaLocal < 12) saudacao = "Bom dia";
@@ -347,6 +360,23 @@ export function montarRespostaConversacional(
     else saudacao = "Boa noite";
   }
   return `${saudacao}! 🌿 Como posso te ajudar hoje?`;
+}
+
+/**
+ * True when a stored conversation indicates the user was already greeted
+ * recently (within `janelaMin` minutes), so the IA should continue the dialog
+ * instead of repeating a greeting. Defensive: returns false on missing/bad data.
+ */
+export function jaSaudadoRecentemente(
+  ultimoContatoIso: string | null | undefined,
+  agoraMs: number = Date.now(),
+  janelaMin = 180,
+): boolean {
+  if (!ultimoContatoIso) return false;
+  const t = new Date(ultimoContatoIso).getTime();
+  if (isNaN(t)) return false;
+  const diffMin = (agoraMs - t) / 60000;
+  return diffMin >= 0 && diffMin <= janelaMin;
 }
 
 
