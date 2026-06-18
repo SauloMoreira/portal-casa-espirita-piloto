@@ -1,5 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth, AppRole } from "@/contexts/AuthContext";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   children: React.ReactNode;
@@ -7,8 +9,16 @@ interface Props {
 }
 
 export const ProtectedRoute = ({ children, allowedRoles }: Props) => {
-  const { session, role, profile, loading } = useAuth();
+  const { session, role, profile, loading, signOut } = useAuth();
   const location = useLocation();
+
+  // Inactivated users lose access immediately: sign them out.
+  const isInactive = profile?.status === "inativo";
+  useEffect(() => {
+    if (session && isInactive) {
+      signOut();
+    }
+  }, [session, isInactive, signOut]);
 
   if (loading) {
     return (
@@ -20,6 +30,9 @@ export const ProtectedRoute = ({ children, allowedRoles }: Props) => {
 
   // No session: send to login.
   if (!session) return <Navigate to="/login" replace />;
+
+  // Inactivated account: deny access (sign-out handled above).
+  if (isInactive) return <Navigate to="/login" replace />;
 
   // Force temporary-password users to change it before anything else.
   if (profile?.senha_temporaria && location.pathname !== "/reset-password") {
