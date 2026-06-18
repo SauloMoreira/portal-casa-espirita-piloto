@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   classificarIntencao, decidirHandoff, resumoMensagem,
+  montarRespostaProgramacao, formatarHorario,
 } from "./whatsappInbound";
 
 describe("whatsappInbound — classificação de intenção", () => {
@@ -25,6 +26,52 @@ describe("whatsappInbound — classificação de intenção", () => {
 
   it("mensagens sem correspondência viram complexo", () => {
     expect(classificarIntencao("blá blá texto aleatório xyz")).toBe("complexo");
+  });
+
+  it("reconhece perguntas públicas sobre a programação da casa", () => {
+    expect(classificarIntencao("tem palestra hoje?")).toBe("programacao_publica");
+    expect(classificarIntencao("terá palestra hoje?")).toBe("programacao_publica");
+    expect(classificarIntencao("hoje tem palestra?")).toBe("programacao_publica");
+    expect(classificarIntencao("qual o horário da palestra?")).toBe("programacao_publica");
+    expect(classificarIntencao("tem evangelhoterapia hoje?")).toBe("programacao_publica");
+    expect(classificarIntencao("quais trabalhos públicos tem hoje?")).toBe("programacao_publica");
+    expect(classificarIntencao("que horas começa a palestra?")).toBe("programacao_publica");
+    expect(classificarIntencao("tem atendimento público hoje?")).toBe("programacao_publica");
+  });
+});
+
+describe("whatsappInbound — programação pública (intent público, sem identificação)", () => {
+  it("não exige assistido identificado e não abre handoff quando há resposta", () => {
+    const d = decidirHandoff("programacao_publica", { assistidoIdentificado: false, respostaGerada: true });
+    expect(d.handoff).toBe(false);
+  });
+
+  it("formata horários de forma amigável", () => {
+    expect(formatarHorario("19:00")).toBe("19h");
+    expect(formatarHorario("19:00:00")).toBe("19h");
+    expect(formatarHorario("20:30")).toBe("20h30");
+    expect(formatarHorario(null)).toBe("");
+  });
+
+  it("monta resposta com uma sessão pública real", () => {
+    const r = montarRespostaProgramacao([{ nome: "Palestra Pública", horario: "19:00" }]);
+    expect(r).toMatch(/Palestra Pública às 19h/);
+  });
+
+  it("monta resposta com múltiplos trabalhos públicos", () => {
+    const r = montarRespostaProgramacao([
+      { nome: "Palestra Pública", horario: "19:00" },
+      { nome: "Evangelhoterapia", horario: "20:00" },
+    ]);
+    expect(r).toMatch(/Palestra Pública às 19h/);
+    expect(r).toMatch(/Evangelhoterapia às 20h/);
+  });
+
+  it("responde com segurança quando não há programação (sem handoff)", () => {
+    const r = montarRespostaProgramacao([]);
+    expect(r).toMatch(/não encontrei programação pública/i);
+    const d = decidirHandoff("programacao_publica", { assistidoIdentificado: false, respostaGerada: true });
+    expect(d.handoff).toBe(false);
   });
 });
 

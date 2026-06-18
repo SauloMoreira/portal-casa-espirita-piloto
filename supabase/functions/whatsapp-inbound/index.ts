@@ -8,7 +8,7 @@ const corsHeaders = {
 
 type Intencao =
   | "proxima_sessao" | "horario_entrevista" | "confirmacao_agendamento"
-  | "onde_ver_app" | "opt_out" | "reativar" | "complexo";
+  | "onde_ver_app" | "programacao_publica" | "opt_out" | "reativar" | "complexo";
 
 const SENSITIVE = ["reclama", "absurdo", "pessimo", "péssimo", "horrivel", "horrível",
   "advogado", "processo", "denuncia", "denúncia", "urgente", "emergencia", "emergência"];
@@ -16,6 +16,12 @@ const SENSITIVE = ["reclama", "absurdo", "pessimo", "péssimo", "horrivel", "hor
 const KEYWORDS: Array<{ intent: Intencao; terms: string[] }> = [
   { intent: "opt_out", terms: ["parar", "cancelar mensagens", "nao quero", "não quero", "sair", "descadastr", "remover"] },
   { intent: "reativar", terms: ["voltar a receber", "reativar", "quero receber"] },
+  { intent: "programacao_publica", terms: [
+    "palestra", "evangelhoterapia", "evangelho terapia", "passe",
+    "trabalho publico", "trabalho público", "trabalhos publicos", "trabalhos públicos",
+    "atendimento publico", "atendimento público", "programacao", "programação",
+    "tem hoje", "tera hoje", "terá hoje", "tem culto", "abre hoje", "vai abrir",
+  ] },
   { intent: "proxima_sessao", terms: ["proxima sessao", "próxima sessão", "minha sessao", "quando e minha sessao", "quando é minha sessão"] },
   { intent: "horario_entrevista", terms: ["entrevista"] },
   { intent: "confirmacao_agendamento", terms: ["confirmar", "confirmado", "ta marcado", "tá marcado", "esta marcado"] },
@@ -31,7 +37,13 @@ function classificar(msg: string): Intencao {
 }
 
 const AUTORESOLVIVEIS: Intencao[] = [
-  "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app", "opt_out", "reativar",
+  "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app",
+  "programacao_publica", "opt_out", "reativar",
+];
+
+// Intents that can only be answered automatically when we know who is asking.
+const PRECISA_ASSISTIDO: Intencao[] = [
+  "proxima_sessao", "horario_entrevista", "opt_out", "reativar",
 ];
 
 function normalizePhone(p: string): string {
@@ -42,6 +54,45 @@ function resumo(texto: string, max = 160): string {
   const t = (texto || "").trim();
   return t.length > max ? t.slice(0, max - 1) + "…" : t;
 }
+
+function formatarHorario(h: string | null | undefined): string {
+  if (!h) return "";
+  const [hh, mm] = h.split(":");
+  if (mm && mm !== "00") return `${parseInt(hh, 10)}h${mm}`;
+  return `${parseInt(hh, 10)}h`;
+}
+
+interface ItemProgramacao { nome: string; horario?: string | null; }
+
+function montarRespostaProgramacao(itens: ItemProgramacao[]): string {
+  const lista = (itens || []).filter((i) => i && i.nome);
+  if (lista.length === 0) {
+    return "Hoje não encontrei programação pública agendada. Em caso de dúvida, nossa equipe pode ajudar. 🌿";
+  }
+  if (lista.length === 1) {
+    const i = lista[0];
+    const hora = formatarHorario(i.horario);
+    return `Sim, hoje temos ${i.nome}${hora ? " às " + hora : ""}. 🌿`;
+  }
+  const linhas = lista
+    .map((i) => `• ${i.nome}${i.horario ? " às " + formatarHorario(i.horario) : ""}`)
+    .join("\n");
+  return `Hoje temos:\n${linhas}\n🌿`;
+}
+
+/** Returns today's date (YYYY-MM-DD) and weekday (0=Sun..6=Sat) in America/Sao_Paulo. */
+function hojeSaoPaulo(): { data: string; diaSemana: number } {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  });
+  const data = fmt.format(new Date());
+  const weekdayName = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo", weekday: "short",
+  }).format(new Date());
+  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return { data, diaSemana: map[weekdayName] ?? new Date().getDay() };
+}
+
 
 function fmtData(value: string, withTime = false): string {
   const d = new Date(value);
@@ -126,6 +177,7 @@ Deno.serve(async (req) => {
     let respostaOk = true;
     let respostaErro: string | null = null;
     let fallbackMotivo: string | null = null;
+    let respostaFonte: string | null = null;
 
     try {
       intencao = classificar(texto);
@@ -164,6 +216,48 @@ Deno.serve(async (req) => {
         resposta = "Obrigado por confirmar! Esperamos por você. 🌿";
       } else if (intencao === "onde_ver_app") {
         resposta = "Você pode ver seus agendamentos, tratamentos e avisos direto no app, na área 'Painel' e 'Agenda'. 🌿";
+      } else if (intencao === "programacao_publica") {
+        // Public, identity-free question about today's public schedule.
+        const { data: hojeData, diaSemana } = hojeSaoPaulo();
+
+        // 1) PRIMARY: real public sessions registered for today.
+        const { data: sessoes } = await admin
+          .from("sessoes_publicas")
+          .select("horario_inicio, status, tipos_tratamento ( nome, trabalho_publico )")
+          .eq("data_sessao", hojeData)
+          .neq("status", "cancelada");
+
+        let itens: ItemProgramacao[] = (sessoes || [])
+          .filter((s: any) => s?.tipos_tratamento?.trabalho_publico !== false)
+          .map((s: any) => ({
+            nome: s?.tipos_tratamento?.nome || "Trabalho público",
+            horario: s?.horario_inicio ?? null,
+          }));
+
+        if (itens.length > 0) {
+          respostaFonte = "agenda_publica_real";
+        } else {
+          // 2) SECONDARY: configurable operational rule (fallback by weekday).
+          const { data: regra } = await admin
+            .from("regras_operacionais")
+            .select("valor, ativo")
+            .eq("chave", "programacao_publica_fallback")
+            .eq("ativo", true)
+            .maybeSingle();
+          if (regra?.valor) {
+            try {
+              const cfg = JSON.parse(regra.valor);
+              const doDia = cfg?.[String(diaSemana)] ?? cfg?.dias?.[String(diaSemana)] ?? [];
+              itens = (Array.isArray(doDia) ? doDia : [])
+                .map((i: any) => ({ nome: i?.nome, horario: i?.horario ?? null }))
+                .filter((i: ItemProgramacao) => i.nome);
+              if (itens.length > 0) respostaFonte = "regra_operacional";
+            } catch (_) { /* malformed rule -> treated as no programming */ }
+          }
+        }
+
+        // Always a safe, valid answer (even "no programming") -> no handoff needed.
+        resposta = montarRespostaProgramacao(itens);
       }
 
       // Decide handoff: anything the IA cannot auto-resolve, or that needs an
@@ -174,10 +268,7 @@ Deno.serve(async (req) => {
       } else if (!AUTORESOLVIVEIS.includes(intencao)) {
         handoff = true; handoffOrigem = "regra";
         handoffMotivo = "Intenção sem resposta automática disponível";
-      } else if (
-        (intencao === "proxima_sessao" || intencao === "horario_entrevista" ||
-         intencao === "opt_out" || intencao === "reativar") && !assistido
-      ) {
+      } else if (PRECISA_ASSISTIDO.includes(intencao) && !assistido) {
         handoff = true; handoffOrigem = "regra";
         handoffMotivo = "Assistido não identificado";
       } else if (!resposta) {
@@ -185,6 +276,7 @@ Deno.serve(async (req) => {
         handoff = true; handoffOrigem = "regra";
         handoffMotivo = "IA não produziu uma resposta válida";
       }
+
     } catch (procErr) {
       // Any technical failure during classification/response building -> handoff.
       fallbackMotivo = `Falha técnica no processamento da IA: ${String(procErr)}`;
@@ -200,6 +292,7 @@ Deno.serve(async (req) => {
         telefone, texto, intencao,
         assistido_identificado: !!assistido,
         assistido_id: assistido?.id ?? null,
+        resposta_fonte: respostaFonte,
         fallback_motivo: fallbackMotivo,
       },
       status: "recebido",

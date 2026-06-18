@@ -4,7 +4,7 @@
 
 export type Intencao =
   | "proxima_sessao" | "horario_entrevista" | "confirmacao_agendamento"
-  | "onde_ver_app" | "opt_out" | "reativar" | "complexo";
+  | "onde_ver_app" | "programacao_publica" | "opt_out" | "reativar" | "complexo";
 
 export const SENSITIVE = ["reclama", "absurdo", "pessimo", "péssimo", "horrivel", "horrível",
   "advogado", "processo", "denuncia", "denúncia", "urgente", "emergencia", "emergência"];
@@ -12,6 +12,14 @@ export const SENSITIVE = ["reclama", "absurdo", "pessimo", "péssimo", "horrivel
 export const KEYWORDS: Array<{ intent: Intencao; terms: string[] }> = [
   { intent: "opt_out", terms: ["parar", "cancelar mensagens", "nao quero", "não quero", "sair", "descadastr", "remover"] },
   { intent: "reativar", terms: ["voltar a receber", "reativar", "quero receber"] },
+  // Public, identity-free intents about the house's public schedule. Placed
+  // before personal intents so "palestra"/"trabalho público" win over generic terms.
+  { intent: "programacao_publica", terms: [
+    "palestra", "evangelhoterapia", "evangelho terapia", "passe",
+    "trabalho publico", "trabalho público", "trabalhos publicos", "trabalhos públicos",
+    "atendimento publico", "atendimento público", "programacao", "programação",
+    "tem hoje", "tera hoje", "terá hoje", "tem culto", "abre hoje", "vai abrir",
+  ] },
   { intent: "proxima_sessao", terms: ["proxima sessao", "próxima sessão", "minha sessao", "quando e minha sessao", "quando é minha sessão"] },
   { intent: "horario_entrevista", terms: ["entrevista"] },
   { intent: "confirmacao_agendamento", terms: ["confirmar", "confirmado", "ta marcado", "tá marcado", "esta marcado"] },
@@ -19,7 +27,8 @@ export const KEYWORDS: Array<{ intent: Intencao; terms: string[] }> = [
 ];
 
 export const AUTORESOLVIVEIS: Intencao[] = [
-  "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app", "opt_out", "reativar",
+  "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app",
+  "programacao_publica", "opt_out", "reativar",
 ];
 
 /** Requires an identified assistido to be answered automatically. */
@@ -33,6 +42,40 @@ export function classificarIntencao(msg: string): Intencao {
   if (SENSITIVE.some((t) => txt.includes(t))) return "complexo";
   for (const { intent, terms } of KEYWORDS) if (terms.some((t) => txt.includes(t))) return intent;
   return "complexo";
+}
+
+/** Formats a "HH:MM[:SS]" string as a friendly Brazilian time (e.g. "19h", "20h30"). */
+export function formatarHorario(h: string | null | undefined): string {
+  if (!h) return "";
+  const [hh, mm] = h.split(":");
+  if (mm && mm !== "00") return `${parseInt(hh, 10)}h${mm}`;
+  return `${parseInt(hh, 10)}h`;
+}
+
+export interface ItemProgramacao {
+  nome: string;
+  horario?: string | null;
+}
+
+/**
+ * Builds the auto-reply for public schedule questions from real data.
+ * Always returns a valid, safe answer (never empty) so these questions do
+ * not need a human handoff when the lookup succeeds.
+ */
+export function montarRespostaProgramacao(itens: ItemProgramacao[]): string {
+  const lista = (itens || []).filter((i) => i && i.nome);
+  if (lista.length === 0) {
+    return "Hoje não encontrei programação pública agendada. Em caso de dúvida, nossa equipe pode ajudar. 🌿";
+  }
+  if (lista.length === 1) {
+    const i = lista[0];
+    const hora = formatarHorario(i.horario);
+    return `Sim, hoje temos ${i.nome}${hora ? " às " + hora : ""}. 🌿`;
+  }
+  const linhas = lista
+    .map((i) => `• ${i.nome}${i.horario ? " às " + formatarHorario(i.horario) : ""}`)
+    .join("\n");
+  return `Hoje temos:\n${linhas}\n🌿`;
 }
 
 export interface DecisaoFallback {
