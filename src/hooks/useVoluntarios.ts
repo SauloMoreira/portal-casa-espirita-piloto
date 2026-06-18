@@ -392,6 +392,13 @@ export function useVoluntarios() {
     selectedVoluntario,
     openFicha,
     openTermo,
+    // termo flow
+    termoFlowOpen,
+    setTermoFlowOpen,
+    termoFlowVoluntario,
+    openTermoFlow,
+    openTermoPrint,
+    onTermoChanged,
     // lifecycle
     handleInactivate,
     handleReactivate,
