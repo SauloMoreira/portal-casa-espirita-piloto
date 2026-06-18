@@ -42,10 +42,10 @@ describe("whatsappInbound — camada conversacional básica", () => {
   });
 
   it("monta resposta social humana, com persona Daniel/FER e período do dia", () => {
-    expect(montarRespostaConversacional("saudacao", 9)).toMatch(/^Bom dia! [✨🌿🙏] Sou Daniel, assistente virtual da FER\./);
-    expect(montarRespostaConversacional("saudacao", 14)).toMatch(/^Boa tarde! [✨🌿🙏] Sou Daniel/);
-    expect(montarRespostaConversacional("saudacao", 20)).toMatch(/^Boa noite! [✨🌿🙏] Sou Daniel/);
-    expect(montarRespostaConversacional("saudacao")).toMatch(/^Olá! [✨🌿🙏] Sou Daniel/);
+    expect(montarRespostaConversacional("saudacao", 9)).toMatch(/^Bom dia! [✨🌿🙏] Sou Daniel, assistente virtual da FER\./u);
+    expect(montarRespostaConversacional("saudacao", 14)).toMatch(/^Boa tarde! [✨🌿🙏] Sou Daniel/u);
+    expect(montarRespostaConversacional("saudacao", 20)).toMatch(/^Boa noite! [✨🌿🙏] Sou Daniel/u);
+    expect(montarRespostaConversacional("saudacao")).toMatch(/^Olá! [✨🌿🙏] Sou Daniel/u);
     expect(montarRespostaConversacional("agradecimento")).toMatch(/^Disponha!/);
   });
 });
@@ -343,12 +343,12 @@ describe("whatsappInbound — camada de ponte e condução da conversa", () => {
     expect(jaSaudado).toMatch(/[✨🌿🙏💙]/u);
     // First contact greeting presents the persona Daniel/FER.
     expect(gerarRespostaConversacional("saudacao", { horaLocal: 14, texto: "boa tarde" }))
-      .toMatch(/^Boa tarde! [✨🌿🙏] Sou Daniel, assistente virtual da FER\./);
+      .toMatch(/^Boa tarde! [✨🌿🙏] Sou Daniel, assistente virtual da FER\./u);
   });
 
   it("acolhe no início e encerra com gentileza da casa", () => {
     expect(gerarRespostaConversacional("saudacao", { horaLocal: 20, texto: "boa noite" }))
-      .toMatch(/^Boa noite! [✨🌿🙏] Sou Daniel/);
+      .toMatch(/^Boa noite! [✨🌿🙏] Sou Daniel/u);
     expect(gerarRespostaConversacional("encerramento", { texto: "era só isso" })).toMatch(/[🙏🌿💙]/u);
   });
 
@@ -379,8 +379,8 @@ describe("whatsappInbound — camada de ponte e condução da conversa", () => {
   it("varia a formulação conforme a mensagem (não é frase fixa)", () => {
     const a = gerarRespostaConversacional("saudacao", { horaLocal: 9, texto: "bom dia" });
     const b = gerarRespostaConversacional("saudacao", { horaLocal: 9, texto: "oi" });
-    expect(a).toMatch(/^Bom dia! [✨🌿🙏] Sou Daniel/);
-    expect(b).toMatch(/^Bom dia! [✨🌿🙏] Sou Daniel/);
+    expect(a).toMatch(/^Bom dia! [✨🌿🙏] Sou Daniel/u);
+    expect(b).toMatch(/^Bom dia! [✨🌿🙏] Sou Daniel/u);
     // Different inbound text maps to different repertoire paths, both valid.
     expect(a).not.toBe(b);
   });
