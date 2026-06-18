@@ -61,6 +61,7 @@ export default function GovernancaAcessos() {
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [approvals, setApprovals] = useState<ApprovalRow[]>([]);
   const [activeMasters, setActiveMasters] = useState<number>(0);
+  const [aptAdmins, setAptAdmins] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
   const [open, setOpen] = useState(false);
