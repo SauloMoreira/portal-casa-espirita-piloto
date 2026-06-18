@@ -85,14 +85,26 @@ function classificar(msg: string): Intencao {
   if (SENSITIVE.some((t) => txt.includes(t))) return "complexo";
   // Business intents win first (greeting + operational request -> operational).
   for (const { intent, terms } of KEYWORDS) if (terms.some((t) => txt.includes(t))) return intent;
-  // Isolated social messages -> friendly conversational layer (no handoff).
+  // Conversational layers (no handoff), most to least specific. The bridge
+  // ("gostaria de informações") wins over a bare greeting so a continued
+  // conversation flows naturally instead of repeating the greeting.
+  if (contemTermo(txt, PEDIDO_INFO_TERMOS)) return "pedido_informacao";
+  if (contemTermo(txt, ENCERRAMENTO_TERMOS)) return "encerramento";
   if (contemTermo(txt, AGRADECIMENTO_TERMOS)) return "agradecimento";
   if (contemTermo(txt, SAUDACAO_TERMOS)) return "saudacao";
   return "complexo";
 }
 
-function montarRespostaConversacional(intencao: Intencao, horaLocal?: number): string {
+function montarRespostaConversacional(
+  intencao: Intencao, horaLocal?: number, jaSaudado?: boolean,
+): string {
   if (intencao === "agradecimento") return "Disponha! 🌿 Se precisar de algo, é só me chamar.";
+  if (intencao === "encerramento") return "Combinado! Qualquer coisa, é só me chamar por aqui. Tenha um ótimo dia. 🌿";
+  if (intencao === "pedido_informacao") {
+    return "Com prazer! Você gostaria de saber sobre a programação da casa, entrevistas ou tratamentos? 🌿";
+  }
+  // saudacao — don't repeat the greeting if we already greeted in this conversation.
+  if (jaSaudado) return "Como posso te ajudar? 🌿";
   let saudacao = "Olá";
   if (typeof horaLocal === "number") {
     if (horaLocal < 12) saudacao = "Bom dia";
@@ -102,8 +114,18 @@ function montarRespostaConversacional(intencao: Intencao, horaLocal?: number): s
   return `${saudacao}! 🌿 Como posso te ajudar hoje?`;
 }
 
+// True when the conversation was already greeted recently, so the IA continues
+// the dialog instead of repeating the greeting on the next short message.
+function jaSaudadoRecentemente(ultimoContatoIso?: string | null, janelaMin = 180): boolean {
+  if (!ultimoContatoIso) return false;
+  const t = new Date(ultimoContatoIso).getTime();
+  if (isNaN(t)) return false;
+  const diffMin = (Date.now() - t) / 60000;
+  return diffMin >= 0 && diffMin <= janelaMin;
+}
+
 const AUTORESOLVIVEIS: Intencao[] = [
-  "saudacao", "agradecimento",
+  "saudacao", "agradecimento", "pedido_informacao", "encerramento",
   "tratamento_hoje", "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app",
   "programacao_publica", "opt_out", "reativar",
 ];
