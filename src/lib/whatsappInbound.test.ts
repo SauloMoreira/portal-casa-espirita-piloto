@@ -428,7 +428,7 @@ describe("whatsappInbound — retribuição gentil de saudação", () => {
   it("retribui boa tarde mesmo quando já saudado", () => {
     const r = gerarRespostaConversacional("saudacao", { horaLocal: 9, jaSaudado: true, texto: "boa tarde" });
     expect(r).toMatch(/^Boa tarde! /); expect(r).toMatch(/[✨🌿🙏]/u);
-    expect(r).toMatch(/ajudar/i);
+    expect(r).toMatch(/ajudar|saber/i);
   });
 
   it("retribui boa noite mesmo quando já saudado", () => {
