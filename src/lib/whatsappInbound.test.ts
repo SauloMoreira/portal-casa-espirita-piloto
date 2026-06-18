@@ -355,10 +355,10 @@ describe("whatsappInbound — camada de ponte e condução da conversa", () => {
 
   it("varia a formulação conforme a mensagem (não é frase fixa)", () => {
     const a = gerarRespostaConversacional("saudacao", { horaLocal: 9, texto: "bom dia" });
-    const b = gerarRespostaConversacional("saudacao", { horaLocal: 9, texto: "olá, bom dia" });
+    const b = gerarRespostaConversacional("saudacao", { horaLocal: 9, texto: "oi" });
     expect(a.startsWith("Bom dia! 🌿")).toBe(true);
     expect(b.startsWith("Bom dia! 🌿")).toBe(true);
-    // Different inbound text can map to different valid formulations.
+    // Different inbound text maps to different repertoire paths, both valid.
     expect(a).not.toBe(b);
   });
 
