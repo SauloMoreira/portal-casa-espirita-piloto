@@ -4,7 +4,7 @@ import {
   montarRespostaProgramacao, formatarHorario, ehPerguntaPessoal,
   montarRespostaTratamentoHoje, montarRespostaProximaSessao, formatarDataCurta,
   resolverDataAlvo, detectarAtividade, montarRespostaExcecao,
-  ehConversacional, montarRespostaConversacional,
+  ehConversacional, montarRespostaConversacional, jaSaudadoRecentemente,
 } from "./whatsappInbound";
 
 describe("whatsappInbound — camada conversacional básica", () => {
