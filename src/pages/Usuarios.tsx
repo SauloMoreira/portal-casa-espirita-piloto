@@ -402,15 +402,44 @@ export default function Usuarios() {
                           {u.profile?.status === "ativo" ? "Ativo" : "Inativo"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="flex items-center gap-1">
-                        {role === "admin" && (
-                          <Button variant="ghost" size="icon" title="Redefinir senha" onClick={() => { setResetTarget(u); setResetOpen(true); }}>
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
+                      <TableCell className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" title="Editar" onClick={() => openEdit(u)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
+                        {role === "admin" && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" title="Mais ações">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuItem onClick={() => { setResetTarget(u); setResetOpen(true); }}>
+                                <KeyRound className="h-4 w-4 mr-2" /> Redefinir senha
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {u.profile?.status === "inativo" ? (
+                                <DropdownMenuItem onClick={() => setStatusTarget({ user: u, toStatus: "ativo" })}>
+                                  <UserCheck className="h-4 w-4 mr-2" /> Reativar usuário
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  disabled={u.user_id === user?.id}
+                                  onClick={() => setStatusTarget({ user: u, toStatus: "inativo" })}
+                                >
+                                  <UserX className="h-4 w-4 mr-2" /> Inativar usuário
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                disabled={u.user_id === user?.id}
+                                onClick={() => { setDeleteTarget(u); setDeleteOpen(true); }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Excluir usuário
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
