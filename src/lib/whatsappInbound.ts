@@ -23,6 +23,28 @@ export const AGRADECIMENTO_TERMOS = [
   "agradecida", "muito obrigado", "muito obrigada", "ok", "okay", "certo", "blz", "beleza",
 ];
 
+// "Bridge" layer: generic requests for help/information that should keep the
+// conversation flowing naturally (instead of repeating a greeting or escalating
+// to a human). They produce a warm, inviting reply asking what the person needs.
+export const PEDIDO_INFO_TERMOS = [
+  "gostaria de informa", "gostaria de algumas informa", "gostaria de saber",
+  "gostaria de uma informa", "gostaria de tirar", "queria saber", "queria uma informa",
+  "quero uma informa", "queria tirar uma duvida", "queria tirar uma dúvida",
+  "tirar uma duvida", "tirar uma dúvida", "tirar duvida", "tirar dúvida",
+  "uma duvida", "uma dúvida", "uma pergunta", "fazer uma pergunta", "posso fazer uma pergunta",
+  "preciso de ajuda", "pode me ajudar", "voce pode me ajudar", "você pode me ajudar",
+  "me ajuda", "preciso de uma informa", "uma informacao", "uma informação",
+  "algumas informacoes", "algumas informações", "quero saber", "preciso saber",
+  "informacoes", "informações",
+];
+
+// Simple, natural closings ("tchau", "era só isso") — a friendly sign-off, no handoff.
+export const ENCERRAMENTO_TERMOS = [
+  "tchau", "ate logo", "até logo", "ate mais", "até mais", "ate breve", "até breve",
+  "ate a proxima", "até a próxima", "era so isso", "era só isso", "so isso", "só isso",
+  "nada mais", "por enquanto e so", "por enquanto é só", "fica com deus",
+];
+
 // Personal intents (about the assistido's own treatments/appointments) MUST win
 // over the public schedule intents, so any message that uses personal markers
 // ("meu", "minha", "tenho", "tratamento", "sessão", "entrevista") is routed to
