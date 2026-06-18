@@ -120,6 +120,9 @@ export function detectarAtividade(texto: string): string | null {
   const txt = (texto || "").toLowerCase();
   for (const a of ATIVIDADES_PUBLICAS) if (a.termos.some((t) => txt.includes(t))) return a.nome;
   return null;
+}
+
+
 
 /** Formats a "HH:MM[:SS]" string as a friendly Brazilian time (e.g. "19h", "20h30"). */
 export function formatarHorario(h: string | null | undefined): string {
