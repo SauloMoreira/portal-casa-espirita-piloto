@@ -2073,6 +2073,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agendar_entrevista_fraterna: {
+        Args: {
+          _assistido_id: string
+          _data: string
+          _observacoes: string
+          _tipo: string
+        }
+        Returns: string
+      }
       assistido_belongs_to_coordinator: {
         Args: { _assistido_id: string; _coordinator_id: string }
         Returns: boolean
