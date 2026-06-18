@@ -22,6 +22,9 @@ interface AuthContextType {
   isMaster: boolean;
   profile: UserProfile | null;
   loading: boolean;
+  /** True only once role/profile resolution has SUCCEEDED. While false, protected
+   *  UI must stay closed instead of assuming a permissive default role. */
+  rolesResolved: boolean;
   /** True when the account has a verified second factor but the current session
    *  is still aal1 — i.e. the TOTP step must be completed before access. */
   mfaPending: boolean;
@@ -47,6 +50,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [mfaPending, setMfaPending] = useState(false);
+  // Fail-closed authorization state: only true once role/profile resolution
+  // has SUCCEEDED. A read failure must never collapse into a permissive role.
+  const [rolesResolved, setRolesResolved] = useState(false);
 
   const refreshMfa = async () => {
     try {
@@ -67,28 +73,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` },
         }),
       ]);
-      if (roleRes.ok) {
-        const rows = await roleRes.json();
-        const list = (rows ?? []).map((r: any) => r.role as AppRole);
-        setRoles(list);
-        // Master holds both 'administrador_master' and 'admin'; collapse any
-        // administrative role to 'admin' so existing route guards keep working.
-        if (list.includes("administrador_master") || list.includes("admin")) {
-          setRole("admin");
-        } else {
-          setRole((list[0] as AppRole) ?? "assistido");
-        }
-      } else {
+      // Fail-closed: if the role read itself fails we MUST NOT grant any access.
+      // Treat it as unresolved (no role) rather than defaulting to "assistido".
+      if (!roleRes.ok) {
         setRoles([]);
-        setRole("assistido");
+        setRole(null);
+        setRolesResolved(false);
+        return;
+      }
+      const rows = (await roleRes.json()) as Array<{ role: AppRole }> | null;
+      const list = (rows ?? []).map((r) => r.role);
+      setRoles(list);
+      // Master holds both 'administrador_master' and 'admin'; collapse any
+      // administrative role to 'admin' so existing route guards keep working.
+      if (list.includes("administrador_master") || list.includes("admin")) {
+        setRole("admin");
+      } else {
+        setRole((list[0] as AppRole) ?? "assistido");
       }
       if (profileRes.ok) {
-        const rows = await profileRes.json();
-        setProfile(rows?.[0] ?? null);
+        const profileRows = (await profileRes.json()) as UserProfile[] | null;
+        setProfile(profileRows?.[0] ?? null);
       }
+      // Role read succeeded → authorization is now validly resolved.
+      setRolesResolved(true);
     } catch {
+      // Network/parse failure: stay fail-closed (no permissive fallback).
       setRoles([]);
-      setRole("assistido");
+      setRole(null);
+      setRolesResolved(false);
     }
   };
 
@@ -103,6 +116,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(() => { refreshMfa(); }, 0);
         } else {
           setRole(null);
+          setRoles([]);
+          setRolesResolved(false);
           setMfaPending(false);
         }
         setLoading(false);
@@ -133,13 +148,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRole(null);
     setRoles([]);
     setProfile(null);
+    setRolesResolved(false);
     setMfaPending(false);
   };
 
   const isMaster = roles.includes("administrador_master");
 
   return (
-    <AuthContext.Provider value={{ session, user, role, roles, isMaster, profile, loading, mfaPending, refreshMfa, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, user, role, roles, isMaster, profile, loading, rolesResolved, mfaPending, refreshMfa, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

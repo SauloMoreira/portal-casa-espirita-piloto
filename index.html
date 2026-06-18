@@ -3,9 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!--
+      Security hardening (Bloco 3). Conservative, app-compatible policy.
+      - CSP locks script execution to our own bundle while still allowing the
+        styles/fonts/images/realtime endpoints the app legitimately uses.
+      - frame-ancestors is intentionally NOT restricted here so the Lovable
+        editor preview (which embeds the app in an iframe) keeps working.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss: ws://localhost:* http://localhost:*; worker-src 'self' blob:; frame-src 'self'; form-action 'self';"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="title" content="Tratamentos FER — Sistema de Gestão" />
     <title>Tratamentos FER — Sistema de Gestão</title>
     <meta name="description" content="Sistema de Gestão de Tratamentos e Acompanhamentos da FER — harmonia, equilíbrio e renovação." />
     <meta name="author" content="Tratamentos FER" />
+
 
     <!-- PWA / mobile app -->
     <link rel="manifest" href="/manifest.webmanifest" />

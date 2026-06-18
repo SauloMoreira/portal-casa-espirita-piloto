@@ -1,16 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { createLogger } from "../_shared/logger.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
 // Admin-only endpoint to decide pending self-registration requests.
 // Approve  -> profile becomes 'ativo' and the SECURE DEFAULT role 'assistido' is
@@ -18,6 +8,12 @@ const json = (body: unknown, status = 200) =>
 // Reject   -> the orphan auth account/profile are removed and the request is
 //             marked rejected with a reason. Everything is audited.
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const log = createLogger("manage-signup", req);

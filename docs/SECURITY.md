@@ -172,3 +172,43 @@ contexto de trigger). Aceito como risco residual (ver §5).
 - Assistido ler tokens de QR de sessões públicas.
 - Roles armazenadas fora de `user_roles`.
 - Exposição de CPF/endereço de `profiles` a coordenadores/tarefeiros via leitura direta.
+
+---
+
+## 8. Endurecimento técnico (Fase de prontidão)
+
+### 8.1 Autorização fail-closed no frontend
+- A resolução de papel/perfil (`AuthContext`) **nunca** assume `assistido` por falha de
+  leitura. Em erro de rede/HTTP, `role` fica `null`, `roles` vazio e
+  `rolesResolved=false`.
+- `ProtectedRoute` só renderiza conteúdo protegido quando `rolesResolved=true`.
+  Enquanto a autorização não estiver validamente resolvida, exibe carregamento
+  (fail-closed) — não libera acesso por padrão permissivo.
+
+### 8.2 CORS por allowlist nas edge functions
+- Origem refletida apenas para superfícies legítimas (`supabase/functions/_shared/cors.ts`):
+  - `tratamentos-fer.lovable.app` e qualquer host `*.lovable.app`, `*.lovableproject.com`,
+    `*.lovable.dev` (preview/sandbox);
+  - `localhost` / `127.0.0.1` (desenvolvimento).
+- Origens fora da lista recebem `Access-Control-Allow-Origin: null` (bloqueado pelo browser).
+- Webhooks (`whatsapp-inbound`) e cron (`alertas-operacionais`, `notificacoes-dispatch`)
+  são server-to-server (sem header `Origin`): a proteção principal continua sendo
+  segredo/assinatura/JWT — CORS não é a barreira de segurança desses fluxos.
+- Funções endurecidas: `request-signup`, `manage-signup`, `manage-user`, `mfa-manager`,
+  `create-user`, `reset-password`, `whatsapp-responder`, `whatsapp-inbound`,
+  `notificacoes-dispatch`, `alertas-operacionais`, `assistente-entrevista`,
+  `insights-dashboard`, `checkin-publico` e `_shared/auth.ts`.
+
+### 8.3 Headers/CSP no frontend (`index.html`)
+- `Content-Security-Policy` conservadora: `default-src 'self'`, `object-src 'none'`,
+  estilos/fontes liberados para Google Fonts, `connect-src` para Supabase/realtime,
+  imagens `https:`/`data:`/`blob:`.
+- `Referrer-Policy: strict-origin-when-cross-origin` e `X-Content-Type-Options: nosniff`.
+- `frame-ancestors` **não** é restringido por meta para não quebrar o preview do editor;
+  framing real deve ser endurecido via header HTTP quando houver controle de borda.
+
+### 8.4 Adiado para etapa posterior
+- Headers HTTP de borda (`Strict-Transport-Security`, `X-Frame-Options`/`frame-ancestors`,
+  `Permissions-Policy`) dependem de configuração no provedor de hospedagem.
+- Endurecimento global de tipagem (`strict` no tsconfig) e remoção ampla de `any` em
+  módulos não críticos — fazer de forma incremental para evitar regressões em massa.

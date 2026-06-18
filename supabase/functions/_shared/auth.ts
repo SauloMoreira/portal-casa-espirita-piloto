@@ -1,16 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { buildCorsHeaders } from "./cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
-};
+const ALLOW_HEADERS =
+  "authorization, x-client-info, apikey, content-type, x-cron-secret";
 
 export interface GuardResult {
   ok: boolean;
   response?: Response;
 }
 
-function deny(status: number, error: string): GuardResult {
+function deny(req: Request, status: number, error: string): GuardResult {
+  const corsHeaders = buildCorsHeaders(req, ALLOW_HEADERS);
   return {
     ok: false,
     response: new Response(JSON.stringify({ error }), {
@@ -48,18 +48,18 @@ export async function guardCronOrStaff(
     if (data?.secret && data.secret === cronSecret) {
       return { ok: true };
     }
-    return deny(401, "Não autorizado");
+    return deny(req, 401, "Não autorizado");
   }
 
   // 2) Authenticated staff path
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return deny(401, "Não autorizado");
+  if (!authHeader) return deny(req, 401, "Não autorizado");
 
   const authClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: authHeader } },
   });
   const { data: { user }, error } = await authClient.auth.getUser();
-  if (error || !user) return deny(401, "Não autorizado");
+  if (error || !user) return deny(req, 401, "Não autorizado");
 
   const { data: roles } = await admin
     .from("user_roles")
@@ -67,7 +67,7 @@ export async function guardCronOrStaff(
     .eq("user_id", user.id);
   const roleList = (roles || []).map((r: any) => r.role);
   if (!roleList.some((r) => allowedRoles.includes(r))) {
-    return deny(403, "Sem permissão");
+    return deny(req, 403, "Sem permissão");
   }
   return { ok: true };
 }

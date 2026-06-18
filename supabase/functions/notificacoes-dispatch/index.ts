@@ -1,11 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getAdapter } from "../_shared/channel-adapter.ts";
 import { guardCronOrStaff } from "../_shared/auth.ts";
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
-};
 
 const LIMITE_DIARIO_PADRAO = 3;
 const MAX_RETRY = 4;
@@ -44,6 +41,7 @@ function renderTemplate(corpo: string, payload: Record<string, unknown>): string
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req, "authorization, x-client-info, apikey, content-type, x-cron-secret");
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   // Only internal cron (with secret) or admins/coordenadores may dispatch the queue.

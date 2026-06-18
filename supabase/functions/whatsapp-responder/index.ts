@@ -1,16 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getAdapter } from "../_shared/channel-adapter.ts";
+import { buildCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 function normalizePhone(p: string): string {
   return (p || "").replace(/\D/g, "");
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req, "authorization, x-client-info, apikey, content-type");
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
