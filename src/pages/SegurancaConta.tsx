@@ -320,6 +320,42 @@ export default function SegurancaConta() {
         </CardContent>
       </Card>
 
+      {isMaster && (
+        <Card className="glass-card border-destructive/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <KeyRound className="h-4 w-4" /> Reset administrativo de MFA
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <ShieldAlert className="h-4 w-4" />
+              <AlertTitle>Procedimento controlado</AlertTitle>
+              <AlertDescription className="text-xs">
+                Exclusivo do Administrador Master. Use apenas quando o usuário perdeu o autenticador e os códigos
+                de recuperação. A ação é auditada (quem executou, quem foi afetado e quando).
+              </AlertDescription>
+            </Alert>
+            <div className="space-y-2">
+              <Label>Usuário</Label>
+              <Select value={resetTarget} onValueChange={setResetTarget}>
+                <SelectTrigger><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
+                <SelectContent>
+                  {profiles.filter((p) => p.user_id !== user?.id).map((p) => (
+                    <SelectItem key={p.user_id} value={p.user_id}>
+                      {p.nome_completo || p.user_id.substring(0, 8)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="destructive" onClick={handleAdminReset} disabled={loading || !resetTarget}>
+              Resetar MFA do usuário
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={disableOpen} onOpenChange={(o) => !o && setDisableOpen(false)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Desativar autenticação em dois fatores</DialogTitle></DialogHeader>
