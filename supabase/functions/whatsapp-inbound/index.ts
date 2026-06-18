@@ -177,6 +177,7 @@ Deno.serve(async (req) => {
     let respostaOk = true;
     let respostaErro: string | null = null;
     let fallbackMotivo: string | null = null;
+    let respostaFonte: string | null = null;
 
     try {
       intencao = classificar(texto);
