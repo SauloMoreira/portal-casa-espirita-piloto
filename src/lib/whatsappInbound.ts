@@ -104,6 +104,72 @@ export function montarRespostaProgramacao(itens: ItemProgramacao[]): string {
   return `Hoje temos:\n${linhas}\n🌿`;
 }
 
+export interface SessaoPessoal {
+  nome: string;
+  data: string; // YYYY-MM-DD
+  horario?: string | null;
+  status?: string | null; // e.g. "agendado", "realizado", "cancelado", "remarcado"
+}
+
+/** Formats a "YYYY-MM-DD" date as "DD/MM" (defensive, never throws). */
+export function formatarDataCurta(d: string | null | undefined): string {
+  if (!d) return "";
+  const [y, m, day] = d.split("-");
+  if (!day) return d;
+  return `${day}/${m}`;
+}
+
+/**
+ * Builds the reply for the personal question "tenho tratamento hoje?" using the
+ * assistido's REAL agenda for today. Considers operational exceptions encoded as
+ * the session status (cancelled/rescheduled) so the IA never invents a session.
+ */
+export function montarRespostaTratamentoHoje(sessoes: SessaoPessoal[]): string {
+  const lista = (sessoes || []).filter((s) => s && s.nome);
+  const ativas = lista.filter((s) => {
+    const st = (s.status || "").toLowerCase();
+    return st !== "cancelado" && st !== "cancelada" && st !== "remarcado" && st !== "remarcada";
+  });
+  const canceladas = lista.filter((s) => {
+    const st = (s.status || "").toLowerCase();
+    return st === "cancelado" || st === "cancelada" || st === "remarcado" || st === "remarcada";
+  });
+
+  if (ativas.length === 0 && canceladas.length > 0) {
+    const c = canceladas[0];
+    return `Hoje sua sessão de ${c.nome} consta como ${(c.status || "").toLowerCase()}. Em caso de dúvida, nossa equipe pode confirmar. 🌿`;
+  }
+  if (ativas.length === 0) {
+    return "Hoje você não tem tratamento agendado. 🌿";
+  }
+  if (ativas.length === 1) {
+    const s = ativas[0];
+    const hora = formatarHorario(s.horario);
+    return `Sim, hoje você tem ${s.nome}${hora ? " às " + hora : ""}. 🌿`;
+  }
+  const linhas = ativas
+    .map((s) => `• ${s.nome}${s.horario ? " às " + formatarHorario(s.horario) : ""}`)
+    .join("\n");
+  return `Hoje você tem:\n${linhas}\n🌿`;
+}
+
+/**
+ * Builds the reply for "qual meu próximo tratamento/atendimento?" using the
+ * next real scheduled session. Honors operational exceptions via the status.
+ */
+export function montarRespostaProximaSessao(sessao: SessaoPessoal | null): string {
+  if (!sessao || !sessao.nome) {
+    return "Não encontrei sessões futuras agendadas no momento. Em caso de dúvida, nossa equipe pode ajudar. 🌿";
+  }
+  const st = (sessao.status || "").toLowerCase();
+  const hora = formatarHorario(sessao.horario);
+  const data = formatarDataCurta(sessao.data);
+  if (st === "cancelado" || st === "cancelada" || st === "remarcado" || st === "remarcada") {
+    return `Sua próxima sessão de ${sessao.nome} em ${data} consta como ${st}. Nossa equipe pode confirmar a nova data. 🌿`;
+  }
+  return `Sua próxima sessão é ${sessao.nome} em ${data}${hora ? " às " + hora : ""}. 🌿`;
+}
+
 export interface DecisaoFallback {
   handoff: boolean;
   origem: "ia" | "regra" | "manual";
