@@ -137,25 +137,70 @@ export interface ItemProgramacao {
   horario?: string | null;
 }
 
+function capitalizar(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+export const STATUS_EXCECAO_NEGATIVO = ["cancelado", "cancelada", "remarcado", "remarcada", "excepcional"];
+
+export interface ExcecaoOperacional {
+  atividade: string;
+  status: string;
+  mensagem_ia?: string | null;
+  motivo?: string | null;
+  nova_data?: string | null;
+  novo_horario?: string | null;
+  horario_afetado?: string | null;
+}
+
+/**
+ * Builds the reply for a registered operational exception. Prefers the
+ * admin-authored "mensagem_ia"; otherwise composes a precise, human answer from
+ * the structured data. Never invents information.
+ */
+export function montarRespostaExcecao(ex: ExcecaoOperacional, label = "hoje"): string {
+  if (ex.mensagem_ia && ex.mensagem_ia.trim()) return ex.mensagem_ia.trim();
+  const st = (ex.status || "").toLowerCase();
+  const quando = capitalizar(label);
+  if (st === "cancelado" || st === "cancelada") {
+    const motivo = ex.motivo && ex.motivo.trim() ? ` Motivo: ${ex.motivo.trim()}.` : "";
+    return `${quando} não haverá ${ex.atividade}.${motivo} Se quiser, posso verificar a próxima data para você. 🌿`;
+  }
+  if (st === "remarcado" || st === "remarcada") {
+    const nd = ex.nova_data ? formatarDataCurta(ex.nova_data) : null;
+    const nh = formatarHorario(ex.novo_horario);
+    return `${quando} ${ex.atividade} foi remarcada${nd ? " para " + nd : ""}${nh ? " às " + nh : ""}. 🌿`;
+  }
+  if (st === "excepcional") {
+    const motivo = ex.motivo && ex.motivo.trim() ? ` ${ex.motivo.trim()}.` : "";
+    return `${quando} há uma alteração em ${ex.atividade}.${motivo} Nossa equipe pode confirmar os detalhes. 🌿`;
+  }
+  // mantido
+  const h = formatarHorario(ex.horario_afetado);
+  return `Sim, ${label} teremos ${ex.atividade}${h ? " às " + h : ""}. 🌿`;
+}
+
 /**
  * Builds the auto-reply for public schedule questions from real data.
  * Always returns a valid, safe answer (never empty) so these questions do
- * not need a human handoff when the lookup succeeds.
+ * not need a human handoff when the lookup succeeds. `label` is the requested
+ * day ("hoje", "amanhã", weekday) so the answer matches the question's context.
  */
-export function montarRespostaProgramacao(itens: ItemProgramacao[]): string {
+export function montarRespostaProgramacao(itens: ItemProgramacao[], label = "hoje"): string {
+  const quando = capitalizar(label);
   const lista = (itens || []).filter((i) => i && i.nome);
   if (lista.length === 0) {
-    return "Hoje não encontrei programação pública agendada. Em caso de dúvida, nossa equipe pode ajudar. 🌿";
+    return `${quando} não encontrei programação pública agendada. Em caso de dúvida, nossa equipe pode ajudar. 🌿`;
   }
   if (lista.length === 1) {
     const i = lista[0];
     const hora = formatarHorario(i.horario);
-    return `Sim, hoje temos ${i.nome}${hora ? " às " + hora : ""}. 🌿`;
+    return `Sim, ${label} temos ${i.nome}${hora ? " às " + hora : ""}. 🌿`;
   }
   const linhas = lista
     .map((i) => `• ${i.nome}${i.horario ? " às " + formatarHorario(i.horario) : ""}`)
     .join("\n");
-  return `Hoje temos:\n${linhas}\n🌿`;
+  return `${quando} temos:\n${linhas}\n🌿`;
 }
 
 export interface SessaoPessoal {
