@@ -17,6 +17,7 @@ const base: ApprovalContext = {
   approverIsActiveMaster: true,
   alreadyDecidedBy: [],
   status: "pendente",
+  aptAdmins: 2,
 };
 
 describe("computeRequiredApprovals", () => {
