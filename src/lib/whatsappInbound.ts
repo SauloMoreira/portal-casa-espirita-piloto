@@ -389,6 +389,20 @@ export const ENCERRAMENTO_FRASES = [
   "Conte conosco. 🌿",
 ];
 
+/**
+ * When the user explicitly greets with a time-of-day phrase ("bom dia", "boa tarde",
+ * "boa noite"), we always greet back with the SAME phrase — it feels human and polite.
+ * This is checked BEFORE the generic continuation logic so even a repeated greeting
+ * within the same conversation gets a warm reply.
+ */
+export function extrairSaudacaoDoTexto(texto: string): string | null {
+  const txt = (texto || "").toLowerCase();
+  if (txt.includes("bom dia")) return "Bom dia";
+  if (txt.includes("boa tarde")) return "Boa tarde";
+  if (txt.includes("boa noite")) return "Boa noite";
+  return null;
+}
+
 /** Small, stable string hash used as a deterministic seed for variation. */
 export function hashTexto(s: string): number {
   let h = 0;
