@@ -1777,6 +1777,7 @@ export type Database = {
           status_conversa: Database["public"]["Enums"]["conversa_status"]
           telefone: string
           ultima_mensagem: string | null
+          ultima_resposta_ia: string | null
           ultimo_contato_em: string
           updated_at: string
         }
@@ -1791,6 +1792,7 @@ export type Database = {
           status_conversa?: Database["public"]["Enums"]["conversa_status"]
           telefone: string
           ultima_mensagem?: string | null
+          ultima_resposta_ia?: string | null
           ultimo_contato_em?: string
           updated_at?: string
         }
@@ -1805,6 +1807,7 @@ export type Database = {
           status_conversa?: Database["public"]["Enums"]["conversa_status"]
           telefone?: string
           ultima_mensagem?: string | null
+          ultima_resposta_ia?: string | null
           ultimo_contato_em?: string
           updated_at?: string
         }
