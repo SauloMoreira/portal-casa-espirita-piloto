@@ -3,11 +3,25 @@
 // (every inbound produces either an IA answer or a handoff) are verifiable.
 
 export type Intencao =
+  | "saudacao" | "agradecimento"
   | "tratamento_hoje" | "proxima_sessao" | "horario_entrevista" | "confirmacao_agendamento"
   | "onde_ver_app" | "programacao_publica" | "opt_out" | "reativar" | "complexo";
 
 export const SENSITIVE = ["reclama", "absurdo", "pessimo", "péssimo", "horrivel", "horrível",
   "advogado", "processo", "denuncia", "denúncia", "urgente", "emergencia", "emergência"];
+
+// Basic conversational / social messages (greetings, thanks, acknowledgements).
+// These are handled by a friendly social layer BEFORE any business logic, so an
+// isolated "oi" or "boa tarde" is never escalated to a human handoff.
+export const SAUDACAO_TERMOS = [
+  "bom dia", "boa tarde", "boa noite", "ola", "olá", "oi", "oie", "opa",
+  "eai", "e ai", "e aí", "tudo bem", "tudo bom", "como vai", "saudacoes", "saudações",
+];
+
+export const AGRADECIMENTO_TERMOS = [
+  "obrigado", "obrigada", "obrigado!", "valeu", "vlw", "agradeço", "agradecido",
+  "agradecida", "muito obrigado", "muito obrigada", "ok", "okay", "certo", "blz", "beleza",
+];
 
 // Personal intents (about the assistido's own treatments/appointments) MUST win
 // over the public schedule intents, so any message that uses personal markers
