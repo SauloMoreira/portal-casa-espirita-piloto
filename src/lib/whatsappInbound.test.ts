@@ -194,3 +194,63 @@ describe("whatsappInbound — resumo da última mensagem", () => {
     expect(r.endsWith("…")).toBe(true);
   });
 });
+
+describe("whatsappInbound — contexto temporal (cada mensagem é independente)", () => {
+  // 2026-06-18 is a Thursday (diaSemana=4).
+  const base = "2026-06-18";
+
+  it("resolve 'hoje' / 'amanhã' / 'depois de amanhã'", () => {
+    expect(resolverDataAlvo("tem palestra hoje?", base).iso).toBe("2026-06-18");
+    expect(resolverDataAlvo("amanhã tem evangelhoterapia?", base).iso).toBe("2026-06-19");
+    expect(resolverDataAlvo("depois de amanhã tem passe?", base).iso).toBe("2026-06-20");
+  });
+
+  it("a mudança de contexto entre mensagens muda a data alvo (sem repetir resposta antiga)", () => {
+    const m1 = resolverDataAlvo("tem palestra hoje?", base);
+    const m2 = resolverDataAlvo("amanhã tem evangelhoterapia?", base);
+    expect(m1.label).toBe("hoje");
+    expect(m2.label).toBe("amanhã");
+    expect(m1.iso).not.toBe(m2.iso);
+  });
+
+  it("resolve dia da semana (próxima quinta = +7)", () => {
+    expect(resolverDataAlvo("próxima quinta tem palestra?", base).iso).toBe("2026-06-25");
+    expect(resolverDataAlvo("sexta tem evangelhoterapia?", base).iso).toBe("2026-06-19");
+  });
+
+  it("detecta a atividade pública perguntada", () => {
+    expect(detectarAtividade("amanhã tem evangelhoterapia?")).toBe("Evangelhoterapia");
+    expect(detectarAtividade("que horas é a palestra?")).toBe("Palestra Pública");
+    expect(detectarAtividade("tem alguma coisa hoje?")).toBeNull();
+  });
+
+  it("a resposta pública usa o rótulo do dia perguntado", () => {
+    const r = montarRespostaProgramacao([{ nome: "Evangelhoterapia", horario: "19:00" }], "amanhã");
+    expect(r).toMatch(/Sim, amanhã temos Evangelhoterapia às 19h/);
+  });
+});
+
+describe("whatsappInbound — exceções operacionais (fonte preferencial)", () => {
+  it("usa a mensagem sugerida pela administração quando existe", () => {
+    const r = montarRespostaExcecao({
+      atividade: "Evangelhoterapia", status: "cancelado",
+      mensagem_ia: "A Evangelhoterapia de hoje foi cancelada por causa do jogo do Brasil. 🌿",
+    });
+    expect(r).toMatch(/jogo do Brasil/);
+  });
+
+  it("monta resposta de cancelamento a partir dos dados estruturados", () => {
+    const r = montarRespostaExcecao({
+      atividade: "Palestra Pública", status: "cancelado", motivo: "feriado",
+    }, "amanhã");
+    expect(r).toMatch(/Amanhã não haverá Palestra Pública/);
+    expect(r).toMatch(/feriado/);
+  });
+
+  it("monta resposta de remarcação com nova data/horário", () => {
+    const r = montarRespostaExcecao({
+      atividade: "Passe", status: "remarcado", nova_data: "2026-06-25", novo_horario: "20:00",
+    });
+    expect(r).toMatch(/remarcada para 25\/06 às 20h/);
+  });
+});
