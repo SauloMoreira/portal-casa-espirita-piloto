@@ -57,6 +57,35 @@ export default function SegurancaConta() {
 
   useEffect(() => { loadStatus(); }, [loadStatus]);
 
+  useEffect(() => {
+    if (!isMaster) return;
+    supabase.from("profiles").select("user_id, nome_completo").eq("status", "ativo")
+      .then(({ data }) => setProfiles(data || []));
+  }, [isMaster]);
+
+  const handleAdminReset = async () => {
+    if (!resetTarget) { toast({ title: "Selecione um usuário.", variant: "destructive" }); return; }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("mfa-manager", {
+        body: { action: "admin_reset", target_user_id: resetTarget },
+      });
+      if (error) {
+        const ctx = (error as any)?.context;
+        let msg = error.message;
+        try { const p = ctx && typeof ctx.json === "function" ? await ctx.json() : null; if (p?.error) msg = p.error; } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({ title: "MFA resetado", description: "O usuário deverá reativar o MFA." });
+      setResetTarget("");
+    } catch (err: any) {
+      toast({ title: "Falha no reset", description: err?.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const auditEvent = (evento: string, detalhe?: string) =>
     supabase.functions.invoke("mfa-manager", { body: { action: "audit", evento, detalhe } }).catch(() => {});
 
