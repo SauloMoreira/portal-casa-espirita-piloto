@@ -193,18 +193,43 @@ export default function CentralNotificacoes() {
               ) : (
                 <div className="space-y-2">
                   {handoffs.map((h) => (
-                    <div key={h.id} className="flex flex-wrap items-center gap-2 rounded-xl border p-3 text-sm">
-                      <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${HANDOFF_COLORS[h.status] || ""}`}>{h.status}</span>
-                      <span className="font-medium">{h.motivo || "—"}</span>
-                      {h.classificado_por_ia && <Badge variant="secondary" className="text-[10px]">IA</Badge>}
-                      <span className="ml-auto text-xs text-muted-foreground">aberto: {dt(h.opened_at)}</span>
-                      {h.status === "aberto" && (
-                        <Button size="sm" variant="outline" onClick={() => handleAssumir(h)}>Assumir</Button>
+                    <button
+                      key={h.id}
+                      onClick={() => abrirDetalhe(h)}
+                      className="w-full text-left rounded-xl border p-3 text-sm hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded px-2 py-0.5 text-[10px] font-medium ${HANDOFF_COLORS[h.status] || ""}`}>{h.status}</span>
+                        <span className="font-medium">
+                          {h.identificado ? (h.assistido_nome || "Assistido") : "Não identificado"}
+                        </span>
+                        {h.identificado
+                          ? <Badge variant="secondary" className="text-[10px]">Identificado</Badge>
+                          : <Badge variant="outline" className="text-[10px]">Não identificado</Badge>}
+                        <Badge variant="outline" className="text-[10px]">{ORIGEM_LABEL[h.origem] || h.origem}</Badge>
+                        <span className="ml-auto text-xs text-muted-foreground">aberto: {dt(h.opened_at)}</span>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span>{h.telefone || "sem telefone"}</span>
+                        {h.atendente_nome && <span>· Atend.: {h.atendente_nome}</span>}
+                        <span>· Motivo: {h.motivo || "—"}</span>
+                      </div>
+                      {h.ultima_mensagem && (
+                        <p className="mt-1.5 text-xs text-foreground/80 line-clamp-2">
+                          <span className="text-muted-foreground">Última: </span>“{h.ultima_mensagem}”
+                          <span className="text-muted-foreground"> · {dt(h.ultimo_contato_em)}</span>
+                        </p>
                       )}
-                      {h.status !== "fechado" && (
-                        <Button size="sm" onClick={() => handleFechar(h)}>Encerrar</Button>
-                      )}
-                    </div>
+                      <div className="mt-2 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        {h.status === "aberto" && (
+                          <Button size="sm" variant="outline" onClick={() => handleAssumir(h)}>Assumir</Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => abrirDetalhe(h)}>Abrir conversa</Button>
+                        {h.status !== "fechado" && (
+                          <Button size="sm" onClick={() => handleFechar(h)}>Encerrar</Button>
+                        )}
+                      </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -212,6 +237,13 @@ export default function CentralNotificacoes() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AtendimentoDrawer
+        handoff={selecionado}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onChanged={load}
+      />
     </div>
   );
 }
