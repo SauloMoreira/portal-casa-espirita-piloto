@@ -565,6 +565,7 @@ export type Database = {
         Row: {
           assistido_id: string
           created_at: string
+          created_by: string | null
           data: string
           decisoes: string | null
           entrevistador_id: string
@@ -573,10 +574,12 @@ export type Database = {
           status: string
           tipo_entrevista: string
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           assistido_id: string
           created_at?: string
+          created_by?: string | null
           data: string
           decisoes?: string | null
           entrevistador_id: string
@@ -585,10 +588,12 @@ export type Database = {
           status?: string
           tipo_entrevista?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           assistido_id?: string
           created_at?: string
+          created_by?: string | null
           data?: string
           decisoes?: string | null
           entrevistador_id?: string
@@ -597,6 +602,7 @@ export type Database = {
           status?: string
           tipo_entrevista?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
