@@ -10,6 +10,7 @@ import { ptBR } from "date-fns/locale";
 import { Send, RefreshCw, MessageSquare, ListChecks, Headphones, BarChart3 } from "lucide-react";
 import { PainelWhatsapp } from "@/components/notificacoes/PainelWhatsapp";
 import { AtendimentoDrawer } from "@/components/notificacoes/AtendimentoDrawer";
+import { ConversasTab } from "@/components/notificacoes/ConversasTab";
 import {
   listFila, listConversas, listHandoffsEnriquecidos, assumirHandoff, fecharHandoff, processarFila,
   type FilaItem, type Conversa, type HandoffEnriquecido,
