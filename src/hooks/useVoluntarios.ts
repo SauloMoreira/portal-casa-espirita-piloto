@@ -358,5 +358,13 @@ export function useVoluntarios() {
     selectedVoluntario,
     openFicha,
     openTermo,
+    // lifecycle
+    handleInactivate,
+    handleReactivate,
+    openDelete,
+    deleteOpen,
+    setDeleteOpen,
+    deleteTarget,
+    onDeleted,
   };
 }
