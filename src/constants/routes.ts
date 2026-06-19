@@ -30,6 +30,7 @@ export const ROUTES = {
   acaoSocial: "/acao-social",
   campanhas: "/campanhas",
   eventos: "/eventos",
+  comunicacaoInstitucional: "/comunicacao-institucional",
 
   // Tratamentos
   tratamentos: "/tratamentos",
