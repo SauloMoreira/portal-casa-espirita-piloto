@@ -96,6 +96,47 @@ describe("origemLabel / formatoSize / resolverOrigem", () => {
   });
 });
 
+describe("formato alvo — proporções e normalização", () => {
+  it("cada formato tem proporção distinta e coerente", () => {
+    expect(formatoAspect("card")).toBe(1);
+    expect(formatoAspect("banner_horizontal")).toBeCloseTo(1.5);
+    expect(formatoAspect("banner_vertical")).toBeCloseTo(2 / 3);
+    expect(formatoAspect("destaque")).toBeCloseTo(16 / 9);
+    // horizontal, vertical e destaque devem diferir entre si (não é só "card esticado")
+    const horiz = formatoAspect("banner_horizontal");
+    const vert = formatoAspect("banner_vertical");
+    const dest = formatoAspect("destaque");
+    expect(horiz).not.toBeCloseTo(vert);
+    expect(horiz).not.toBeCloseTo(dest);
+    expect(vert).toBeLessThan(1);
+    expect(horiz).toBeGreaterThan(1);
+    expect(dest).toBeGreaterThan(horiz);
+  });
+
+  it("destaque tem tamanho widescreen próprio", () => {
+    expect(formatoSize("destaque")).toBe("1600x900");
+  });
+
+  it("classe de aspecto reflete o formato", () => {
+    expect(formatoAspectClass("card")).toBe("aspect-square");
+    expect(formatoAspectClass("banner_horizontal")).toBe("aspect-[3/2]");
+    expect(formatoAspectClass("banner_vertical")).toBe("aspect-[2/3]");
+    expect(formatoAspectClass("destaque")).toBe("aspect-video");
+  });
+
+  it("normaliza valores inválidos/nulos para card", () => {
+    expect(normalizarFormato(null)).toBe("card");
+    expect(normalizarFormato(undefined)).toBe("card");
+    expect(normalizarFormato("inexistente")).toBe("card");
+    expect(normalizarFormato("destaque")).toBe("destaque");
+  });
+
+  it("formatoLabel devolve rótulo legível e seguro", () => {
+    expect(formatoLabel("banner_vertical")).toMatch(/vertical/i);
+    expect(formatoLabel(null)).toMatch(/card/i);
+  });
+});
+
 describe("formatarAtualizacao", () => {
   it("retorna vazio para nulo/ inválido", () => {
     expect(formatarAtualizacao(null)).toBe("");
