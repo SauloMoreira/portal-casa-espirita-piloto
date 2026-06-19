@@ -636,6 +636,75 @@ export type Database = {
           },
         ]
       }
+      comunicacoes_institucionais: {
+        Row: {
+          campanha_id: string | null
+          created_at: string
+          created_by: string | null
+          evento_id: string | null
+          id: string
+          mensagem: string
+          publico_criterio: string
+          publico_estimado: number
+          revisado_at: string | null
+          revisado_por: string | null
+          status: string
+          tipo: string
+          titulo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          campanha_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          evento_id?: string | null
+          id?: string
+          mensagem: string
+          publico_criterio?: string
+          publico_estimado?: number
+          revisado_at?: string | null
+          revisado_por?: string | null
+          status?: string
+          tipo?: string
+          titulo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          campanha_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          evento_id?: string | null
+          id?: string
+          mensagem?: string
+          publico_criterio?: string
+          publico_estimado?: number
+          revisado_at?: string | null
+          revisado_por?: string | null
+          status?: string
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comunicacoes_institucionais_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comunicacoes_institucionais_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "eventos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracoes_gerais: {
         Row: {
           chave: string
@@ -2322,6 +2391,7 @@ export type Database = {
         Args: { _assistido_id: string; _coordinator_id: string }
         Returns: boolean
       }
+      contar_publico_elegivel: { Args: { p_versao: string }; Returns: number }
       count_active_masters: { Args: never; Returns: number }
       count_apt_admins: { Args: never; Returns: number }
       dashboard_admin: {
