@@ -6,7 +6,83 @@ import { buildCorsHeaders } from "../_shared/cors.ts";
 type Intencao =
   | "saudacao" | "agradecimento" | "pedido_informacao" | "encerramento"
   | "tratamento_hoje" | "proxima_sessao" | "horario_entrevista" | "confirmacao_agendamento"
-  | "onde_ver_app" | "programacao_publica" | "opt_out" | "reativar" | "falar_humano" | "complexo";
+  | "onde_ver_app" | "programacao_publica" | "eventos" | "campanhas" | "acao_social"
+  | "opt_out" | "reativar" | "falar_humano" | "complexo";
+
+// ===== CAMADA 1 — normalização + tolerância a erro (barata e determinística) =====
+function normalizarTexto(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const CORRECOES_VOCABULARIO: Record<string, string> = {
+  evangelioterapia: "evangelhoterapia", evangelhioterapia: "evangelhoterapia",
+  evangeloterapia: "evangelhoterapia", evangelhterapia: "evangelhoterapia",
+  tratamnto: "tratamento", tratameto: "tratamento", tratmento: "tratamento",
+  trat: "tratamento", tto: "tratamento",
+  sesao: "sessao", sessoes: "sessao", secao: "sessao",
+  atendimeto: "atendimento", atendimnto: "atendimento",
+  entrevsta: "entrevista", entervista: "entrevista", entrvista: "entrevista",
+  agendamnto: "agendamento", agendameto: "agendamento",
+  palesta: "palestra", palstra: "palestra", palesra: "palestra", palerstra: "palestra",
+  progamacao: "programacao",
+  campnha: "campanha", campanhia: "campanha", campanas: "campanha",
+  aliemntos: "alimentos", alimetos: "alimentos", alimento: "alimentos",
+  qdo: "quando", qd: "quando", qnd: "quando",
+  prox: "proximo", proxmo: "proximo", proxma: "proxima",
+  hj: "hoje", amnha: "amanha", amnh: "amanha", amanhq: "amanha",
+  vc: "voce", vcs: "voces", pq: "porque", blz: "beleza",
+  evento: "eventos",
+};
+
+const VOCAB_FUZZY = [
+  "palestra", "evangelhoterapia", "tratamento", "atendimento", "entrevista",
+  "agendamento", "programacao", "campanha", "campanhas", "eventos", "alimentos",
+  "proximo", "proxima", "amanha", "remarcado", "cancelado", "sessao", "passe", "hoje",
+];
+const VOCAB_SET = new Set(VOCAB_FUZZY);
+
+function distanciaEdicao(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function corrigirToken(tok: string): string {
+  if (!tok) return tok;
+  if (CORRECOES_VOCABULARIO[tok]) return CORRECOES_VOCABULARIO[tok];
+  if (VOCAB_SET.has(tok)) return tok;
+  if (tok.length < 6) return tok;
+  for (const w of VOCAB_FUZZY) {
+    if (Math.abs(w.length - tok.length) > 1) continue;
+    if (distanciaEdicao(tok, w) === 1) return w;
+  }
+  return tok;
+}
+
+function corrigirTexto(s: string): string {
+  return normalizarTexto(s)
+    .split(" ")
+    .map((t) => {
+      const m = t.match(/^([\p{L}]+)([\s\S]*)$/u);
+      if (!m) return t;
+      return corrigirToken(m[1]) + m[2];
+    })
+    .join(" ");
+}
 
 const SENSITIVE = ["reclama", "absurdo", "pessimo", "péssimo", "horrivel", "horrível",
   "advogado", "processo", "denuncia", "denúncia", "urgente", "emergencia", "emergência"];
@@ -76,6 +152,20 @@ const KEYWORDS: Array<{ intent: Intencao; terms: string[] }> = [
     "que horas e minha", "que horas é minha", "horario da minha", "horário da minha",
   ] },
   { intent: "confirmacao_agendamento", terms: ["confirmar", "confirmado", "ta marcado", "tá marcado", "esta marcado"] },
+  // ===== PUBLIC institutional modules (events, campaigns, social action) =====
+  { intent: "acao_social", terms: [
+    "acao social", "ação social", "alimentos", "alimento", "cesta basica", "cesta básica",
+    "doar", "doacao", "doação", "doacoes", "doações", "arrecada", "arrecadacao", "arrecadação",
+    "esta faltando", "está faltando", "o que falta", "como ajudar", "como posso ajudar a casa",
+  ] },
+  { intent: "campanhas", terms: [
+    "campanha", "campanhas", "socio mantenedor", "sócio mantenedor", "mantenedor",
+    "tem alguma campanha", "campanha ativa", "campanha da casa",
+  ] },
+  { intent: "eventos", terms: [
+    "evento", "eventos", "tem evento", "algum evento", "que eventos", "evento essa semana",
+    "evento ativo", "proximos eventos", "próximos eventos",
+  ] },
   { intent: "programacao_publica", terms: [
     "palestra", "evangelhoterapia", "evangelho terapia", "passe",
     "trabalho publico", "trabalho público", "trabalhos publicos", "trabalhos públicos",
@@ -86,25 +176,35 @@ const KEYWORDS: Array<{ intent: Intencao; terms: string[] }> = [
 ];
 
 function contemTermo(txt: string, termos: string[]): boolean {
-  return termos.some((t) => txt === t || txt.startsWith(t + " ") || txt.includes(" " + t) || txt.includes(t));
+  // `txt` is already normalized (accent-free); normalize each term too.
+  return termos.some((raw) => {
+    const t = normalizarTexto(raw);
+    return txt === t || txt.startsWith(t + " ") || txt.includes(" " + t) || txt.includes(t);
+  });
 }
 
 function classificar(msg: string): Intencao {
-  const txt = (msg || "").toLowerCase().trim();
-  if (!txt) return "complexo";
-  if (SENSITIVE.some((t) => txt.includes(t))) return "complexo";
+  const limpo = (msg || "").toLowerCase().trim();
+  if (!limpo) return "complexo";
+  // CAMADA 1: normalize + correct typos/abbreviations before any matching.
+  const txt = corrigirTexto(limpo);
+  if (SENSITIVE.some((t) => txt.includes(normalizarTexto(t)))) return "complexo";
   // Explicit request to talk to a human wins over business/conversational layers
   // so the gentle-retention -> handoff flow can be applied.
   if (contemTermo(txt, HUMANO_TERMOS)) return "falar_humano";
   // Word-order-agnostic detection: any "treatment/session" word together with a
-  // temporal marker ("hoje tem tratamento", "tratamento hoje", "tem sessão hoje").
-  const TEMPORAL = ["hoje", "amanha", "amanhã", "depois de amanha", "depois de amanhã"];
-  const TRAT_PALAVRAS = ["tratamento", "sessao", "sessão", "atendimento"];
-  if (TEMPORAL.some((d) => txt.includes(d)) && TRAT_PALAVRAS.some((p) => txt.includes(p))) {
+  // temporal marker. Public-scope phrasing is excluded so it stays public.
+  const TEMPORAL = ["hoje", "amanha", "depois de amanha"];
+  const TRAT_PALAVRAS = ["tratamento", "sessao", "atendimento"];
+  const ehPublicoExplicito = txt.includes("publico") || txt.includes("publica");
+  if (!ehPublicoExplicito
+      && TEMPORAL.some((d) => txt.includes(d)) && TRAT_PALAVRAS.some((p) => txt.includes(p))) {
     return "tratamento_hoje";
   }
   // Business intents win first (greeting + operational request -> operational).
-  for (const { intent, terms } of KEYWORDS) if (terms.some((t) => txt.includes(t))) return intent;
+  for (const { intent, terms } of KEYWORDS) {
+    if (terms.some((t) => txt.includes(normalizarTexto(t)))) return intent;
+  }
   // Conversational layers (no handoff), most to least specific. The bridge
   // ("gostaria de informações") wins over a bare greeting so a continued
   // conversation flows naturally instead of repeating the greeting.
@@ -329,7 +429,7 @@ function jaSaudadoRecentemente(ultimoContatoIso?: string | null, janelaMin = 180
 const AUTORESOLVIVEIS: Intencao[] = [
   "saudacao", "agradecimento", "pedido_informacao", "encerramento",
   "tratamento_hoje", "proxima_sessao", "horario_entrevista", "confirmacao_agendamento", "onde_ver_app",
-  "programacao_publica", "opt_out", "reativar", "falar_humano",
+  "programacao_publica", "eventos", "campanhas", "acao_social", "opt_out", "reativar", "falar_humano",
 ];
 
 // Intents that can only be answered automatically when we know who is asking.
@@ -407,6 +507,59 @@ function montarRespostaProgramacao(itens: ItemProgramacao[], label = "hoje"): st
     .join("\n");
   return `${quando} temos:\n${linhas}\n🌿`;
 }
+
+// ===== Institutional modules: events / campaigns / social action =====
+interface EventoResumo { titulo: string; data?: string | null; local?: string | null; }
+function montarRespostaEventos(eventos: EventoResumo[]): string {
+  const lista = (eventos || []).filter((e) => e && e.titulo);
+  if (lista.length === 0) {
+    return "No momento não encontrei eventos programados. Assim que houver novidades, divulgamos por aqui. 🌿";
+  }
+  if (lista.length === 1) {
+    const e = lista[0];
+    const data = e.data ? ` em ${formatarDataCurta(e.data)}` : "";
+    const local = e.local ? ` (${e.local})` : "";
+    return `Sim, temos o evento "${e.titulo}"${data}${local}. 🌿`;
+  }
+  const linhas = lista
+    .map((e) => `• ${e.titulo}${e.data ? " — " + formatarDataCurta(e.data) : ""}`)
+    .join("\n");
+  return `Temos estes eventos:\n${linhas}\nSe quiser detalhes de algum, é só me dizer. 🌿`;
+}
+
+interface CampanhaResumo { titulo: string; descricao?: string | null; }
+function montarRespostaCampanhas(campanhas: CampanhaResumo[]): string {
+  const lista = (campanhas || []).filter((c) => c && c.titulo);
+  if (lista.length === 0) {
+    return "No momento não há campanhas ativas. Quando abrirmos uma nova, aviso por aqui. 🌿";
+  }
+  if (lista.length === 1) {
+    const c = lista[0];
+    const desc = c.descricao && c.descricao.trim() ? ` ${c.descricao.trim()}` : "";
+    return `Sim, está acontecendo a campanha "${c.titulo}".${desc} Se quiser participar, posso te orientar. 🌿`;
+  }
+  const linhas = lista.map((c) => `• ${c.titulo}`).join("\n");
+  return `Temos estas campanhas em andamento:\n${linhas}\nPosso te ajudar a participar de alguma delas. 🌿`;
+}
+
+interface AlimentoFaltante { nome: string; unidade?: string | null; faltante?: number | null; }
+function montarRespostaAcaoSocial(alimentos: AlimentoFaltante[]): string {
+  const lista = (alimentos || []).filter((a) => a && a.nome);
+  if (lista.length === 0) {
+    return "No momento não há itens em falta registrados na ação social. Obrigado pelo seu cuidado! Se quiser ajudar, nossa equipe pode te orientar. 🌿";
+  }
+  const linhas = lista
+    .map((a) => {
+      const qtd = a.faltante != null && a.faltante > 0
+        ? ` (faltam ${a.faltante}${a.unidade ? " " + a.unidade : ""})`
+        : "";
+      return `• ${a.nome}${qtd}`;
+    })
+    .join("\n");
+  return `Sim, estamos arrecadando para a ação social. Estes itens estão em falta:\n${linhas}\nQualquer doação ajuda muito. 🌿`;
+}
+
+
 
 interface ExcecaoOperacional {
   atividade: string; status: string; mensagem_ia?: string | null; motivo?: string | null;
@@ -1052,6 +1205,63 @@ Deno.serve(async (req) => {
         resposta = "Obrigado por confirmar! Esperamos por você. 🌿";
       } else if (intencao === "onde_ver_app") {
         resposta = "Você pode ver seus agendamentos, tratamentos e avisos direto no app, na área 'Painel' e 'Agenda'. 🌿";
+      } else if (intencao === "eventos") {
+        // Active events, optionally bounded by the requested date window.
+        const { data: eventosRaw } = await admin
+          .from("eventos")
+          .select("titulo, data_evento, data_inicio, data_fim, local, ordem")
+          .eq("ativo", true)
+          .order("data_evento", { ascending: true })
+          .limit(8);
+        const hojeIso = hojeSaoPaulo().data;
+        const eventos: EventoResumo[] = (eventosRaw || [])
+          .filter((e: any) => {
+            // Keep events that are upcoming/ongoing (data_fim >= hoje when set).
+            if (e?.data_fim) return String(e.data_fim) >= hojeIso;
+            if (e?.data_evento) return String(e.data_evento).slice(0, 10) >= hojeIso;
+            return true;
+          })
+          .map((e: any) => ({
+            titulo: e?.titulo || "Evento",
+            data: e?.data_evento ? String(e.data_evento).slice(0, 10) : (e?.data_inicio ?? null),
+            local: e?.local ?? null,
+          }));
+        respostaFonte = "eventos_reais";
+        resposta = montarRespostaEventos(eventos);
+      } else if (intencao === "campanhas") {
+        const hojeIso = hojeSaoPaulo().data;
+        const { data: campsRaw } = await admin
+          .from("campanhas")
+          .select("titulo, descricao_curta, data_inicio, data_fim, ordem, destaque")
+          .eq("ativo", true)
+          .order("destaque", { ascending: false })
+          .order("ordem", { ascending: true })
+          .limit(8);
+        const campanhas: CampanhaResumo[] = (campsRaw || [])
+          .filter((c: any) => {
+            const iniOk = !c?.data_inicio || String(c.data_inicio) <= hojeIso;
+            const fimOk = !c?.data_fim || String(c.data_fim) >= hojeIso;
+            return iniOk && fimOk;
+          })
+          .map((c: any) => ({ titulo: c?.titulo || "Campanha", descricao: c?.descricao_curta ?? null }));
+        respostaFonte = "campanhas_reais";
+        resposta = montarRespostaCampanhas(campanhas);
+      } else if (intencao === "acao_social") {
+        const { data: alimentosRaw } = await admin
+          .from("acao_social_alimentos")
+          .select("nome, unidade, quantidade_faltante, ordem")
+          .eq("ativo", true)
+          .order("ordem", { ascending: true })
+          .limit(20);
+        const alimentos: AlimentoFaltante[] = (alimentosRaw || [])
+          .filter((a: any) => (a?.quantidade_faltante ?? 0) > 0)
+          .map((a: any) => ({
+            nome: a?.nome || "Item",
+            unidade: a?.unidade ?? null,
+            faltante: a?.quantidade_faltante ?? null,
+          }));
+        respostaFonte = "acao_social_real";
+        resposta = montarRespostaAcaoSocial(alimentos);
       } else if (intencao === "programacao_publica") {
         // Public question. Mandatory lookup order:
         // (1) operational exceptions, (2) real public sessions,
