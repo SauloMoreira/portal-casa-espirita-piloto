@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Star, ImageOff } from "lucide-react";
 import type { ReactNode } from "react";
+import { formatoAspectClass } from "@/lib/conteudoImagem";
 
 interface VitrineCardProps {
   imagemUrl?: string | null;
@@ -10,6 +11,8 @@ interface VitrineCardProps {
   descricao?: string | null;
   destaque?: boolean;
   meta?: ReactNode;
+  /** Formato alvo salvo da imagem (card/banner_horizontal/banner_vertical/destaque). */
+  formato?: string | null;
   /** Item de destaque: layout maior, ocupa a linha inteira no grid. */
   featured?: boolean;
 }
@@ -18,17 +21,19 @@ interface VitrineCardProps {
  * Cartão presentacional reutilizável da vitrine institucional do assistido.
  * Usado por Campanhas e Eventos para um visual consistente, leve e elegante.
  * O texto fica sempre fora da imagem (respeita tokens do design system).
+ * A proporção da imagem acompanha o formato alvo salvo (imagem_formato).
  */
 export function VitrineCard({
-  imagemUrl, titulo, subtitulo, descricao, destaque, meta, featured,
+  imagemUrl, titulo, subtitulo, descricao, destaque, meta, formato, featured,
 }: VitrineCardProps) {
+  // A proporção exibida segue o formato salvo. No destaque, a imagem preenche
+  // a coluna lateral em telas largas, mantendo o aspecto salvo no mobile.
+  const aspect = formatoAspectClass(formato);
   const Imagem = (
     <div
       className={
         "relative overflow-hidden bg-secondary/30 " +
-        (featured
-          ? "aspect-[16/10] sm:aspect-auto sm:h-full sm:min-h-[180px]"
-          : "aspect-[16/9]")
+        (featured ? `${aspect} sm:aspect-auto sm:h-full sm:min-h-[180px]` : aspect)
       }
     >
       {imagemUrl ? (
