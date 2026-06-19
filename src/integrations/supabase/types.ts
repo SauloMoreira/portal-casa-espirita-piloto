@@ -506,7 +506,10 @@ export type Database = {
           descricao_curta: string | null
           destaque: boolean
           id: string
+          imagem_atualizada_em: string | null
+          imagem_atualizada_por: string | null
           imagem_origem: string
+          imagem_otimizada: boolean
           imagem_url: string | null
           ordem: number
           subtitulo: string | null
@@ -524,7 +527,10 @@ export type Database = {
           descricao_curta?: string | null
           destaque?: boolean
           id?: string
+          imagem_atualizada_em?: string | null
+          imagem_atualizada_por?: string | null
           imagem_origem?: string
+          imagem_otimizada?: boolean
           imagem_url?: string | null
           ordem?: number
           subtitulo?: string | null
@@ -542,7 +548,10 @@ export type Database = {
           descricao_curta?: string | null
           destaque?: boolean
           id?: string
+          imagem_atualizada_em?: string | null
+          imagem_atualizada_por?: string | null
           imagem_origem?: string
+          imagem_otimizada?: boolean
           imagem_url?: string | null
           ordem?: number
           subtitulo?: string | null
@@ -932,7 +941,10 @@ export type Database = {
           descricao_curta: string | null
           destaque: boolean
           id: string
+          imagem_atualizada_em: string | null
+          imagem_atualizada_por: string | null
           imagem_origem: string
+          imagem_otimizada: boolean
           imagem_url: string | null
           local: string | null
           ordem: number
@@ -953,7 +965,10 @@ export type Database = {
           descricao_curta?: string | null
           destaque?: boolean
           id?: string
+          imagem_atualizada_em?: string | null
+          imagem_atualizada_por?: string | null
           imagem_origem?: string
+          imagem_otimizada?: boolean
           imagem_url?: string | null
           local?: string | null
           ordem?: number
@@ -974,7 +989,10 @@ export type Database = {
           descricao_curta?: string | null
           destaque?: boolean
           id?: string
+          imagem_atualizada_em?: string | null
+          imagem_atualizada_por?: string | null
           imagem_origem?: string
+          imagem_otimizada?: boolean
           imagem_url?: string | null
           local?: string | null
           ordem?: number
