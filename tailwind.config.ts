@@ -73,6 +73,12 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        "acao-social": {
+          DEFAULT: "hsl(var(--acao-social))",
+          foreground: "hsl(var(--acao-social-foreground))",
+          muted: "hsl(var(--acao-social-muted))",
+        },
+
       },
       borderRadius: {
         lg: "var(--radius)",
