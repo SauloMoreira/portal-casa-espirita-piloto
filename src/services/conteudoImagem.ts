@@ -61,7 +61,7 @@ export async function uploadImagemManual(file: File, tipo: ConteudoTipo): Promis
   return data.publicUrl;
 }
 
-export type ResultadoImagemIa = { url: string; origem: "ai"; otimizada: boolean };
+export type ResultadoImagemIa = { url: string; origem: "ai"; otimizada: boolean; formato: ImagemFormato };
 
 /** Gera uma imagem promocional com IA a partir dos dados do conteúdo. */
 export async function gerarImagemIa(
@@ -71,11 +71,11 @@ export async function gerarImagemIa(
 ): Promise<ResultadoImagemIa> {
   const prompt = `${montarPromptGeracao(tipo, dados, formato)} (Saída ${formatoSize(formato)}).`;
   const { data, error } = await supabase.functions.invoke("conteudo-imagem-ia", {
-    body: { modo: "gerar", prompt },
+    body: { modo: "gerar", prompt, formato },
   });
   if (error) throw new Error(error.message || "Falha ao gerar imagem com IA");
   if (data?.error) throw new Error(data.error);
-  return data as ResultadoImagemIa;
+  return { formato, ...(data as Omit<ResultadoImagemIa, "formato">) };
 }
 
 /** Otimiza uma imagem existente (IA, upload ou URL) com IA. */
@@ -85,9 +85,9 @@ export async function otimizarImagemIa(
 ): Promise<ResultadoImagemIa> {
   const prompt = montarPromptOtimizacao(formato);
   const { data, error } = await supabase.functions.invoke("conteudo-imagem-ia", {
-    body: { modo: "otimizar", prompt, imagemUrl },
+    body: { modo: "otimizar", prompt, imagemUrl, formato },
   });
   if (error) throw new Error(error.message || "Falha ao otimizar imagem com IA");
   if (data?.error) throw new Error(data.error);
-  return data as ResultadoImagemIa;
+  return { formato, ...(data as Omit<ResultadoImagemIa, "formato">) };
 }
