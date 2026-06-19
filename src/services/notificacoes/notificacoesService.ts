@@ -133,7 +133,7 @@ export async function listHandoffsEnriquecidos(limit = 100): Promise<HandoffEnri
   const conversaIds = [...new Set(handoffs.map((h) => h.conversa_id))];
   const { data: conversas } = await supabase
     .from("whatsapp_conversas")
-    .select("id, telefone, assistido_id, ultima_mensagem, ultimo_contato_em")
+    .select("id, telefone, assistido_id, nome_contato, ultima_mensagem, ultimo_contato_em")
     .in("id", conversaIds);
   const convMap = new Map((conversas ?? []).map((c: any) => [c.id, c]));
 
@@ -155,12 +155,14 @@ export async function listHandoffsEnriquecidos(limit = 100): Promise<HandoffEnri
   return handoffs.map((h) => {
     const c: any = convMap.get(h.conversa_id);
     const assistidoId = c?.assistido_id ?? null;
+    const nomeContato: string | null = c?.nome_contato ?? null;
+    const nome = assistidoId ? assistidoMap.get(assistidoId) ?? null : nomeContato;
     return {
       ...h,
       telefone: c?.telefone ?? null,
       assistido_id: assistidoId,
-      assistido_nome: assistidoId ? assistidoMap.get(assistidoId) ?? null : null,
-      identificado: !!assistidoId,
+      assistido_nome: nome,
+      identificado: !!assistidoId || !!nomeContato,
       ultima_mensagem: c?.ultima_mensagem ?? null,
       ultimo_contato_em: c?.ultimo_contato_em ?? null,
       atendente_nome: h.atendente_id ? atendenteMap.get(h.atendente_id) ?? null : null,
