@@ -26,6 +26,7 @@ interface InstituicaoData {
   cidade: string;
   estado: string;
   telefone: string;
+  whatsapp: string;
   email_institucional: string;
   observacoes: string;
 }
@@ -33,7 +34,7 @@ interface InstituicaoData {
 const emptyData: InstituicaoData = {
   logo_url: null, nome_fantasia: "", razao_social: "", cnpj: "",
   cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
-  telefone: "", email_institucional: "", observacoes: "",
+  telefone: "", whatsapp: "", email_institucional: "", observacoes: "",
 };
 
 type FormErrors = Partial<Record<string, string>>;
@@ -66,6 +67,7 @@ export default function Instituicao() {
           cidade: row.cidade || "",
           estado: row.estado || "",
           telefone: maskPhone(row.telefone || ""),
+          whatsapp: maskPhone(row.whatsapp || ""),
           email_institucional: row.email_institucional || "",
           observacoes: row.observacoes || "",
         });
@@ -111,6 +113,7 @@ export default function Instituicao() {
       cidade: form.cidade.trim(),
       estado: form.estado.trim().toUpperCase(),
       telefone: form.telefone.replace(/\D/g, "") || null,
+      whatsapp: form.whatsapp.replace(/\D/g, "") || null,
       email_institucional: form.email_institucional.trim() || null,
       observacoes: form.observacoes.trim() || null,
       updated_by: user!.id,
@@ -204,12 +207,21 @@ export default function Instituicao() {
             <div className="space-y-2">
               <Label>Telefone</Label>
               <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: maskPhone(e.target.value) })} placeholder="(00) 00000-0000" maxLength={15} />
+              <p className="text-xs text-muted-foreground">Telefone institucional (fixo ou geral da casa).</p>
             </div>
+            <div className="space-y-2">
+              <Label>WhatsApp Institucional</Label>
+              <Input value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: maskPhone(e.target.value) })} placeholder="(00) 00000-0000" maxLength={15} />
+              <p className="text-xs text-muted-foreground">Número oficial de WhatsApp da casa — usado pelo botão "Fale Conosco" do app.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>E-mail Institucional</Label>
               <Input type="email" value={form.email_institucional} onChange={(e) => setForm({ ...form, email_institucional: e.target.value })} />
             </div>
           </div>
+
 
           {/* Observações */}
           <div className="space-y-2">

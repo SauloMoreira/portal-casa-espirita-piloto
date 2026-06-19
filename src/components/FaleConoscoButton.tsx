@@ -25,10 +25,14 @@ export function FaleConoscoButton() {
     const fetchTel = () => {
       supabase
         .from("instituicao_config")
-        .select("telefone")
+        .select("whatsapp, telefone")
         .limit(1)
         .then(({ data }) => {
-          if (data && data.length > 0) setTelefone((data[0] as { telefone: string | null }).telefone);
+          if (data && data.length > 0) {
+            const row = data[0] as { whatsapp: string | null; telefone: string | null };
+            // WhatsApp institucional is the official source; fall back to telefone only if unset.
+            setTelefone(row.whatsapp || row.telefone);
+          }
         });
     };
     fetchTel();
