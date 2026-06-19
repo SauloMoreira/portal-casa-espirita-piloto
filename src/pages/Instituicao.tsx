@@ -67,6 +67,7 @@ export default function Instituicao() {
           cidade: row.cidade || "",
           estado: row.estado || "",
           telefone: maskPhone(row.telefone || ""),
+          whatsapp: maskPhone(row.whatsapp || ""),
           email_institucional: row.email_institucional || "",
           observacoes: row.observacoes || "",
         });
