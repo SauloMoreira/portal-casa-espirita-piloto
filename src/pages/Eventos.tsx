@@ -227,11 +227,19 @@ export default function Eventos() {
                 <Label>Descrição completa</Label>
                 <Textarea value={form.descricao_completa} onChange={(e) => setForm({ ...form, descricao_completa: e.target.value })} rows={3} />
               </div>
-              <div className="space-y-1.5">
-                <Label>Imagem principal (URL)</Label>
-                <Input value={form.imagem_url} onChange={(e) => setForm({ ...form, imagem_url: e.target.value })} placeholder="https://..." />
-                <p className="text-[11px] text-muted-foreground">A geração de imagem com IA será adicionada em um próximo módulo.</p>
-              </div>
+              <ImagemConteudoManager
+                tipo="evento"
+                dados={{
+                  titulo: form.titulo,
+                  subtitulo: form.subtitulo,
+                  descricao_curta: form.descricao_curta,
+                  descricao_completa: form.descricao_completa,
+                  local: form.local,
+                }}
+                value={{ url: form.imagem_url, origem: form.imagem_origem, otimizada: form.imagem_otimizada }}
+                atualizadaEm={editing?.imagem_atualizada_em}
+                onChange={(next) => setForm({ ...form, imagem_url: next.url, imagem_origem: next.origem, imagem_otimizada: next.otimizada })}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Início da exibição</Label>
