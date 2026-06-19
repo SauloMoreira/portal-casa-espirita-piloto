@@ -11,11 +11,12 @@ import {
 } from "lucide-react";
 import {
   FORMATOS, origemLabel, validarUploadImagem, podeGerarComIa, formatarAtualizacao,
+  normalizarFormato, formatoAspectClass,
   type ConteudoTipo, type ImagemFormato, type ImagemOrigem, type DadosConteudo,
 } from "@/lib/conteudoImagem";
 import { uploadImagemManual, gerarImagemIa, otimizarImagemIa } from "@/services/conteudoImagem";
 
-export type ImagemValue = { url: string; origem: ImagemOrigem; otimizada: boolean };
+export type ImagemValue = { url: string; origem: ImagemOrigem; otimizada: boolean; formato?: string | null };
 
 interface Props {
   tipo: ConteudoTipo;
