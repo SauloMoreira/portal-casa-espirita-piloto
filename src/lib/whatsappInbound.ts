@@ -75,14 +75,15 @@ export function distanciaEdicao(a: string, b: string): number {
 export function corrigirToken(tok: string): string {
   if (!tok) return tok;
   if (CORRECOES_VOCABULARIO[tok]) return CORRECOES_VOCABULARIO[tok];
-  if (tok.length < 5) return tok;
+  // Already a known-good word -> never alter it.
+  if (VOCAB_SET.has(tok)) return tok;
+  // Conservative fuzzy match: only longer words, edit distance exactly 1, to
+  // avoid corrupting valid Portuguese words (e.g. "amanhã" -> "campanha").
+  if (tok.length < 6) return tok;
   let melhor: string | null = null;
-  let melhorDist = 99;
   for (const w of VOCAB_FUZZY) {
-    if (Math.abs(w.length - tok.length) > 2) continue;
-    const d = distanciaEdicao(tok, w);
-    const limite = w.length >= 8 ? 2 : 1;
-    if (d > 0 && d <= limite && d < melhorDist) { melhorDist = d; melhor = w; }
+    if (Math.abs(w.length - tok.length) > 1) continue;
+    if (distanciaEdicao(tok, w) === 1) { melhor = w; break; }
   }
   return melhor ?? tok;
 }
