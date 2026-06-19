@@ -2565,6 +2565,10 @@ export type Database = {
         Args: { p_comunicacao_id: string }
         Returns: Json
       }
+      metricas_ia_whatsapp: {
+        Args: { p_fim: string; p_inicio: string }
+        Returns: Json
+      }
       painel_conversas: {
         Args: {
           p_atendente?: string
