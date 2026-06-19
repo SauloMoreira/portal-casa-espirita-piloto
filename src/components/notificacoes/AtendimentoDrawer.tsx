@@ -16,6 +16,7 @@ import {
   getConversaMensagens, responderConversa, fecharHandoff, vincularAssistidoConversa,
   type HandoffEnriquecido, type MensagemConversa,
 } from "@/services/notificacoes/notificacoesService";
+import { DanielAvatar } from "./DanielAvatar";
 
 const ORIGEM_LABEL: Record<string, string> = {
   ia: "IA", regra: "Regra automática", manual: "Manual",
