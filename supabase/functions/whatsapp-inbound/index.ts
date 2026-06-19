@@ -439,6 +439,10 @@ const PRECISA_ASSISTIDO: Intencao[] = [
   "proxima_sessao", "horario_entrevista", "opt_out", "reativar",
 ];
 
+// Intents about the assistido's OWN personal data (used to tag the short memory scope).
+const PESSOAIS: Intencao[] = ["tratamento_hoje", "proxima_sessao", "horario_entrevista"];
+
+
 const CANCELADO_STATUS = ["cancelado", "cancelada", "remarcado", "remarcada"];
 
 function normalizePhone(p: string): string {
