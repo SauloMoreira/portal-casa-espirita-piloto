@@ -20,6 +20,51 @@ export const FALE_CONOSCO_APOIO = "Precisa de ajuda? Fale com a casa pelo WhatsA
 export const FALE_CONOSCO_MENSAGEM_PADRAO =
   "Olá, vim pelo app da FER e gostaria de tirar uma dúvida.";
 
+/** Returns the period-of-day salutation for a given hour (0-23). */
+export function saudacaoPorHorario(hora: number): "Bom dia" | "Boa tarde" | "Boa noite" {
+  if (hora >= 5 && hora < 12) return "Bom dia";
+  if (hora >= 12 && hora < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+/**
+ * Extracts a safe first name from a full name. Returns null when there is no
+ * trustworthy name, so the message can fall back to a neutral greeting.
+ */
+export function primeiroNomeSeguro(nomeCompleto: string | null | undefined): string | null {
+  if (!nomeCompleto) return null;
+  const limpo = nomeCompleto.trim().replace(/\s+/g, " ");
+  if (!limpo) return null;
+  const primeiro = limpo.split(" ")[0];
+  // Avoid leaking odd values (e.g. emails) as a "name".
+  if (primeiro.length < 2 || primeiro.includes("@")) return null;
+  // Capitalize first letter for a warm, human tone.
+  return primeiro.charAt(0).toUpperCase() + primeiro.slice(1);
+}
+
+/**
+ * Builds the contextual, welcoming opening message for the in-app entry point.
+ * It mentions Daniel (FER's virtual assistant), uses the user's first name when
+ * safely available, and clearly states human support follows business hours —
+ * setting the right expectation without being cold or bureaucratic. The "app"
+ * origin is woven in so the central keeps provenance for triage/audit.
+ */
+export function montarSaudacaoFaleConosco(opts: {
+  nomeCompleto?: string | null;
+  hora?: number;
+}): string {
+  const hora = opts.hora ?? new Date().getHours();
+  const saudacao = saudacaoPorHorario(hora);
+  const nome = primeiroNomeSeguro(opts.nomeCompleto);
+  const abertura = nome ? `${saudacao}, ${nome}.` : `${saudacao}.`;
+  return (
+    `${abertura} Sou o Daniel, assistente virtual da FER (estou falando com você pelo app). ` +
+    `Como posso lhe ajudar? Posso tirar suas dúvidas por aqui e, se necessário, ` +
+    `encaminhar você para um atendimento humano e personalizado. ` +
+    `Os atendimentos humanos acontecem em horário comercial e/ou nos horários de atendimento da FER.`
+  );
+}
+
 /**
  * Normalizes a Brazilian phone number to the digit-only E.164 form expected by
  * wa.me. Adds the country code (55) when missing. Returns null when the number
