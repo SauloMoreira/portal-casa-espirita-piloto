@@ -991,6 +991,95 @@ function perguntaProximaOcorrencia(texto: string): boolean {
     || t.includes("quando vai") || t.includes("quando tem");
 }
 
+// ===================== FASE 4 — CLASSIFICADOR HÍBRIDO (LLM apenas no gap) =====================
+// Espelho determinístico de src/lib/whatsappClassificadorHibrido.ts (testado).
+// O determinístico continua sendo a 1ª camada; o LLM leve só é acionado quando
+// `classificar` (já com upgrades por atividade/data) resultou em "complexo".
+// Qualquer saída inválida/baixa confiança volta a "complexo" -> handoff.
+
+const INTENCOES_VALIDAS_HIB = new Set<Intencao>([
+  "saudacao", "agradecimento", "pedido_informacao", "encerramento",
+  "tratamento_hoje", "proxima_sessao", "horario_entrevista", "confirmacao_agendamento",
+  "onde_ver_app", "programacao_publica", "eventos", "campanhas", "acao_social",
+  "opt_out", "reativar", "falar_humano", "complexo",
+]);
+const CONFIANCA_MINIMA_HIB = 0.6;
+
+function deveAcionarHibrido(intencaoDet: Intencao, texto: string | null | undefined): boolean {
+  if (intencaoDet !== "complexo") return false;
+  const t = (texto || "").trim();
+  return t.length >= 2;
+}
+
+interface SaidaHibrido { intencao: Intencao; atividade: string | null; confianca: number; aceito: boolean; }
+
+function normalizarSaidaHibrido(raw: unknown): SaidaHibrido {
+  const reprovado: SaidaHibrido = { intencao: "complexo", atividade: null, confianca: 0, aceito: false };
+  let obj: Record<string, unknown> | null = null;
+  if (raw && typeof raw === "object") obj = raw as Record<string, unknown>;
+  else if (typeof raw === "string") {
+    const s = raw.trim();
+    const i = s.indexOf("{"); const f = s.lastIndexOf("}");
+    if (i >= 0 && f > i) { try { const o = JSON.parse(s.slice(i, f + 1)); if (o && typeof o === "object") obj = o; } catch (_) { /* */ } }
+  }
+  if (!obj) return reprovado;
+  const intRaw = String(obj.intencao ?? obj.intent ?? "").trim().toLowerCase();
+  const intencao = (INTENCOES_VALIDAS_HIB.has(intRaw as Intencao) ? intRaw : "complexo") as Intencao;
+  let confianca = Number(obj.confianca ?? obj.confidence ?? 0);
+  if (!Number.isFinite(confianca)) confianca = 0;
+  confianca = Math.max(0, Math.min(1, confianca));
+  const atvRaw = obj.atividade ?? obj.activity ?? null;
+  let atividade: string | null = null;
+  if (typeof atvRaw === "string") { const l = atvRaw.trim(); atividade = l && l.toLowerCase() !== "null" ? l : null; }
+  const aceito = intencao !== "complexo" && confianca >= CONFIANCA_MINIMA_HIB;
+  return { intencao, atividade, confianca, aceito };
+}
+
+/**
+ * Chamada de rede ao modelo LEVE/BARATO (flash/lite) só para o gap. Envia apenas
+ * o texto da própria mensagem (sem dados pessoais). Qualquer falha -> não-aceito.
+ */
+async function classificarComLLM(texto: string): Promise<SaidaHibrido & { usouLlm: boolean }> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) return { ...normalizarSaidaHibrido(null), usouLlm: false };
+  const lista = [...INTENCOES_VALIDAS_HIB].filter((i) => i !== "complexo").join(", ");
+  const sistema = [
+    "Você classifica a INTENÇÃO de uma mensagem recebida por uma casa espírita (FER) no WhatsApp.",
+    "Responda APENAS com um JSON compacto: {\"intencao\":\"<uma das opções>\",\"atividade\":\"<nome ou null>\",\"confianca\":<0 a 1>}.",
+    `Opções válidas de intencao: ${lista}.`,
+    "Se não tiver certeza ou não couber em nenhuma, use confianca baixa (< 0.6).",
+    "\"atividade\" só quando a mensagem citar uma atividade específica (ex.: evangelhoterapia, palestra, passe, desobsessão); senão null.",
+    "Não invente. Não escreva nada além do JSON.",
+  ].join("\n");
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3.1-flash-lite",
+        messages: [
+          { role: "system", content: sistema },
+          { role: "user", content: String(texto || "").slice(0, 400) },
+        ],
+        temperature: 0,
+        max_tokens: 80,
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!resp.ok) return { ...normalizarSaidaHibrido(null), usouLlm: false };
+    const json = await resp.json();
+    const out = String(json?.choices?.[0]?.message?.content || "");
+    return { ...normalizarSaidaHibrido(out), usouLlm: true };
+  } catch (_) {
+    return { ...normalizarSaidaHibrido(null), usouLlm: false };
+  }
+}
+
+
+
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req, "authorization, x-client-info, apikey, content-type");
@@ -1132,6 +1221,9 @@ Deno.serve(async (req) => {
     let respostaFonte: string | null = null;
     let ctxData: string | null = null;
     let ctxAtividade: string | null = null;
+    let usouLlmClassificacao = false;
+    let confiancaClassificacao: number | null = null;
+
 
     try {
       intencao = classificar(texto);
@@ -1173,7 +1265,28 @@ Deno.serve(async (req) => {
           if (atividadeContexto) atividadeMencionada = atividadeContexto;
         } else {
           intencao = "tratamento_hoje";
+      }
+
+      // FASE 4 — Classificador híbrido APENAS no gap: o determinístico (já com
+      // upgrades por atividade/data) ainda resultou em "complexo". O LLM leve
+      // tenta interpretar ambiguidade real / erro de digitação difícil / frase
+      // natural fora do dicionário. Saída inválida/baixa confiança não altera nada
+      // (segue para handoff). Só envia o texto da mensagem — sem dados pessoais.
+      if (deveAcionarHibrido(intencao, texto)) {
+        const hib = await classificarComLLM(texto);
+        usouLlmClassificacao = hib.usouLlm;
+        confiancaClassificacao = hib.usouLlm ? hib.confianca : null;
+        if (hib.aceito) {
+          intencao = hib.intencao;
+          if (!atividadeMencionada && hib.atividade) {
+            // Reconhece a atividade citada pelo híbrido contra o vocabulário do BD.
+            const det = detectarAtividade(hib.atividade);
+            atividadeMencionada = det || hib.atividade;
+          }
         }
+      }
+
+
       }
 
 
@@ -1684,6 +1797,9 @@ Deno.serve(async (req) => {
         resposta_fonte: respostaFonte,
         fallback_motivo: fallbackMotivo,
         escopo: escopoAtual,
+        classificador_hibrido: usouLlmClassificacao,
+        confianca_classificacao: confiancaClassificacao,
+
       },
       status: "recebido",
     });
