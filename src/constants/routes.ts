@@ -27,6 +27,7 @@ export const ROUTES = {
   agenda: "/agenda",
   presenca: "/presenca",
   sessoesPublicas: "/sessoes-publicas",
+  acaoSocial: "/acao-social",
 
   // Tratamentos
   tratamentos: "/tratamentos",
