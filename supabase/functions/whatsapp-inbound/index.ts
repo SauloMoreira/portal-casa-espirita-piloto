@@ -1887,7 +1887,7 @@ Deno.serve(async (req) => {
           .in("status", ["aberto", "em_atendimento"]).maybeSingle();
         if (!aberto2) {
           await admin.from("whatsapp_handoffs").insert({
-            conversa_id: conversaId, motivo: handoffMotivo, origem: "regra",
+            conversa_id: conversaId, motivo: normalizarRotulo(handoffMotivo) || "Atendimento humano necessário", origem: "regra",
             classificado_por_ia: false, status: "aberto",
           });
         }
