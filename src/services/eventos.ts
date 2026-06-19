@@ -8,6 +8,9 @@ export type EventoInput = {
   descricao_completa?: string | null;
   imagem_url?: string | null;
   imagem_origem?: string;
+  imagem_otimizada?: boolean;
+  imagem_atualizada_em?: string | null;
+  imagem_atualizada_por?: string | null;
   local?: string | null;
   data_evento?: string | null;
   data_evento_fim?: string | null;

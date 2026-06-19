@@ -8,6 +8,9 @@ export type CampanhaInput = {
   descricao_completa?: string | null;
   imagem_url?: string | null;
   imagem_origem?: string;
+  imagem_otimizada?: boolean;
+  imagem_atualizada_em?: string | null;
+  imagem_atualizada_por?: string | null;
   ordem?: number;
   destaque?: boolean;
   data_inicio?: string | null;

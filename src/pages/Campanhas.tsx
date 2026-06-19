@@ -19,6 +19,9 @@ import { validarCampanha, type Campanha } from "@/lib/campanhas";
 import {
   listCampanhas, createCampanha, updateCampanha, deleteCampanha, toggleCampanhaAtivo,
 } from "@/services/campanhas";
+import { supabase } from "@/integrations/supabase/client";
+import { ImagemConteudoManager } from "@/components/conteudo/ImagemConteudoManager";
+import type { ImagemOrigem } from "@/lib/conteudoImagem";
 
 type FormState = {
   titulo: string;
@@ -26,6 +29,8 @@ type FormState = {
   descricao_curta: string;
   descricao_completa: string;
   imagem_url: string;
+  imagem_origem: ImagemOrigem;
+  imagem_otimizada: boolean;
   ordem: string;
   destaque: boolean;
   data_inicio: string;
@@ -35,7 +40,8 @@ type FormState = {
 
 const emptyForm: FormState = {
   titulo: "", subtitulo: "", descricao_curta: "", descricao_completa: "",
-  imagem_url: "", ordem: "0", destaque: false, data_inicio: "", data_fim: "", ativo: true,
+  imagem_url: "", imagem_origem: "url", imagem_otimizada: false,
+  ordem: "0", destaque: false, data_inicio: "", data_fim: "", ativo: true,
 };
 
 export default function Campanhas() {
@@ -69,6 +75,8 @@ export default function Campanhas() {
       descricao_curta: c.descricao_curta ?? "",
       descricao_completa: c.descricao_completa ?? "",
       imagem_url: c.imagem_url ?? "",
+      imagem_origem: (c.imagem_origem as ImagemOrigem) ?? "url",
+      imagem_otimizada: c.imagem_otimizada ?? false,
       ordem: c.ordem.toString(),
       destaque: c.destaque,
       data_inicio: c.data_inicio ?? "",
@@ -83,13 +91,19 @@ export default function Campanhas() {
     if (err) { toast({ title: "Atenção", description: err, variant: "destructive" }); return; }
     setSaving(true);
     try {
+      const imagemUrl = form.imagem_url.trim() || null;
+      const imagemMudou = (editing?.imagem_url ?? "") !== (imagemUrl ?? "");
+      const { data: authData } = await supabase.auth.getUser();
       const payload = {
         titulo: form.titulo.trim(),
         subtitulo: form.subtitulo.trim() || null,
         descricao_curta: form.descricao_curta.trim() || null,
         descricao_completa: form.descricao_completa.trim() || null,
-        imagem_url: form.imagem_url.trim() || null,
-        imagem_origem: "manual",
+        imagem_url: imagemUrl,
+        imagem_origem: imagemUrl ? form.imagem_origem : "url",
+        imagem_otimizada: imagemUrl ? form.imagem_otimizada : false,
+        imagem_atualizada_em: imagemMudou ? new Date().toISOString() : (editing?.imagem_atualizada_em ?? null),
+        imagem_atualizada_por: imagemMudou ? (authData.user?.id ?? null) : (editing?.imagem_atualizada_por ?? null),
         ordem: Number(form.ordem) || 0,
         destaque: form.destaque,
         data_inicio: form.data_inicio || null,
@@ -165,11 +179,18 @@ export default function Campanhas() {
                 <Label>Descrição completa</Label>
                 <Textarea value={form.descricao_completa} onChange={(e) => setForm({ ...form, descricao_completa: e.target.value })} rows={3} />
               </div>
-              <div className="space-y-1.5">
-                <Label>Imagem principal (URL)</Label>
-                <Input value={form.imagem_url} onChange={(e) => setForm({ ...form, imagem_url: e.target.value })} placeholder="https://..." />
-                <p className="text-[11px] text-muted-foreground">A geração de imagem com IA será adicionada em um próximo módulo.</p>
-              </div>
+              <ImagemConteudoManager
+                tipo="campanha"
+                dados={{
+                  titulo: form.titulo,
+                  subtitulo: form.subtitulo,
+                  descricao_curta: form.descricao_curta,
+                  descricao_completa: form.descricao_completa,
+                }}
+                value={{ url: form.imagem_url, origem: form.imagem_origem, otimizada: form.imagem_otimizada }}
+                atualizadaEm={editing?.imagem_atualizada_em}
+                onChange={(next) => setForm({ ...form, imagem_url: next.url, imagem_origem: next.origem, imagem_otimizada: next.otimizada })}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Início da exibição</Label>
