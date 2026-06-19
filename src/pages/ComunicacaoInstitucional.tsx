@@ -17,15 +17,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Megaphone, Plus, Pencil, Trash2, Users, ShieldCheck, Send, Eye } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Megaphone, Plus, Pencil, Trash2, Users, ShieldCheck, Send, Eye, ListChecks, Rocket, ShieldAlert } from "lucide-react";
 import {
   validarComunicacao, normalizarTipo, normalizarStatus, prontaParaEnvio,
   TIPOS, STATUS_LABEL, MENSAGEM_MAX,
   type ComunicacaoInstitucional, type ComunicacaoTipo, type ComunicacaoStatus,
 } from "@/lib/comunicacaoInstitucional";
 import {
+  normalizarEnvioStatus, podePreparar, podeDisparar, pendentes, progressoPercentual,
+  ENVIO_STATUS_LABEL, JANELA_ANTISPAM_DIAS, LOTE_PADRAO,
+} from "@/lib/comunicacaoEnvio";
+import {
   listComunicacoes, createComunicacao, updateComunicacao, deleteComunicacao,
   setStatusComunicacao, contarPublicoElegivel,
+  prepararEnvio, dispararLote,
 } from "@/services/comunicacaoInstitucional";
 
 type FormState = {
