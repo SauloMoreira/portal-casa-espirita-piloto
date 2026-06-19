@@ -33,6 +33,7 @@ export function VitrineCard({
     <div
       className={
         "relative overflow-hidden bg-secondary/30 " +
+        (featured ? "sm:self-start " : "") +
         aspect
       }
     >
