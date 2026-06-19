@@ -1809,7 +1809,7 @@ Deno.serve(async (req) => {
         assistido_identificado: !!assistido,
         assistido_id: assistido?.id ?? null,
         resposta_fonte: respostaFonte,
-        fallback_motivo: fallbackMotivo,
+        fallback_motivo: normalizarRotulo(fallbackMotivo),
         escopo: escopoAtual,
         classificador_hibrido: usouLlmClassificacao,
         confianca_classificacao: confiancaClassificacao,
