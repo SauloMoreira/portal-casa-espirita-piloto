@@ -239,9 +239,9 @@ export default function Eventos() {
                   descricao_completa: form.descricao_completa,
                   local: form.local,
                 }}
-                value={{ url: form.imagem_url, origem: form.imagem_origem, otimizada: form.imagem_otimizada }}
+                value={{ url: form.imagem_url, origem: form.imagem_origem, otimizada: form.imagem_otimizada, formato: form.imagem_formato }}
                 atualizadaEm={editing?.imagem_atualizada_em}
-                onChange={(next) => setForm({ ...form, imagem_url: next.url, imagem_origem: next.origem, imagem_otimizada: next.otimizada })}
+                onChange={(next) => setForm({ ...form, imagem_url: next.url, imagem_origem: next.origem, imagem_otimizada: next.otimizada, imagem_formato: next.formato ?? form.imagem_formato })}
               />
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
