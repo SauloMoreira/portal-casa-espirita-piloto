@@ -399,26 +399,26 @@ describe("whatsappInbound — camada de ponte e condução da conversa", () => {
 
   it("apresenta a persona Daniel da FER apenas no primeiro contato", () => {
     const inicio = gerarRespostaConversacional("saudacao", { horaLocal: 14, texto: "oi" });
-    expect(inicio).toMatch(/Sou Daniel, assistente virtual da FER/);
+    expect(inicio).toMatch(/Sou o Daniel, assistente virtual da FER/);
     // No meio da conversa não reapresenta a persona.
     const meio = gerarRespostaConversacional("pedido_informacao", { texto: "uma dúvida", jaSaudado: true });
-    expect(meio).not.toMatch(/Sou Daniel/);
+    expect(meio).not.toMatch(/Sou o Daniel/);
   });
 
 
   it("não repete a saudação nem reapresenta a persona quando já saudado", () => {
     const jaSaudado = gerarRespostaConversacional("saudacao", { horaLocal: 14, jaSaudado: true, texto: "oi" });
     expect(jaSaudado).not.toMatch(/Bom dia|Boa tarde|Boa noite/);
-    expect(jaSaudado).not.toMatch(/Sou Daniel/);
+    expect(jaSaudado).not.toMatch(/Sou o Daniel/);
     expect(jaSaudado).toMatch(/[✨🌿🙏💙]/u);
-    // First contact greeting presents the persona Daniel/FER.
+    // First contact greeting presents the persona Daniel/FER (agreed format).
     expect(gerarRespostaConversacional("saudacao", { horaLocal: 14, texto: "boa tarde" }))
-      .toMatch(/^Boa tarde! [✨🌿🙏] Sou Daniel, assistente virtual da FER\./u);
+      .toMatch(/^Boa tarde\. Sou o Daniel, assistente virtual da FER\./u);
   });
 
   it("acolhe no início e encerra com gentileza da casa", () => {
     expect(gerarRespostaConversacional("saudacao", { horaLocal: 20, texto: "boa noite" }))
-      .toMatch(/^Boa noite! [✨🌿🙏] Sou Daniel/u);
+      .toMatch(/^Boa noite\. Sou o Daniel/u);
     expect(gerarRespostaConversacional("encerramento", { texto: "era só isso" })).toMatch(/[🙏🌿💙]/u);
   });
 
