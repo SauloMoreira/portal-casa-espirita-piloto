@@ -810,7 +810,87 @@ function fmtData(value: string, withTime = false): string {
   });
 }
 
-Deno.serve(async (req) => {
+// ===================== FASE 3 — GERAÇÃO FINAL HUMANA (grounded) =====================
+// A resposta factual já foi montada deterministicamente (fonte da verdade). Aqui
+// um modelo LEVE/BARATO da família flash/lite apenas REESCREVE de forma natural e
+// acolhedora, SEM inventar, remover ou alterar nenhum dado (datas/horários/nomes).
+// Qualquer falha cai no texto determinístico — nunca fica sem resposta.
+
+interface HumanizarCtx {
+  escopo?: string | null;
+  jaSaudado?: boolean;
+  nome?: string | null;
+  ultimosTurnos?: Array<{ papel: string; resumo: string }>;
+}
+
+async function humanizarRespostaIA(
+  textoFactual: string,
+  ctx: HumanizarCtx,
+): Promise<{ texto: string; usouLlm: boolean }> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey || !textoFactual || !textoFactual.trim()) {
+    return { texto: textoFactual, usouLlm: false };
+  }
+
+  const historico = (ctx.ultimosTurnos || [])
+    .slice(-4)
+    .map((t) => `${t.papel === "ia" ? "Daniel" : "Pessoa"}: ${t.resumo}`)
+    .join("\n");
+
+  const sistema = [
+    "Você é o Daniel, assistente virtual acolhedor de uma casa espírita (FER).",
+    "Reescreva a MENSAGEM FACTUAL abaixo de forma natural, calorosa e humana, em português do Brasil.",
+    "REGRAS ABSOLUTAS:",
+    "- NÃO invente, remova ou altere nenhum fato: mantenha exatamente datas, horários, nomes de atividades e status.",
+    "- Se a mensagem factual indica ausência (não há / não encontrei), mantenha a ausência de forma honesta, clara e acolhedora — nunca vaga ou seca.",
+    "- Informação principal primeiro, em 1 frase. Complemente só o necessário.",
+    ctx.jaSaudado ? "- A conversa já começou: NÃO repita saudações." : "- Pode cumprimentar brevemente.",
+    "- Sem frases genéricas, sem burocracia. Fechamento gentil só quando fizer sentido.",
+    "- No máximo 1 emoji discreto. Seja conciso (até ~2 frases).",
+    "- Responda APENAS com o texto final para o usuário, sem aspas nem rótulos.",
+  ].join("\n");
+
+  const usuario = [
+    historico ? `Contexto recente da conversa:\n${historico}\n` : "",
+    `MENSAGEM FACTUAL a reescrever:\n${textoFactual}`,
+  ].join("\n");
+
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3.1-flash-lite",
+        messages: [
+          { role: "system", content: sistema },
+          { role: "user", content: usuario },
+        ],
+        temperature: 0.5,
+        max_tokens: 220,
+      }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!resp.ok) return { texto: textoFactual, usouLlm: false };
+    const json = await resp.json();
+    const out = String(json?.choices?.[0]?.message?.content || "").trim();
+    if (!out) return { texto: textoFactual, usouLlm: false };
+    return { texto: out, usouLlm: true };
+  } catch (_) {
+    return { texto: textoFactual, usouLlm: false };
+  }
+}
+
+// Intenções factuais cuja resposta pode ser humanizada (conversacionais já variam
+// sozinhas; handoff e opt-out/in têm texto fixo e sensível, não humanizamos).
+const INTENCOES_HUMANIZAVEIS = new Set<Intencao>([
+  "tratamento_hoje", "proxima_sessao", "horario_entrevista", "confirmacao_agendamento",
+  "onde_ver_app", "programacao_publica", "eventos", "campanhas", "acao_social",
+]);
+
+
   const corsHeaders = buildCorsHeaders(req, "authorization, x-client-info, apikey, content-type");
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
