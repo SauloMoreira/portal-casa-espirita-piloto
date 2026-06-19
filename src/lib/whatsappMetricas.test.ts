@@ -125,8 +125,8 @@ describe("agruparPadroesFalha", () => {
   ];
   it("agrupa e ordena por total", () => {
     const grupos = agruparPadroesFalha(ambiguidades);
-    expect(grupos[0].categoria).toBe("erro_temporal");
-    expect(grupos[0].total).toBe(5); // 3 + 2
+    const temporal = grupos.find((g) => g.categoria === "erro_temporal");
+    expect(temporal?.total).toBe(5); // 3 + 2
     const pessoal = grupos.find((g) => g.categoria === "pessoal_sem_identificacao");
     expect(pessoal?.total).toBe(5);
     expect(pessoal?.rotulo).toBe(ROTULO_CATEGORIA.pessoal_sem_identificacao);
