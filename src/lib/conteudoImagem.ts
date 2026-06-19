@@ -9,16 +9,51 @@ export type ConteudoTipo = "campanha" | "evento";
 /** Formatos de imagem suportados na geração/otimização. */
 export type ImagemFormato = "card" | "banner_horizontal" | "banner_vertical" | "destaque";
 
-export const FORMATOS: { value: ImagemFormato; label: string; size: string; ratio: string }[] = [
-  { value: "card", label: "Card quadrado", size: "1024x1024", ratio: "1:1" },
-  { value: "banner_horizontal", label: "Banner horizontal", size: "1536x1024", ratio: "3:2" },
-  { value: "banner_vertical", label: "Banner vertical", size: "1024x1536", ratio: "2:3" },
-  { value: "destaque", label: "Destaque da home", size: "1536x1024", ratio: "3:2" },
+export const FORMATO_PADRAO: ImagemFormato = "card";
+
+export const FORMATOS: {
+  value: ImagemFormato;
+  label: string;
+  size: string;
+  ratio: string;
+  /** Proporção numérica (largura / altura) usada para recorte e preview. */
+  aspect: number;
+  /** Classe Tailwind de aspect-ratio para preview/exibição. */
+  aspectClass: string;
+}[] = [
+  { value: "card", label: "Card quadrado", size: "1024x1024", ratio: "1:1", aspect: 1, aspectClass: "aspect-square" },
+  { value: "banner_horizontal", label: "Banner horizontal", size: "1536x1024", ratio: "3:2", aspect: 3 / 2, aspectClass: "aspect-[3/2]" },
+  { value: "banner_vertical", label: "Banner vertical", size: "1024x1536", ratio: "2:3", aspect: 2 / 3, aspectClass: "aspect-[2/3]" },
+  { value: "destaque", label: "Destaque da home", size: "1600x900", ratio: "16:9", aspect: 16 / 9, aspectClass: "aspect-video" },
 ];
+
+/** Normaliza um valor de formato (vindo do banco) para um formato válido. */
+export function normalizarFormato(formato: string | null | undefined): ImagemFormato {
+  return (FORMATOS.find((f) => f.value === formato)?.value) ?? FORMATO_PADRAO;
+}
+
+function formatoConfig(formato: ImagemFormato) {
+  return FORMATOS.find((f) => f.value === formato) ?? FORMATOS[0];
+}
 
 /** Dimensão de saída (compatível com a API de imagens) para cada formato. */
 export function formatoSize(formato: ImagemFormato): string {
-  return (FORMATOS.find((f) => f.value === formato) ?? FORMATOS[0]).size;
+  return formatoConfig(formato).size;
+}
+
+/** Proporção numérica (largura/altura) do formato. */
+export function formatoAspect(formato: ImagemFormato): number {
+  return formatoConfig(formato).aspect;
+}
+
+/** Classe Tailwind de aspect-ratio do formato, para preview/exibição. */
+export function formatoAspectClass(formato: string | null | undefined): string {
+  return formatoConfig(normalizarFormato(formato)).aspectClass;
+}
+
+/** Rótulo amigável do formato. */
+export function formatoLabel(formato: string | null | undefined): string {
+  return formatoConfig(normalizarFormato(formato)).label;
 }
 
 /** Rótulo amigável da origem da imagem. */
