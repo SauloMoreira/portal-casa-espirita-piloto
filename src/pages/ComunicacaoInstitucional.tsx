@@ -114,6 +114,45 @@ export default function ComunicacaoInstitucional() {
     }
   };
 
+  const refreshRevisar = async (id: string) => {
+    const lista = await listComunicacoes();
+    setItens(lista);
+    const atual = lista.find((x) => x.id === id) ?? null;
+    setRevisar(atual);
+  };
+
+  const handlePreparar = async (c: ComunicacaoInstitucional) => {
+    setEnviando(true);
+    try {
+      const r = await prepararEnvio(c.id, JANELA_ANTISPAM_DIAS);
+      toast({
+        title: "Fila preparada",
+        description: `${r.total} destinatário(s) na fila — ${r.bloqueados} bloqueado(s) por frequência.`,
+      });
+      await refreshRevisar(c.id);
+    } catch (e: any) {
+      toast({ title: "Erro ao preparar", description: e.message, variant: "destructive" });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const handleDisparar = async (c: ComunicacaoInstitucional) => {
+    setEnviando(true);
+    try {
+      const r: any = await dispararLote(c.id, LOTE_PADRAO);
+      toast({
+        title: "Lote processado",
+        description: `Enviados: ${r?.enviados ?? 0} · Falhas: ${r?.falhas ?? 0} · Bloqueados: ${r?.bloqueados ?? 0}.`,
+      });
+      await refreshRevisar(c.id);
+    } catch (e: any) {
+      toast({ title: "Erro ao disparar", description: e.message, variant: "destructive" });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await deleteComunicacao(id);
