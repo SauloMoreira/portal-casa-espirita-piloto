@@ -137,7 +137,7 @@ export function ImagemConteudoManager({ tipo, dados, value, atualizadaEm, onChan
           </p>
           <div className="space-y-1.5">
             <Label className="text-[11px] text-muted-foreground">Formato alvo</Label>
-            <Select value={formato} onValueChange={(v) => handleFormatoChange(v as ImagemFormato)}>>
+            <Select value={formato} onValueChange={(v) => handleFormatoChange(v as ImagemFormato)}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {FORMATOS.map((f) => (
