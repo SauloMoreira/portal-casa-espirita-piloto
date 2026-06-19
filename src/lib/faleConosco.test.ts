@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   normalizarTelefoneWhatsapp,
   montarLinkWhatsapp,
+  montarSaudacaoFaleConosco,
+  saudacaoPorHorario,
+  primeiroNomeSeguro,
   FALE_CONOSCO_MENSAGEM_PADRAO,
 } from "./faleConosco";
 
