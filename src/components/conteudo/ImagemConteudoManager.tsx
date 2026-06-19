@@ -31,12 +31,16 @@ type Candidato = { url: string; otimizada: boolean; formato: ImagemFormato } | n
 export function ImagemConteudoManager({ tipo, dados, value, atualizadaEm, onChange }: Props) {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [formato, setFormato] = useState<ImagemFormato>(normalizarFormato(value.formato));
+  // Formato é controlado pelo pai (value.formato) — fonte única de verdade.
+  const formato: ImagemFormato = normalizarFormato(value.formato);
   const [busy, setBusy] = useState<null | "upload" | "gerar" | "otimizar">(null);
   const [candidato, setCandidato] = useState<Candidato>(null);
 
   const temImagem = !!value.url;
-  const aspectClass = formatoAspectClass(formato);
+
+  const handleFormatoChange = (v: ImagemFormato) => {
+    onChange({ ...value, formato: v });
+  };
 
   const handleFile = async (file: File) => {
     const err = validarUploadImagem(file);
