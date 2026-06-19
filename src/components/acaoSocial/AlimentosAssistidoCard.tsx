@@ -23,16 +23,26 @@ export function AlimentosAssistidoCard() {
   if (loading || itens.length === 0) return null;
 
   return (
-    <Card className="border-primary/15 bg-gradient-to-br from-primary/[0.05] via-card to-card shadow-sm overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-semibold text-primary flex items-center gap-2 tracking-wide uppercase">
-          <HeartHandshake className="h-4 w-4" /> Ação Social
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Se desejar contribuir com nossa ação social, veja abaixo os alimentos que mais precisamos no momento.
-        </p>
-      </CardHeader>
-      <CardContent>
+    <Card className="overflow-hidden border-border/50 shadow-sm">
+      {/* Faixa introdutória institucional — verde escuro sóbrio e acolhedor */}
+      <div className="gradient-acao-social px-5 py-4 sm:px-6 sm:py-5">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-acao-social-foreground/10 ring-1 ring-acao-social-foreground/15">
+            <HeartHandshake className="h-4.5 w-4.5 text-acao-social-foreground" />
+          </span>
+          <div className="min-w-0 space-y-1.5">
+            <h3 className="font-display text-base font-semibold tracking-wide text-acao-social-foreground sm:text-lg">
+              Ação Social
+            </h3>
+            <p className="text-xs leading-relaxed text-acao-social-muted sm:text-sm">
+              Se desejar contribuir com nossa ação social, veja abaixo os alimentos que mais
+              precisamos no momento. Cada gesto faz diferença.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <CardContent className="pt-4">
         <ul className="divide-y divide-border/50">
           {itens.map((it) => (
             <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
