@@ -21,6 +21,9 @@ import {
   reabrirConversa, marcarConversaRevisada,
   type ConversaEnriquecida, type MensagemConversa,
 } from "@/services/notificacoes/notificacoesService";
+import { DanielAvatar } from "./DanielAvatar";
+import { DanielTypingIndicator } from "./DanielTypingIndicator";
+import { deveExibirDigitando } from "@/lib/danielChat";
 
 const ORIGEM_LABEL: Record<string, string> = {
   ia: "IA", regra: "Regra automática", manual: "Manual",
