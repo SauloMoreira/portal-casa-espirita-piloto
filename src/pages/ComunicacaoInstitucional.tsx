@@ -20,7 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Progress } from "@/components/ui/progress";
 import { Megaphone, Plus, Pencil, Trash2, Users, ShieldCheck, Send, Eye, ListChecks, Rocket, ShieldAlert } from "lucide-react";
 import {
-  validarComunicacao, normalizarTipo, normalizarStatus, prontaParaEnvio,
+  validarComunicacao, normalizarTipo, normalizarStatus,
   TIPOS, STATUS_LABEL, MENSAGEM_MAX,
   type ComunicacaoInstitucional, type ComunicacaoTipo, type ComunicacaoStatus,
 } from "@/lib/comunicacaoInstitucional";
