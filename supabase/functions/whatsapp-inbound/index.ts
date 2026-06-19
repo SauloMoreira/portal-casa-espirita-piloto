@@ -1221,6 +1221,9 @@ Deno.serve(async (req) => {
     let respostaFonte: string | null = null;
     let ctxData: string | null = null;
     let ctxAtividade: string | null = null;
+    let usouLlmClassificacao = false;
+    let confiancaClassificacao: number | null = null;
+
 
     try {
       intencao = classificar(texto);
