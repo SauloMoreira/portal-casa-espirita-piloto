@@ -663,6 +663,56 @@ export type Database = {
         }
         Relationships: []
       }
+      consentimentos_comunicacao: {
+        Row: {
+          acao: string
+          assistido_id: string
+          canal: string
+          created_at: string
+          created_by: string | null
+          id: string
+          observacao: string | null
+          origem: string
+          updated_at: string
+          updated_by: string | null
+          versao_termo: string | null
+        }
+        Insert: {
+          acao: string
+          assistido_id: string
+          canal?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacao?: string | null
+          origem?: string
+          updated_at?: string
+          updated_by?: string | null
+          versao_termo?: string | null
+        }
+        Update: {
+          acao?: string
+          assistido_id?: string
+          canal?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacao?: string | null
+          origem?: string
+          updated_at?: string
+          updated_by?: string | null
+          versao_termo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consentimentos_comunicacao_assistido_id_fkey"
+            columns: ["assistido_id"]
+            isOneToOne: false
+            referencedRelation: "assistidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entrevistas_fraternas: {
         Row: {
           assistido_id: string
@@ -1448,6 +1498,10 @@ export type Database = {
       notificacoes_preferencias: {
         Row: {
           assistido_id: string
+          consentimento_at: string | null
+          consentimento_origem: string | null
+          consentimento_status: string
+          consentimento_versao: string | null
           created_at: string
           horario_fim_envio: string
           horario_inicio_envio: string
@@ -1459,6 +1513,10 @@ export type Database = {
         }
         Insert: {
           assistido_id: string
+          consentimento_at?: string | null
+          consentimento_origem?: string | null
+          consentimento_status?: string
+          consentimento_versao?: string | null
           created_at?: string
           horario_fim_envio?: string
           horario_inicio_envio?: string
@@ -1470,6 +1528,10 @@ export type Database = {
         }
         Update: {
           assistido_id?: string
+          consentimento_at?: string | null
+          consentimento_origem?: string | null
+          consentimento_status?: string
+          consentimento_versao?: string | null
           created_at?: string
           horario_fim_envio?: string
           horario_inicio_envio?: string

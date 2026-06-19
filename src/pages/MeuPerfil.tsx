@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { AddressFields } from "@/components/AddressFields";
-import { WhatsappPreferenciaCard } from "@/components/notificacoes/WhatsappPreferenciaCard";
+import { ConsentimentoWhatsappCard } from "@/components/notificacoes/ConsentimentoWhatsappCard";
 import { maskPhone, maskCPF, isValidPhone, isValidEmail } from "@/lib/validators";
 import { User, Save } from "lucide-react";
 
@@ -182,7 +182,7 @@ export default function MeuPerfil() {
         </CardContent>
       </Card>
 
-      {assistidoId && <WhatsappPreferenciaCard assistidoId={assistidoId} />}
+      {assistidoId && <ConsentimentoWhatsappCard assistidoId={assistidoId} />}
 
       <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
         <Save className="h-4 w-4" />

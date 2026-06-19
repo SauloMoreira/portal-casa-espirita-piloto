@@ -630,12 +630,24 @@ Deno.serve(async (req) => {
         await admin.from("notificacoes_preferencias").upsert({
           assistido_id: assistido.id, whatsapp_ativo: false,
           opt_out_at: new Date().toISOString(), opt_out_motivo: "solicitado_via_whatsapp",
+          consentimento_status: "revogado", consentimento_at: new Date().toISOString(),
+          consentimento_origem: "whatsapp",
         }, { onConflict: "assistido_id" });
+        await admin.from("consentimentos_comunicacao").insert({
+          assistido_id: assistido.id, canal: "whatsapp", acao: "revogado",
+          origem: "whatsapp", observacao: "solicitado_via_whatsapp",
+        });
         resposta = "Tudo certo! Você não receberá mais mensagens operacionais por aqui. Se mudar de ideia, é só responder 'quero receber'. 🌿";
       } else if (intencao === "reativar" && assistido) {
         await admin.from("notificacoes_preferencias").upsert({
           assistido_id: assistido.id, whatsapp_ativo: true, opt_out_at: null, opt_out_motivo: null,
+          consentimento_status: "concedido", consentimento_at: new Date().toISOString(),
+          consentimento_origem: "whatsapp",
         }, { onConflict: "assistido_id" });
+        await admin.from("consentimentos_comunicacao").insert({
+          assistido_id: assistido.id, canal: "whatsapp", acao: "concedido",
+          origem: "whatsapp", observacao: "reativado_via_whatsapp",
+        });
         resposta = "Pronto! Voltamos a enviar seus lembretes por aqui. 🌿";
       } else if (intencao === "tratamento_hoje" && assistido) {
         // Personal question about the assistido's own session on the requested
