@@ -26,6 +26,7 @@ interface InstituicaoData {
   cidade: string;
   estado: string;
   telefone: string;
+  whatsapp: string;
   email_institucional: string;
   observacoes: string;
 }
@@ -33,7 +34,7 @@ interface InstituicaoData {
 const emptyData: InstituicaoData = {
   logo_url: null, nome_fantasia: "", razao_social: "", cnpj: "",
   cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
-  telefone: "", email_institucional: "", observacoes: "",
+  telefone: "", whatsapp: "", email_institucional: "", observacoes: "",
 };
 
 type FormErrors = Partial<Record<string, string>>;
