@@ -103,10 +103,10 @@ describe("whatsappInbound — camada conversacional básica", () => {
   });
 
   it("monta resposta social humana, com persona Daniel/FER e período do dia", () => {
-    expect(montarRespostaConversacional("saudacao", 9)).toMatch(/^Bom dia! [✨🌿🙏] Sou Daniel, assistente virtual da FER\./u);
-    expect(montarRespostaConversacional("saudacao", 14)).toMatch(/^Boa tarde! [✨🌿🙏] Sou Daniel/u);
-    expect(montarRespostaConversacional("saudacao", 20)).toMatch(/^Boa noite! [✨🌿🙏] Sou Daniel/u);
-    expect(montarRespostaConversacional("saudacao")).toMatch(/^Olá! [✨🌿🙏] Sou Daniel/u);
+    expect(montarRespostaConversacional("saudacao", 9)).toMatch(/^Bom dia\. Sou o Daniel, assistente virtual da FER\./u);
+    expect(montarRespostaConversacional("saudacao", 14)).toMatch(/^Boa tarde\. Sou o Daniel/u);
+    expect(montarRespostaConversacional("saudacao", 20)).toMatch(/^Boa noite\. Sou o Daniel/u);
+    expect(montarRespostaConversacional("saudacao")).toMatch(/^Olá\. Sou o Daniel/u);
     expect(montarRespostaConversacional("agradecimento")).toMatch(/^Disponha!/);
   });
 });
