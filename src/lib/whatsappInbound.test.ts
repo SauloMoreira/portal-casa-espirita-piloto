@@ -7,7 +7,68 @@ import {
   ehConversacional, montarRespostaConversacional, jaSaudadoRecentemente,
   gerarRespostaConversacional, escolherFrase, SAUDACAO_SUFIXOS, PONTE_FRASES,
   extrairSaudacaoDoTexto,
+  primeiroNomeSeguro, montarSaudacaoInicial, decidirPedidoHumano,
+  RETENCAO_HUMANO_MENSAGEM, ENCAMINHAMENTO_HUMANO_MENSAGEM,
 } from "./whatsappInbound";
+
+describe("whatsappInbound — identificação e saudação do Daniel", () => {
+  it("extrai primeiro nome seguro e descarta valores inconsistentes", () => {
+    expect(primeiroNomeSeguro("Saulo da Costa Moreira")).toBe("Saulo");
+    expect(primeiroNomeSeguro("lucas")).toBe("Lucas");
+    expect(primeiroNomeSeguro("  maria  aparecida ")).toBe("Maria");
+    expect(primeiroNomeSeguro(null)).toBeNull();
+    expect(primeiroNomeSeguro("")).toBeNull();
+    expect(primeiroNomeSeguro("   ")).toBeNull();
+    expect(primeiroNomeSeguro("123")).toBeNull();
+    expect(primeiroNomeSeguro("J")).toBeNull();
+  });
+
+  it("usa o nome do usuário na saudação quando disponível", () => {
+    const msg = montarSaudacaoInicial({ nome: "Lucas Pereira", horaLocal: 15 });
+    expect(msg).toContain("Boa tarde, Lucas.");
+    expect(msg).toContain("Sou o Daniel, assistente virtual da FER");
+    expect(msg).toContain("encaminhar você para um atendimento humano");
+    expect(msg).toContain("horário comercial");
+  });
+
+  it("usa fallback neutro quando o nome não está disponível", () => {
+    const msg = montarSaudacaoInicial({ nome: null, horaLocal: 9 });
+    expect(msg).toContain("Bom dia.");
+    expect(msg).not.toMatch(/Bom dia,/);
+    expect(msg).toContain("Sou o Daniel, assistente virtual da FER");
+    expect(msg).toContain("atendimento humano");
+  });
+
+  it("a saudação do primeiro contato é a mensagem do Daniel (não do assistido)", () => {
+    const msg = gerarRespostaConversacional("saudacao", {
+      texto: "Olá! Estou falando pela plataforma da FER. 🌿",
+      jaSaudado: false, horaLocal: 15, nome: "Saulo da Costa Moreira",
+    });
+    expect(msg).toContain("Boa tarde, Saulo.");
+    expect(msg).toContain("Sou o Daniel, assistente virtual da FER");
+  });
+});
+
+describe("whatsappInbound — pedido de atendimento humano", () => {
+  it("classifica pedidos explícitos de humano", () => {
+    expect(classificarIntencao("quero falar com um atendente")).toBe("falar_humano");
+    expect(classificarIntencao("posso falar com uma pessoa?")).toBe("falar_humano");
+    expect(classificarIntencao("atendimento humano por favor")).toBe("falar_humano");
+  });
+
+  it("primeira solicitação faz retenção gentil, sem handoff", () => {
+    const r = decidirPedidoHumano(0);
+    expect(r.handoff).toBe(false);
+    expect(r.resposta).toBe(RETENCAO_HUMANO_MENSAGEM);
+    expect(r.resposta).toContain("Antes disso, posso tentar te ajudar");
+  });
+
+  it("segunda solicitação encaminha para handoff", () => {
+    const r = decidirPedidoHumano(1);
+    expect(r.handoff).toBe(true);
+    expect(r.resposta).toBe(ENCAMINHAMENTO_HUMANO_MENSAGEM);
+  });
+});
 
 describe("whatsappInbound — camada conversacional básica", () => {
   it("classifica saudações isoladas como saudacao", () => {
