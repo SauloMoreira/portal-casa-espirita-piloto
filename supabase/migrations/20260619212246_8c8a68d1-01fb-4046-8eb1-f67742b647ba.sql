@@ -1,0 +1,2 @@
+DELETE FROM public.whatsapp_handoffs WHERE conversa_id IN (SELECT id FROM public.whatsapp_conversas WHERE telefone = '5521984221866');
+DELETE FROM public.whatsapp_conversas WHERE telefone = '5521984221866';
