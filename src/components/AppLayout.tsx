@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
 import { HelpButton } from "@/components/help/HelpButton";
 import { OnboardingTour } from "@/components/help/OnboardingTour";
+import { FaleConoscoButton } from "@/components/FaleConoscoButton";
 import { Button } from "@/components/ui/button";
 import { LifeBuoy } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
@@ -71,6 +72,7 @@ export function AppLayout() {
           </main>
         </div>
         {isAssistido && <AssistidoMobileNav />}
+        <FaleConoscoButton />
         <OnboardingTour />
       </div>
     </SidebarProvider>
