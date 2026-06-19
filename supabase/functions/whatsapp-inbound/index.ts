@@ -297,19 +297,16 @@ function gerarRespostaConversacional(intencao: Intencao, ctx: ConversaContexto =
   if (ctx.jaSaudado)
     return comEmoji(escolherFrase(CONTINUACAO_FRASES, seed, evitar), escolherEmoji("ponte", emojiSeed, emojiAnterior));
 
-  // FIRST contact: greet + present the persona (Daniel / FER) + invite.
-  let saudacao = saudacaoUsuario || "Olá";
-  if (!saudacaoUsuario && typeof ctx.horaLocal === "number") {
-    if (ctx.horaLocal < 12) saudacao = "Bom dia";
-    else if (ctx.horaLocal < 18) saudacao = "Boa tarde";
-    else saudacao = "Boa noite";
-  }
-  const emoji = escolherEmoji("saudacao", emojiSeed, emojiAnterior);
-  return escolherFrase(
-    SAUDACAO_SUFIXOS.map((s) => `${saudacao}! ${emoji} ${IA_APRESENTACAO}. ${s}`),
-    seed,
-    evitar,
-  );
+  // FIRST contact: agreed welcoming greeting — period salutation, the user's
+  // name when safely available, persona, IA help + human escalation + hours.
+  const horaParaSaudacao = (() => {
+    const u = extrairSaudacaoDoTexto(ctx.texto || "");
+    if (u === "Bom dia") return 9;
+    if (u === "Boa tarde") return 15;
+    if (u === "Boa noite") return 20;
+    return ctx.horaLocal;
+  })();
+  return montarSaudacaoInicial({ nome: ctx.nome ?? null, horaLocal: horaParaSaudacao });
 }
 
 // True when the conversation was already greeted recently, so the IA continues
