@@ -232,19 +232,38 @@ export function ehConversacional(intencao: Intencao): boolean {
 }
 
 function contemTermo(txt: string, termos: string[]): boolean {
-  return termos.some((t) => txt === t || txt.startsWith(t + " ") || txt.includes(" " + t) || txt.includes(t));
+  // `txt` is already normalized (accent-free); normalize each term too so the
+  // matching is tolerant to accents/casing on both sides.
+  return termos.some((raw) => {
+    const t = normalizarTexto(raw);
+    return txt === t || txt.startsWith(t + " ") || txt.includes(" " + t) || txt.includes(t);
+  });
 }
 
+// Word-order-agnostic personal treatment question: any treatment word together
+// with a temporal marker ("hoje tem tratamento", "tem sessão hoje").
+const TEMPORAL_MARCADORES = ["hoje", "amanha", "depois de amanha"];
+const TRATAMENTO_PALAVRAS = ["tratamento", "sessao", "atendimento"];
+
 export function classificarIntencao(msg: string): Intencao {
-  const txt = (msg || "").toLowerCase().trim();
-  if (!txt) return "complexo";
-  if (SENSITIVE.some((t) => txt.includes(t))) return "complexo";
+  const limpo = (msg || "").toLowerCase().trim();
+  if (!limpo) return "complexo";
+  // CAMADA 1: normalize + correct typos/abbreviations before any matching.
+  const txt = corrigirTexto(limpo);
+  if (SENSITIVE.some((t) => txt.includes(normalizarTexto(t)))) return "complexo";
   // Explicit request to talk to a human wins over business/conversational layers
   // so the gentle-retention -> handoff flow can be applied.
   if (contemTermo(txt, HUMANO_TERMOS)) return "falar_humano";
+  // Treatment word + temporal marker (order-agnostic) -> personal "today" question.
+  if (TEMPORAL_MARCADORES.some((d) => txt.includes(d))
+      && TRATAMENTO_PALAVRAS.some((p) => txt.includes(p))) {
+    return "tratamento_hoje";
+  }
   // Business intents win first, so "boa tarde, tem palestra hoje?" is answered
   // as an operational question (greeting + request → operational content).
-  for (const { intent, terms } of KEYWORDS) if (terms.some((t) => txt.includes(t))) return intent;
+  for (const { intent, terms } of KEYWORDS) {
+    if (terms.some((t) => txt.includes(normalizarTexto(t)))) return intent;
+  }
   // Conversational layers (no handoff), checked from most to least specific:
   // bridge ("gostaria de informações") wins over a bare greeting so a continued
   // conversation flows naturally instead of repeating the greeting.
