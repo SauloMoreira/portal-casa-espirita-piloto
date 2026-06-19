@@ -41,40 +41,16 @@ describe("montarLinkWhatsapp", () => {
   });
 });
 
-describe("saudacaoPorHorario", () => {
-  it("retorna a saudação correta por período", () => {
-    expect(saudacaoPorHorario(8)).toBe("Bom dia");
-    expect(saudacaoPorHorario(14)).toBe("Boa tarde");
-    expect(saudacaoPorHorario(21)).toBe("Boa noite");
-    expect(saudacaoPorHorario(2)).toBe("Boa noite");
-  });
-});
-
-describe("primeiroNomeSeguro", () => {
-  it("extrai e capitaliza o primeiro nome", () => {
-    expect(primeiroNomeSeguro("lucas silva")).toBe("Lucas");
-    expect(primeiroNomeSeguro("  Maria  Souza ")).toBe("Maria");
+describe("FALE_CONOSCO_MENSAGEM_PADRAO", () => {
+  it("é uma saudação curta e neutra (sem texto longo do assistido)", () => {
+    expect(FALE_CONOSCO_MENSAGEM_PADRAO.length).toBeLessThan(80);
+    expect(FALE_CONOSCO_MENSAGEM_PADRAO.toLowerCase()).toContain("olá");
   });
 
-  it("retorna null quando não há nome confiável", () => {
-    expect(primeiroNomeSeguro(null)).toBeNull();
-    expect(primeiroNomeSeguro("")).toBeNull();
-    expect(primeiroNomeSeguro("a")).toBeNull();
-    expect(primeiroNomeSeguro("user@mail.com")).toBeNull();
-  });
-});
-
-describe("montarSaudacaoFaleConosco", () => {
-  it("usa nome e saudação contextual quando disponível", () => {
-    const msg = montarSaudacaoFaleConosco({ nomeCompleto: "Lucas Silva", hora: 14 });
-    expect(msg).toContain("Boa tarde, Lucas.");
-    expect(msg).toContain("Daniel, assistente virtual da FER");
-    expect(msg).toContain("horário comercial");
-  });
-
-  it("usa fallback neutro sem nome confiável", () => {
-    const msg = montarSaudacaoFaleConosco({ nomeCompleto: null, hora: 9 });
-    expect(msg.startsWith("Bom dia. Sou o Daniel")).toBe(true);
-    expect(msg).not.toContain(", .");
+  it("não dispara intenções que desviem da saudação (sem 'app'/'dúvida')", () => {
+    const txt = FALE_CONOSCO_MENSAGEM_PADRAO.toLowerCase();
+    expect(txt).not.toContain("app");
+    expect(txt).not.toContain("dúvida");
+    expect(txt).not.toContain("duvida");
   });
 });
