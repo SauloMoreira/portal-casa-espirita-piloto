@@ -894,6 +894,104 @@ const INTENCOES_HUMANIZAVEIS = new Set<Intencao>([
   "onde_ver_app", "programacao_publica", "eventos", "campanhas", "acao_social",
 ]);
 
+// ===================== FASE 2 — ORQUESTRADOR (precedência + próxima válida) =====================
+// Espelho determinístico de src/lib/whatsappOrquestrador.ts (testado em vitest).
+// Regras puras: cruzam os fatos já consultados no banco para decidir a fonte
+// vencedora e a próxima ocorrência REALMENTE válida (validando exceções).
+
+const EXCECAO_STATUS_INVALIDO = new Set([
+  "cancelado", "cancelada", "remarcado", "remarcada", "excepcional", "alterado", "alterada",
+]);
+
+function excecaoInvalida(status?: string | null): boolean {
+  return EXCECAO_STATUS_INVALIDO.has((status || "").toLowerCase());
+}
+
+function nomesEquivalentes(a?: string | null, b?: string | null): boolean {
+  const na = normalizarNome(a || "");
+  const nb = normalizarNome(b || "");
+  if (!na || !nb) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+interface CandidataFato {
+  atividade: string; data: string; horario?: string | null;
+  tratamento_id?: string | null; status?: string | null;
+}
+interface ExcecaoFatoOrq {
+  atividade?: string | null; tratamento_id?: string | null; data: string;
+  status: string; nova_data?: string | null; novo_horario?: string | null;
+  motivo?: string | null; mensagem_ia?: string | null;
+}
+
+function encontrarExcecaoFato(cand: CandidataFato, excecoes: ExcecaoFatoOrq[]): ExcecaoFatoOrq | null {
+  for (const ex of excecoes || []) {
+    if (!ex || ex.data !== cand.data) continue;
+    if (cand.tratamento_id && ex.tratamento_id) {
+      if (cand.tratamento_id === ex.tratamento_id) return ex;
+      continue;
+    }
+    if (nomesEquivalentes(ex.atividade, cand.atividade)) return ex;
+  }
+  return null;
+}
+
+interface ResultadoProximaOrq {
+  ocorrencia: CandidataFato | null;
+  descartadas: Array<{ candidata: CandidataFato; motivo: string }>;
+  semValida: boolean;
+}
+
+/** Caminha pelas candidatas ordenadas e devolve a primeira realmente válida. */
+function proximaOcorrenciaValida(
+  candidatas: CandidataFato[], excecoes: ExcecaoFatoOrq[],
+): ResultadoProximaOrq {
+  const ordenadas = [...(candidatas || [])].sort((a, b) =>
+    a.data === b.data
+      ? (a.horario || "").localeCompare(b.horario || "")
+      : a.data.localeCompare(b.data));
+  const descartadas: ResultadoProximaOrq["descartadas"] = [];
+  for (const c of ordenadas) {
+    const ex = encontrarExcecaoFato(c, excecoes);
+    if (ex && excecaoInvalida(ex.status)) {
+      descartadas.push({ candidata: c, motivo: (ex.status || "").toLowerCase() });
+      continue;
+    }
+    if (!ex && excecaoInvalida(c.status)) {
+      descartadas.push({ candidata: c, motivo: (c.status || "").toLowerCase() });
+      continue;
+    }
+    return { ocorrencia: c, descartadas, semValida: false };
+  }
+  return { ocorrencia: null, descartadas, semValida: true };
+}
+
+function gerarCandidatasSemanais(opts: {
+  atividade: string; diasSemana: number[]; horario?: string | null;
+  baseIso: string; janelaDias?: number;
+}): CandidataFato[] {
+  const janela = opts.janelaDias ?? 60;
+  const dias = new Set(opts.diasSemana || []);
+  const out: CandidataFato[] = [];
+  const base = new Date(opts.baseIso + "T12:00:00Z");
+  for (let i = 0; i <= janela; i++) {
+    const d = new Date(base);
+    d.setUTCDate(d.getUTCDate() + i);
+    if (dias.has(d.getUTCDay())) {
+      out.push({ atividade: opts.atividade, data: d.toISOString().slice(0, 10), horario: opts.horario ?? null });
+    }
+  }
+  return out;
+}
+
+/** True quando a mensagem pede explicitamente a PRÓXIMA ocorrência. */
+function perguntaProximaOcorrencia(texto: string): boolean {
+  const t = normalizarTexto(texto);
+  return /\bproxim[ao]\b/.test(t) || t.includes("quando e a") || t.includes("quando e o")
+    || t.includes("quando vai") || t.includes("quando tem");
+}
+
+
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req, "authorization, x-client-info, apikey, content-type");
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -1248,8 +1346,11 @@ Deno.serve(async (req) => {
           alvo.label,
         );
       } else if (intencao === "proxima_sessao" && assistido) {
+        // PRÓXIMA OCORRÊNCIA PESSOAL com validação obrigatória de exceção:
+        // busca uma JANELA de sessões futuras (não só a primeira), cruza com as
+        // exceções operacionais e avança até a próxima que continua válida.
         const hoje = new Date().toISOString().slice(0, 10);
-        const { data: sess } = await admin
+        const { data: sessFuturas } = await admin
           .from("agenda_tratamentos_assistido")
           .select("data_sessao, horario, status, tratamento_id, tipos_tratamento ( nome )")
           .eq("assistido_id", assistido.id)
@@ -1257,25 +1358,44 @@ Deno.serve(async (req) => {
           .gte("data_sessao", hoje)
           .order("data_sessao", { ascending: true })
           .order("horario", { ascending: true })
-          .limit(1).maybeSingle();
-        respostaFonte = "agenda_real_assistido";
-        let statusFinal = sess?.status ?? null;
-        if (sess?.tratamento_id) {
-          const { data: ex } = await admin
+          .limit(30);
+
+        const candidatas: CandidataFato[] = (sessFuturas || []).map((s: any) => ({
+          atividade: s?.tipos_tratamento?.nome || "Tratamento",
+          data: s.data_sessao, horario: s.horario ?? null,
+          tratamento_id: s.tratamento_id ?? null, status: s.status ?? null,
+        }));
+
+        // Exceções para as datas/tratamentos candidatos.
+        const datasCand = [...new Set(candidatas.map((c) => c.data))];
+        const tratCand = [...new Set(candidatas.map((c) => c.tratamento_id).filter(Boolean))] as string[];
+        let excecoesOrq: ExcecaoFatoOrq[] = [];
+        if (datasCand.length > 0 && tratCand.length > 0) {
+          const { data: excs } = await admin
             .from("excecoes_operacionais")
-            .select("status, mensagem_ia")
+            .select("atividade, tratamento_id, data_excecao, status, mensagem_ia, motivo, nova_data, novo_horario")
             .eq("ativo", true)
-            .eq("data_excecao", sess.data_sessao)
-            .eq("tratamento_id", sess.tratamento_id)
-            .maybeSingle();
-          if (ex) { statusFinal = ex.status; respostaFonte = "excecao_operacional"; }
+            .in("data_excecao", datasCand)
+            .in("tratamento_id", tratCand);
+          excecoesOrq = (excs || []).map((e: any) => ({
+            atividade: e.atividade ?? null, tratamento_id: e.tratamento_id ?? null,
+            data: e.data_excecao, status: e.status, mensagem_ia: e.mensagem_ia ?? null,
+            motivo: e.motivo ?? null, nova_data: e.nova_data ?? null, novo_horario: e.novo_horario ?? null,
+          }));
         }
-        resposta = montarRespostaProximaSessao(sess ? {
-          nome: (sess as any)?.tipos_tratamento?.nome || "Tratamento",
-          data: sess.data_sessao,
-          horario: sess.horario,
-          status: statusFinal,
-        } : null);
+
+        const r = proximaOcorrenciaValida(candidatas, excecoesOrq);
+        respostaFonte = r.descartadas.length > 0 ? "excecao_operacional+proxima_valida" : "agenda_real_assistido";
+        if (r.semValida && candidatas.length > 0) {
+          // Honestidade humana: havia candidatas, mas todas estão alteradas.
+          resposta = "Não encontrei uma próxima sessão confirmada — as próximas datas constam como alteradas. Se quiser, nossa equipe pode confirmar a nova data para você. 🌿";
+        } else {
+          const oc = r.ocorrencia;
+          resposta = montarRespostaProximaSessao(oc ? {
+            nome: oc.atividade, data: oc.data, horario: oc.horario, status: oc.status,
+          } : null);
+        }
+
       } else if (intencao === "horario_entrevista" && assistido) {
         const { data: ent } = await admin
           .from("entrevistas_fraternas")
@@ -1362,7 +1482,53 @@ Deno.serve(async (req) => {
         ctxData = alvo.iso;
         ctxAtividade = atividade;
 
+        // PRÓXIMA OCORRÊNCIA PÚBLICA com validação de exceção: "quando é a
+        // próxima evangelhoterapia?". Sem data explícita + atividade nomeada,
+        // gera candidatas a partir da programação padrão e avança até a válida.
+        let resolvidoProxima = false;
+        if (atividade && perguntaProximaOcorrencia(texto) && !temDataExplicita(texto)) {
+          const { data: progAtiv } = await admin
+            .from("programacao_padrao")
+            .select("atividade, horario, dia_semana")
+            .eq("ativo", true)
+            .eq("tipo", "publico")
+            .ilike("atividade", `%${atividade}%`);
+          const dias = [...new Set((progAtiv || []).map((p: any) => p.dia_semana).filter((d: any) => d != null))];
+          const horario = (progAtiv || [])[0]?.horario ?? null;
+          const nomeAtiv = (progAtiv || [])[0]?.atividade ?? atividade;
+          if (dias.length > 0) {
+            const candidatas = gerarCandidatasSemanais({
+              atividade: nomeAtiv, diasSemana: dias as number[], horario, baseIso, janelaDias: 60,
+            });
+            const datasCand = [...new Set(candidatas.map((c) => c.data))];
+            let excs: ExcecaoFatoOrq[] = [];
+            if (datasCand.length > 0) {
+              const { data: exRows } = await admin
+                .from("excecoes_operacionais")
+                .select("atividade, tratamento_id, data_excecao, status, mensagem_ia, motivo, nova_data, novo_horario")
+                .eq("ativo", true)
+                .in("data_excecao", datasCand)
+                .ilike("atividade", `%${atividade}%`);
+              excs = (exRows || []).map((e: any) => ({
+                atividade: e.atividade ?? null, tratamento_id: e.tratamento_id ?? null,
+                data: e.data_excecao, status: e.status, mensagem_ia: e.mensagem_ia ?? null,
+              }));
+            }
+            const r = proximaOcorrenciaValida(candidatas, excs);
+            respostaFonte = r.descartadas.length > 0 ? "programacao_padrao+proxima_valida" : "programacao_padrao";
+            resolvidoProxima = true;
+            if (r.ocorrencia) {
+              const hora = formatarHorario(r.ocorrencia.horario);
+              resposta = `A próxima ${nomeAtiv} será em ${formatarDataCurta(r.ocorrencia.data)}${hora ? " às " + hora : ""}. 🌿`;
+            } else {
+              resposta = `Não encontrei uma próxima ${nomeAtiv} confirmada nos próximos dias. Se quiser, nossa equipe pode te ajudar a confirmar. 🌿`;
+            }
+          }
+        }
+
+        if (!resolvidoProxima) {
         // 1) EXCEPTIONS registered for the requested date.
+
         // When a specific activity is named (e.g. "evangelhoterapia"), match it by
         // name regardless of the exception's "tipo" — an exception can be registered
         // as "tratamento" even for a public activity. Without a named activity we
@@ -1454,7 +1620,9 @@ Deno.serve(async (req) => {
           // Always a safe, valid answer (even "no programming") -> no handoff needed.
           resposta = montarRespostaProgramacao(itens, alvo.label);
         }
+        } // fim if (!resolvidoProxima)
       }
+
 
       // Decide handoff: anything the IA cannot auto-resolve, or that needs an
       // identified assistido but none was found, must escalate to a human.
