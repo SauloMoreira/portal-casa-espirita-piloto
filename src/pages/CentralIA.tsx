@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, BookOpen, Lightbulb, MessageSquare, BarChart3, Settings } from "lucide-react";
+import { Brain, BookOpen, Lightbulb, MessageSquare, BarChart3, Settings, Smartphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import QueixasTratamentos from "@/components/central-ia/QueixasTratamentos";
 import BibliotecaDoutrinaria from "@/components/central-ia/BibliotecaDoutrinaria";
@@ -7,6 +7,7 @@ import SugestoesIA from "@/components/central-ia/SugestoesIA";
 import FeedbackAprendizado from "@/components/central-ia/FeedbackAprendizado";
 import IndicadoresAssertividade from "@/components/central-ia/IndicadoresAssertividade";
 import ConfiguracoesIA from "@/components/central-ia/ConfiguracoesIA";
+import MetricasWhatsApp from "@/components/central-ia/MetricasWhatsApp";
 
 export default function CentralIA() {
   const { role } = useAuth();
