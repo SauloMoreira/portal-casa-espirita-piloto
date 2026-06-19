@@ -890,9 +890,10 @@ const INTENCOES_HUMANIZAVEIS = new Set<Intencao>([
   "onde_ver_app", "programacao_publica", "eventos", "campanhas", "acao_social",
 ]);
 
-
+Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req, "authorization, x-client-info, apikey, content-type");
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
 
   // admin client is needed across the whole flow (and for the catch-all safety net).
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
