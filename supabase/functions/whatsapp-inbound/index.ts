@@ -326,8 +326,10 @@ const AUTORESOLVIVEIS: Intencao[] = [
 ];
 
 // Intents that can only be answered automatically when we know who is asking.
+// "tratamento_hoje" is NOT here: when there is no identified assistido we still
+// answer it from the house's treatment schedule + exceptions for the day.
 const PRECISA_ASSISTIDO: Intencao[] = [
-  "tratamento_hoje", "proxima_sessao", "horario_entrevista", "opt_out", "reativar",
+  "proxima_sessao", "horario_entrevista", "opt_out", "reativar",
 ];
 
 const CANCELADO_STATUS = ["cancelado", "cancelada", "remarcado", "remarcada"];
