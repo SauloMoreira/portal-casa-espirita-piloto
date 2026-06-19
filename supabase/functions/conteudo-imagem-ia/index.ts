@@ -1,9 +1,61 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 
 const IMAGE_MODEL = "google/gemini-2.5-flash-image";
 const BUCKET = "avatars";
+const MAX_DIM = 1600;
+
+/** Proporção (largura/altura) por formato alvo. Espelha src/lib/conteudoImagem.ts. */
+const FORMATO_ASPECT: Record<string, number> = {
+  card: 1,
+  banner_horizontal: 3 / 2,
+  banner_vertical: 2 / 3,
+  destaque: 16 / 9,
+};
+
+function normalizarFormato(f: unknown): keyof typeof FORMATO_ASPECT {
+  return (typeof f === "string" && f in FORMATO_ASPECT ? f : "card") as keyof typeof FORMATO_ASPECT;
+}
+
+/**
+ * Recorta (center-crop) a imagem para a proporção alvo do formato e reduz
+ * a dimensão máxima. Garante que o arquivo salvo realmente reflita o formato
+ * escolhido (não depende apenas do prompt). Em caso de falha, devolve os bytes originais.
+ */
+async function recortarParaFormato(
+  bytes: Uint8Array,
+  formato: keyof typeof FORMATO_ASPECT,
+): Promise<{ bytes: Uint8Array; contentType: string }> {
+  try {
+    const target = FORMATO_ASPECT[formato];
+    const img = await Image.decode(bytes);
+    const w = img.width;
+    const h = img.height;
+    const current = w / h;
+    let cw = w;
+    let ch = h;
+    if (current > target) {
+      cw = Math.round(h * target);
+    } else if (current < target) {
+      ch = Math.round(w / target);
+    }
+    if (cw !== w || ch !== h) {
+      const x = Math.round((w - cw) / 2);
+      const y = Math.round((h - ch) / 2);
+      img.crop(x, y, cw, ch);
+    }
+    if (img.width > MAX_DIM || img.height > MAX_DIM) {
+      if (img.width >= img.height) img.resize(MAX_DIM, Image.RESIZE_AUTO);
+      else img.resize(Image.RESIZE_AUTO, MAX_DIM);
+    }
+    const out = await img.encodeJPEG(88);
+    return { bytes: out, contentType: "image/jpeg" };
+  } catch (_e) {
+    return { bytes, contentType: "image/png" };
+  }
+}
 
 /** Extrai o data URL base64 da resposta de chat/completions com modalidade de imagem. */
 function extrairImagemDataUrl(json: any): string | null {
