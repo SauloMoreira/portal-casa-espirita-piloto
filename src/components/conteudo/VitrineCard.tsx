@@ -26,64 +26,43 @@ interface VitrineCardProps {
 export function VitrineCard({
   imagemUrl, titulo, subtitulo, descricao, destaque, meta, formato, featured,
 }: VitrineCardProps) {
-  // A proporção exibida segue o formato salvo em todos os tamanhos de tela.
-  // Antes, o destaque anulava a proporção no desktop com sm:aspect-auto.
   const aspect = formatoAspectClass(formato);
-  const Imagem = (
-    <div
-      className={
-        "relative overflow-hidden bg-secondary/30 " +
-        (featured ? "sm:self-start " : "") +
-        aspect
-      }
-    >
-      {imagemUrl ? (
-        <img
-          src={imagemUrl}
-          alt={titulo}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          <ImageOff className="h-7 w-7 text-muted-foreground/30" />
-        </div>
-      )}
-      {destaque && (
-        <Badge
-          variant="outline"
-          className="absolute left-2.5 top-2.5 gap-1 border-primary/30 bg-card/85 text-[10px] text-primary backdrop-blur-sm"
-        >
-          <Star className="h-3 w-3" /> Destaque
-        </Badge>
-      )}
-    </div>
-  );
-
-  const Conteudo = (
-    <CardContent className={featured ? "flex flex-col justify-center gap-2 p-5" : "space-y-1.5 p-4"}>
-      <h3 className={"font-display font-bold text-foreground " + (featured ? "text-base sm:text-lg" : "text-sm")}>
-        {titulo}
-      </h3>
-      {subtitulo && (
-        <p className={"font-medium text-muted-foreground " + (featured ? "text-sm" : "text-xs")}>{subtitulo}</p>
-      )}
-      {meta && <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">{meta}</div>}
-      {descricao && (
-        <p className={"leading-relaxed text-muted-foreground " + (featured ? "text-sm" : "text-xs")}>{descricao}</p>
-      )}
-    </CardContent>
-  );
-
   return (
-    <Card
-      className={
-        "overflow-hidden border-border/60 shadow-sm transition-shadow hover:shadow-md " +
-        (featured ? "sm:col-span-2 sm:grid sm:grid-cols-2 sm:items-stretch" : "")
-      }
-    >
-      {Imagem}
-      {Conteudo}
+    <Card className="overflow-hidden border-border/60 shadow-sm transition-shadow hover:shadow-md">
+      <div className={"relative overflow-hidden bg-secondary/30 " + aspect}>
+        {imagemUrl ? (
+          <img
+            src={imagemUrl}
+            alt={titulo}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <ImageOff className="h-7 w-7 text-muted-foreground/30" />
+          </div>
+        )}
+        {destaque && (
+          <Badge
+            variant="outline"
+            className="absolute left-2.5 top-2.5 gap-1 border-primary/30 bg-card/85 text-[10px] text-primary backdrop-blur-sm"
+          >
+            <Star className="h-3 w-3" /> Destaque
+          </Badge>
+        )}
+      </div>
+      <CardContent className={featured ? "flex flex-col justify-center gap-2 p-5" : "space-y-1.5 p-4"}>
+        <h3 className={"font-display font-bold text-foreground " + (featured ? "text-base sm:text-lg" : "text-sm")}>
+          {titulo}
+        </h3>
+        {subtitulo && (
+          <p className={"font-medium text-muted-foreground " + (featured ? "text-sm" : "text-xs")}>{subtitulo}</p>
+        )}
+        {meta && <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">{meta}</div>}
+        {descricao && (
+          <p className={"leading-relaxed text-muted-foreground " + (featured ? "text-sm" : "text-xs")}>{descricao}</p>
+        )}
+      </CardContent>
     </Card>
   );
 }
