@@ -43,3 +43,41 @@ describe("montarLinkWhatsapp", () => {
     expect(link).toBe("https://wa.me/5511999998888?text=Oi");
   });
 });
+
+describe("saudacaoPorHorario", () => {
+  it("retorna a saudação correta por período", () => {
+    expect(saudacaoPorHorario(8)).toBe("Bom dia");
+    expect(saudacaoPorHorario(14)).toBe("Boa tarde");
+    expect(saudacaoPorHorario(21)).toBe("Boa noite");
+    expect(saudacaoPorHorario(2)).toBe("Boa noite");
+  });
+});
+
+describe("primeiroNomeSeguro", () => {
+  it("extrai e capitaliza o primeiro nome", () => {
+    expect(primeiroNomeSeguro("lucas silva")).toBe("Lucas");
+    expect(primeiroNomeSeguro("  Maria  Souza ")).toBe("Maria");
+  });
+
+  it("retorna null quando não há nome confiável", () => {
+    expect(primeiroNomeSeguro(null)).toBeNull();
+    expect(primeiroNomeSeguro("")).toBeNull();
+    expect(primeiroNomeSeguro("a")).toBeNull();
+    expect(primeiroNomeSeguro("user@mail.com")).toBeNull();
+  });
+});
+
+describe("montarSaudacaoFaleConosco", () => {
+  it("usa nome e saudação contextual quando disponível", () => {
+    const msg = montarSaudacaoFaleConosco({ nomeCompleto: "Lucas Silva", hora: 14 });
+    expect(msg).toContain("Boa tarde, Lucas.");
+    expect(msg).toContain("Daniel, assistente virtual da FER");
+    expect(msg).toContain("horário comercial");
+  });
+
+  it("usa fallback neutro sem nome confiável", () => {
+    const msg = montarSaudacaoFaleConosco({ nomeCompleto: null, hora: 9 });
+    expect(msg.startsWith("Bom dia. Sou o Daniel")).toBe(true);
+    expect(msg).not.toContain(", .");
+  });
+});
