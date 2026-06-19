@@ -165,6 +165,8 @@ export default function AssistidoDashboard() {
       </div>
 
 
+      <CampanhasAssistidoBlock />
+
       <AlimentosAssistidoCard />
 
       <div className="grid gap-4 lg:grid-cols-2 items-start">
