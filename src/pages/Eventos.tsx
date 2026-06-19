@@ -95,6 +95,8 @@ export default function Eventos() {
       descricao_curta: e.descricao_curta ?? "",
       descricao_completa: e.descricao_completa ?? "",
       imagem_url: e.imagem_url ?? "",
+      imagem_origem: (e.imagem_origem as ImagemOrigem) ?? "url",
+      imagem_otimizada: e.imagem_otimizada ?? false,
       local: e.local ?? "",
       data_evento: toLocalInput(e.data_evento),
       data_evento_fim: toLocalInput(e.data_evento_fim),
