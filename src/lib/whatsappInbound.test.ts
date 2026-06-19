@@ -9,7 +9,75 @@ import {
   extrairSaudacaoDoTexto,
   primeiroNomeSeguro, montarSaudacaoInicial, decidirPedidoHumano,
   RETENCAO_HUMANO_MENSAGEM, ENCAMINHAMENTO_HUMANO_MENSAGEM,
+  normalizarTexto, corrigirTexto, corrigirToken, distanciaEdicao,
+  montarRespostaEventos, montarRespostaCampanhas, montarRespostaAcaoSocial,
 } from "./whatsappInbound";
+
+describe("whatsappInbound — CAMADA 1: normalização e tolerância a erro de digitação", () => {
+  it("normaliza acentos, caixa e espaços", () => {
+    expect(normalizarTexto("  Boa   TARDE, é Você?  ")).toBe("boa tarde, e voce?");
+    expect(normalizarTexto("Evangelhoterapia")).toBe("evangelhoterapia");
+  });
+
+  it("corrige abreviações e erros comuns", () => {
+    expect(corrigirToken("qdo")).toBe("quando");
+    expect(corrigirToken("prox")).toBe("proximo");
+    expect(corrigirToken("tratamnto")).toBe("tratamento");
+    expect(corrigirToken("evangelioterapia")).toBe("evangelhoterapia");
+  });
+
+  it("corrige por proximidade (edit distance) sem corromper palavras válidas", () => {
+    expect(corrigirToken("palesta")).toBe("palestra");
+    // Palavras já corretas/comuns não são alteradas.
+    expect(corrigirToken("amanha")).toBe("amanha");
+    expect(corrigirToken("proxima")).toBe("proxima");
+    expect(corrigirToken("atendente")).toBe("atendente");
+    expect(distanciaEdicao("palesta", "palestra")).toBe(1);
+  });
+
+  it("classifica corretamente mesmo com erros de digitação", () => {
+    expect(classificarIntencao("tem palesta hoje?")).toBe("programacao_publica");
+    expect(classificarIntencao("amanha tem evangelioterapia?")).toBe("programacao_publica");
+    expect(classificarIntencao("qdo e meu prox tratamnto?")).toBe("proxima_sessao");
+    expect(classificarIntencao("tenho tratamnto hj?")).toBe("tratamento_hoje");
+  });
+});
+
+describe("whatsappInbound — módulos institucionais (eventos, campanhas, ação social)", () => {
+  it("classifica perguntas sobre eventos", () => {
+    expect(classificarIntencao("que eventos tem essa semana?")).toBe("eventos");
+    expect(classificarIntencao("tem algum evento ativo?")).toBe("eventos");
+  });
+
+  it("classifica perguntas sobre campanhas", () => {
+    expect(classificarIntencao("quais campanhas estão acontecendo?")).toBe("campanhas");
+    expect(classificarIntencao("existe campanha de sócio mantenedor?")).toBe("campanhas");
+  });
+
+  it("classifica perguntas sobre ação social", () => {
+    expect(classificarIntencao("a casa está arrecadando alimentos?")).toBe("acao_social");
+    expect(classificarIntencao("quais alimentos estão faltando?")).toBe("acao_social");
+    expect(classificarIntencao("como posso ajudar a ação social?")).toBe("acao_social");
+  });
+
+  it("eventos/campanhas/ação social são auto-resolvíveis sem identificação", () => {
+    for (const i of ["eventos", "campanhas", "acao_social"] as const) {
+      expect(decidirHandoff(i, { assistidoIdentificado: false, respostaGerada: true }).handoff).toBe(false);
+    }
+  });
+
+  it("monta respostas a partir de dados reais (sem inventar)", () => {
+    expect(montarRespostaEventos([{ titulo: "Festa Junina", data: "2026-06-24" }]))
+      .toMatch(/Festa Junina.*24\/06/);
+    expect(montarRespostaEventos([])).toMatch(/não encontrei eventos/i);
+    expect(montarRespostaCampanhas([{ titulo: "Sócio Mantenedor" }])).toMatch(/Sócio Mantenedor/);
+    expect(montarRespostaCampanhas([])).toMatch(/não há campanhas ativas/i);
+    expect(montarRespostaAcaoSocial([{ nome: "Arroz", unidade: "kg", faltante: 30 }]))
+      .toMatch(/Arroz.*faltam 30 kg/);
+    expect(montarRespostaAcaoSocial([])).toMatch(/não há itens em falta/i);
+  });
+});
+
 
 describe("whatsappInbound — identificação e saudação do Daniel", () => {
   it("extrai primeiro nome seguro e descarta valores inconsistentes", () => {
