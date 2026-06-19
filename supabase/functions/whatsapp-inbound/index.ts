@@ -834,13 +834,27 @@ Deno.serve(async (req) => {
         });
       } else if (intencao === "falar_humano") {
         // Gentle retention on the FIRST request; escalate on a second insistence.
-        // Count prior human requests already recorded for this phone.
-        const { count: pedidosHumano } = await admin
+        // The cycle restarts after each resolved handoff so a previously escalated
+        // user is welcomed gently again on a brand-new request.
+        const { data: ultimoHandoffFechado } = await admin
+          .from("whatsapp_handoffs")
+          .select("closed_at")
+          .eq("conversa_id", conversaId)
+          .eq("status", "resolvido")
+          .order("closed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        let queryPedidos = admin
           .from("notificacoes_log")
           .select("id", { count: "exact", head: true })
           .eq("direcao", "entrada")
           .eq("payload_recebido->>telefone", telefone)
           .eq("payload_recebido->>intencao", "falar_humano");
+        // Only count requests made after the last resolved handoff (if any).
+        if (ultimoHandoffFechado?.closed_at) {
+          queryPedidos = queryPedidos.gt("created_at", ultimoHandoffFechado.closed_at);
+        }
+        const { count: pedidosHumano } = await queryPedidos;
         if ((pedidosHumano ?? 0) >= 1) {
           // Second insistence -> escalate to a human handoff.
           respostaFonte = "handoff_humano_segunda";
