@@ -26,6 +26,9 @@ import {
   listAlimentos, createAlimento, updateAlimento, deleteAlimento, toggleAlimentoAtivo,
   getAcaoSocialConfig, saveAcaoSocialConfig,
 } from "@/services/acaoSocial";
+import { MarkdownEditorLeve } from "@/components/acaoSocial/MarkdownEditorLeve";
+import { MensagemInstitucionalRenderer } from "@/components/acaoSocial/MensagemInstitucionalRenderer";
+import { limparMensagemInstitucional } from "@/lib/markdownInstitucional";
 
 type FormState = {
   nome: string;
