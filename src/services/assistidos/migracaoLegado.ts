@@ -8,6 +8,7 @@ import {
 } from "@/lib/migracaoLegado";
 import {
   normalizarSessoes,
+  projetarAgendaConsolidada,
   sessoesIguais,
   type ParametrosTipoAgenda,
 } from "@/lib/agendaRules";
