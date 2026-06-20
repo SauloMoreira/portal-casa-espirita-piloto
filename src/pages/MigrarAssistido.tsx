@@ -137,7 +137,7 @@ export default function MigrarAssistido() {
     [tratamentos],
   );
 
-  const tipoAgendaPorTratamento = useMemo<Record<string, ParametrosTipoAgenda>>(
+  const tiposPorTratamento = useMemo<Record<string, TipoMigracao>>(
     () =>
       Object.fromEntries(
         tratamentos.map((t) => [
@@ -147,11 +147,16 @@ export default function MigrarAssistido() {
             horario: t.horario,
             frequencia_valor: t.frequencia_valor,
             frequencia_unidade: t.frequencia_unidade,
+            modo_agendamento: t.modo_agendamento,
+            ordem_tratamento: t.ordem_tratamento,
+            trabalho_publico: t.trabalho_publico,
+            permite_entrada_sem_agendamento: t.permite_entrada_sem_agendamento,
           },
         ]),
       ),
     [tratamentos],
   );
+
 
   const updateLinha = (i: number, patch: Partial<TratamentoRow>) => {
     setRevisao(null);
