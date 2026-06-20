@@ -73,3 +73,51 @@ describe("validarAlimento", () => {
     expect(validarAlimento({ nome: "Arroz" })).toBeNull();
   });
 });
+
+describe("formatPrazoData", () => {
+  it("formata data ISO para dd/mm/yyyy", () => {
+    expect(formatPrazoData("2026-06-25")).toBe("25/06/2026");
+  });
+  it("ignora a parte de tempo", () => {
+    expect(formatPrazoData("2026-06-25T00:00:00Z")).toBe("25/06/2026");
+  });
+  it("retorna null para vazio ou inválido", () => {
+    expect(formatPrazoData(null)).toBeNull();
+    expect(formatPrazoData("")).toBeNull();
+    expect(formatPrazoData("abc")).toBeNull();
+  });
+});
+
+const makeConfig = (over: Partial<AcaoSocialConfig>): AcaoSocialConfig =>
+  ({
+    id: "cfg",
+    prazo_final_entrega: over.prazo_final_entrega ?? null,
+    observacao_prazo: over.observacao_prazo ?? null,
+    exibir_prazo: over.exibir_prazo ?? true,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    updated_by: null,
+  }) as AcaoSocialConfig;
+
+describe("prazoEntregaInfo", () => {
+  it("retorna texto formatado quando há prazo e exibição ativa", () => {
+    const info = prazoEntregaInfo(makeConfig({ prazo_final_entrega: "2026-06-25" }));
+    expect(info?.texto).toBe("Recebimento de doações até 25/06/2026");
+    expect(info?.observacao).toBeNull();
+  });
+  it("inclui observação quando presente", () => {
+    const info = prazoEntregaInfo(
+      makeConfig({ prazo_final_entrega: "2026-06-25", observacao_prazo: "Na secretaria" }),
+    );
+    expect(info?.observacao).toBe("Na secretaria");
+  });
+  it("retorna null quando exibir_prazo é false", () => {
+    expect(prazoEntregaInfo(makeConfig({ prazo_final_entrega: "2026-06-25", exibir_prazo: false }))).toBeNull();
+  });
+  it("retorna null quando não há prazo", () => {
+    expect(prazoEntregaInfo(makeConfig({ prazo_final_entrega: null }))).toBeNull();
+  });
+  it("retorna null para config ausente", () => {
+    expect(prazoEntregaInfo(null)).toBeNull();
+  });
+});
