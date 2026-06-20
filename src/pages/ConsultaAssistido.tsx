@@ -238,6 +238,14 @@ export default function ConsultaAssistido() {
       {visao && !carregando && (
         <div className="space-y-6">
           <CabecalhoAssistido visao={visao} />
+          {isAdmin && (
+            <ReconciliacaoAdmin
+              assistidoId={visao.assistido.id}
+              assistidoNome={visao.assistido.nome}
+              onReconciliado={() => recarregar(visao.assistido.id)}
+              toast={toast}
+            />
+          )}
           <BlocoTratamentos tratamentos={visao.tratamentos} sessoes={visao.sessoes} />
           <BlocoSessoes titulo="Próximas sessões" icone={<CalendarClock className="h-4 w-4" />} sessoes={futuras} vazio="Nenhuma sessão futura agendada." />
           <BlocoSessoes titulo="Histórico de sessões" icone={<HistoryIcon className="h-4 w-4" />} sessoes={historico} vazio="Nenhuma sessão no histórico." historico />
