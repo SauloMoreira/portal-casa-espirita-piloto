@@ -1435,15 +1435,29 @@ Deno.serve(async (req) => {
 
       }
 
+      // BASE DO SITE — apoio aditivo para perguntas PÚBLICAS de conhecimento.
+      // Não altera a precedência: só é consultada para intenções elegíveis
+      // (pedido_informacao; complexo/programacao_publica conceitual com indício
+      // claro de conhecimento público). Temporais/operacionais/pessoais não passam aqui.
+      let respostaSite: string | null = null;
+      try {
+        respostaSite = await consultarConhecimentoSite(admin, texto, intencao);
+      } catch (_e) { respostaSite = null; }
 
       if (intencao === "saudacao" || intencao === "agradecimento"
           || intencao === "pedido_informacao" || intencao === "encerramento") {
-        // Conversational layer: friendly, brief, human, varied. Never a handoff.
-        respostaFonte = "conversa_basica";
-        resposta = gerarRespostaConversacional(intencao, {
-          horaLocal: horaSaoPaulo(), jaSaudado, texto, ultimaResposta: ultimaRespostaIA,
-          nome: nomeContato,
-        });
+        if (intencao === "pedido_informacao" && respostaSite) {
+          // Resposta grounded nos fatos do site (humanizada adiante). Sem handoff.
+          respostaFonte = "site_conhecimento";
+          resposta = respostaSite;
+        } else {
+          // Conversational layer: friendly, brief, human, varied. Never a handoff.
+          respostaFonte = "conversa_basica";
+          resposta = gerarRespostaConversacional(intencao, {
+            horaLocal: horaSaoPaulo(), jaSaudado, texto, ultimaResposta: ultimaRespostaIA,
+            nome: nomeContato,
+          });
+        }
       } else if (intencao === "falar_humano") {
         // Gentle retention on the FIRST request; escalate on a second insistence.
         // The cycle restarts after each resolved handoff so a previously escalated
