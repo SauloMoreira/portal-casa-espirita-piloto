@@ -222,7 +222,7 @@ export default function MigrarAssistido() {
   };
 
 
-  const handleConfirmar = async () => {
+  const handleConfirmar = async (pularAgenda = false) => {
     if (!user || !revisao) return;
 
     const obsFinal = [
