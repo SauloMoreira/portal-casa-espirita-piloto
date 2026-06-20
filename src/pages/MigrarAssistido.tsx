@@ -583,39 +583,73 @@ export default function MigrarAssistido() {
               A prévia abaixo segue exatamente a regra padrão de agenda já existente no sistema.
               Confira antes de confirmar; nada é gravado até você clicar em "Confirmar migração e gerar agenda".
             </p>
-            {revisao.map((r, i) => (
-              <div key={i} className="rounded-xl border border-border/60 p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{r.nome}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {STATUS_TRATAMENTO_LABELS[r.status]}
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Total {r.total} · Realizadas {r.realizadas} · Restante {r.restante}
-                </div>
-                {r.geraAgenda ? (
-                  <div className="space-y-1">
-                    <div className="text-xs font-medium text-foreground">
-                      {r.sessoes.length} sessão(ões) será(ão) criada(s):
+            {revisao.map((r, i) => {
+              const fmt = (d?: string | null) =>
+                d ? new Date(d + "T12:00:00").toLocaleDateString("pt-BR") : "—";
+              return (
+                <div key={i} className="rounded-xl border border-border/60 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{r.nome}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {STATUS_TRATAMENTO_LABELS[r.status]}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Modo: {r.modo_agendamento}
+                    {r.ordem != null ? ` · Ordem ${r.ordem}` : ""} · Total {r.total} · Realizadas{" "}
+                    {r.realizadas} · Restante {r.restante}
+                  </div>
+
+                  {r.tratamentoPublicoComSugestao ? (
+                    <div className="space-y-1 rounded-lg bg-primary/5 p-3 text-xs">
+                      <div className="font-medium text-foreground">
+                        Tratamento público livre — liberado para comparecimento
+                      </div>
+                      <div className="text-muted-foreground">
+                        Liberado desde {fmt(r.liberadoDesde)}. Modo: Livre / Concomitante.
+                      </div>
+                      <div className="text-muted-foreground">
+                        Sugestões de comparecimento a partir de {fmt(r.sugestoesAPartirDe)} (após a
+                        cadeia bloqueante aplicável).
+                      </div>
+                      <ul className="text-muted-foreground grid grid-cols-2 sm:grid-cols-3 gap-1">
+                        {(r.sugestoes ?? []).map((s, idx) => (
+                          <li key={idx}>
+                            {fmt(s.data_sessao)}
+                            {s.horario ? ` · ${s.horario}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="text-muted-foreground">
+                        Presenças válidas do próprio tratamento contam desde a liberação. Datas
+                        sugeridas não são agenda rígida (não geram falta). Palestras, eventos e
+                        outros públicos não contam para este tratamento.
+                      </div>
                     </div>
-                    <ul className="text-xs text-muted-foreground grid grid-cols-2 sm:grid-cols-3 gap-1">
-                      {r.sessoes.map((s, idx) => (
-                        <li key={idx}>
-                          {new Date(s.data_sessao + "T12:00:00").toLocaleDateString("pt-BR")}
-                          {s.horario ? ` · ${s.horario}` : ""}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-2 text-xs text-amber-600">
-                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5" />
-                    <span>Não gera agenda: {r.motivoNaoGera}</span>
-                  </div>
-                )}
-              </div>
-            ))}
+                  ) : r.geraAgenda ? (
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium text-foreground">
+                        {r.sessoes.length} sessão(ões) será(ão) criada(s):
+                      </div>
+                      <ul className="text-xs text-muted-foreground grid grid-cols-2 sm:grid-cols-3 gap-1">
+                        {r.sessoes.map((s, idx) => (
+                          <li key={idx}>
+                            {fmt(s.data_sessao)}
+                            {s.horario ? ` · ${s.horario}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 text-xs text-amber-600">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5" />
+                      <span>Não gera agenda: {r.motivoNaoGera}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => setRevisao(null)} disabled={saving} className="flex-1">
                 Voltar e corrigir
