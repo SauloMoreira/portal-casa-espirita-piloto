@@ -22,6 +22,7 @@ export const ROUTES = {
 
   // Atendimento
   assistidos: "/assistidos",
+  migrarAssistido: "/migrar-assistido",
   entrevistas: "/entrevistas",
   fazerEntrevista: "/fazer-entrevista",
   agenda: "/agenda",
