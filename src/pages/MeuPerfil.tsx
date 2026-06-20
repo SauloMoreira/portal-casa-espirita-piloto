@@ -23,6 +23,8 @@ export default function MeuPerfil() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [assistidoId, setAssistidoId] = useState<string | null>(null);
+  const [comunicacaoGeral, setComunicacaoGeral] = useState(true);
+  const [savingPref, setSavingPref] = useState(false);
 
   const [form, setForm] = useState({
     nome: "",
