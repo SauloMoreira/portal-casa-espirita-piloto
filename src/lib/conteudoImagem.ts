@@ -109,7 +109,12 @@ export function montarPromptGeracao(
   const linhas: string[] = [];
   const rotuloTipo = tipo === "campanha" ? "campanha institucional" : "evento";
   linhas.push(
-    `Arte promocional para uma ${rotuloTipo} de uma casa espírita de assistência (instituição beneficente).`,
+    `Arte promocional puramente ilustrativa para uma ${rotuloTipo} de uma casa espírita de assistência (instituição beneficente).`,
+  );
+  // Os campos abaixo servem APENAS como inspiração temática/visual.
+  // Eles NÃO devem ser escritos, renderizados ou estilizados como texto na imagem.
+  linhas.push(
+    `Use as informações a seguir somente como tema e inspiração visual (NÃO escreva nenhuma dessas palavras na imagem):`,
   );
   if (dados.titulo) linhas.push(`Título: ${dados.titulo.trim()}.`);
   if (dados.subtitulo) linhas.push(`Subtítulo: ${dados.subtitulo.trim()}.`);
@@ -122,8 +127,16 @@ export function montarPromptGeracao(
     `Estilo institucional, acolhedor, elegante, limpo, moderno e harmonioso. ` +
       `Paleta serena (tons de verde-azulado/teal e sálvia), iluminação suave. ` +
       `Composição ${orientacaoFormato(formato)} em ${fmt.label.toLowerCase()}, ` +
-      `enquadramento na proporção ${fmt.ratio} (largura:altura), com o assunto principal centralizado e bem aproveitado nessa proporção. ` +
-      `Sem texto sobreposto, sem letras, sem cara de panfleto, sem poluição visual, sem elementos agressivos.`,
+      `enquadramento na proporção ${fmt.ratio} (largura:altura), com o assunto principal centralizado e bem aproveitado nessa proporção.`,
+  );
+  // Regra absoluta contra texto: modelos de imagem tendem a "escrever" o título/descrição
+  // de forma ilegível e com erros. Proibimos qualquer texto de forma enfática.
+  linhas.push(
+    `REGRA ABSOLUTA: a imagem deve ser 100% livre de texto. ` +
+      `Sem texto sobreposto, sem letras, sem palavras, sem números, sem títulos, sem legendas, ` +
+      `sem tipografia, sem caligrafia, sem logotipos com texto e sem qualquer escrita em qualquer idioma. ` +
+      `Apenas elementos visuais (ilustração, formas, cenas, símbolos). ` +
+      `Sem cara de panfleto, sem poluição visual, sem elementos agressivos.`,
   );
   return linhas.join(" ");
 }
@@ -156,7 +169,9 @@ export function montarPromptOtimizacao(formato: ImagemFormato = "card"): string 
     `reenquadrando a composição para a proporção ${fmt.ratio} (largura:altura), de forma ${orientacaoFormato(formato)}. ` +
     `Melhore iluminação, nitidez e enquadramento, mantendo o assunto principal bem posicionado e centralizado nessa proporção. ` +
     `Deixe a imagem mais limpa, leve e bem aproveitada no layout. ` +
-    `Mantenha o tema e o conteúdo original, sem adicionar texto ou elementos novos.`
+    `Mantenha o tema e o conteúdo original. ` +
+    `REGRA ABSOLUTA: não adicione nenhum texto, letras, palavras, números, títulos, legendas ou tipografia em nenhum idioma; ` +
+    `apenas elementos visuais. Se a imagem original tiver texto, não tente reescrevê-lo.`
   );
 }
 
