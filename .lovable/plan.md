@@ -1,80 +1,92 @@
-## Objetivo
-Adicionar **alerta externo por WhatsApp pessoal** aos Comunicadores quando houver conversas humanas pendentes na fila da Central, reaproveitando a arquitetura existente (handoff, claim seguro, Z-API/channel-adapter, auditoria, cron `alertas-operacionais`). Sem fila paralela, sem spam, com cooldown, consolidação, governança, idempotência e controle de concorrência.
+# Base de conhecimento do site FER como apoio à IA
 
-## Princípios
-Não criar fila paralela. Alerta nunca concede claim/posse. Sem spam/duplicidade. Sem conteúdo sensível no alerta. Não quebrar handoff/claim/IA/Central estáveis. Rastreabilidade total. Baixo risco de regressão.
+Site: **www.fermarica.com.br** · Captura **assistida por página** · Busca **textual por categoria/prioridade** · **Fase 1 enxuta**.
 
-## Fonte oficial da fila humana
-Verdade = **`whatsapp_handoffs`**. Pendente para alerta **somente** quando `status = 'aberto'` **E** `atendente_id IS NULL`. `whatsapp_conversas` só como apoio/contexto, sem disputar como fonte principal.
+## Princípio
+O site é uma **camada de apoio para perguntas públicas de conhecimento** (ex.: "o que é magnetismo?", "como funciona a FER?", "quais tratamentos a casa realiza?"). Ele **nunca** sobrepõe orquestrador, agenda real, agendamento pessoal, exceções operacionais nem programação padrão. Perguntas temporais/operacionais/pessoais (hoje tem palestra? amanhã tem tratamento? meu próximo atendimento? minha entrevista?) continuam resolvidas pela arquitetura atual. Doação/campanha/evento/notícias **não** contaminam respostas sobre tratamento.
 
-## Base já existente
-Claim seguro (`assumirConversa`/`assumirHandoff`); envio via channel-adapter/Z-API; cron com `guardCronOrStaff` + `x-cron-secret`; auditoria via `audit_logs`; `fn_normalize_phone(text)`. O alerta apenas chama o Comunicador — nunca assume conversa, altera posse ou cria claim implícito.
+## 1. Modelo de dados — `public.ia_site_documentos`
+Tabela dedicada (separada da `ia_biblioteca` doutrinária):
+- `url` (único), `titulo`, `resumo`, `corpo` (texto limpo)
+- `categoria`: `tratamento | institucional | contato | doacao | campanha | evento | comunicado | outros`
+- `prioridade`: `alta | media | baixa | condicionada`
+- `temporal` (bool), `data_conteudo` (date, opcional)
+- `usar_na_ia` (bool, **default false**), `status`: `rascunho | ativo | inativo`
+- `hash`, `captured_at`, `created_by`, timestamps
 
-## 1. Elegibilidade (vínculo por telefone, sem CPF)
-Elegível quando, simultaneamente:
-- função de voluntário **Comunicador**, voluntário `status = 'ativo'`;
-- vínculo **único e confiável** por telefone: `fn_normalize_phone(voluntarios.celular) = fn_normalize_phone(profiles.celular)`;
-- `profiles.celular` válido;
-- opt-in ativo (`recebe_alertas_central = true`) e `ativo = true`.
+**Regra de entrada:** toda captura nasce `status='rascunho'` e `usar_na_ia=false`; só entra na IA após revisão humana e ativação explícita do admin.
 
-Não elegível se: múltiplos matches, ambiguidade, ausência de vínculo confiável, telefone inválido, ou telefone duplicado entre perfis elegíveis. Sem CPF, sem heurísticas fracas. Número usado = sempre `profiles.celular` (pessoal); nunca institucional/genérico/inferido.
+Segurança: admin gerencia tudo; leitura pela edge inbound via `service_role`. Migração com GRANT explícito + RLS + policies + trigger `updated_at`.
 
-## 2. Configuração / opt-in
-`public.comunicador_alerta_config`: `user_id` PK→auth.users; `recebe_alertas_central boolean default false`; `ativo boolean default true`; `ultimo_alerta_em timestamptz`; `ultimo_snapshot jsonb`; `created_at`; `updated_at` + trigger `update_updated_at_column`. Recebimento desligado por padrão; não duplica CPF/celular (telefone vem de `profiles`). Garantir função "Comunicador" em `funcoes_voluntariado` se não existir.
+Prioridade sugerida (editável na revisão): tratamento/institucional/contato = **alta**; doacao/campanha/evento = **media**; comunicado = **baixa/condicionada**.
 
-## 3. Critérios de disparo (parametrizáveis em `regras_operacionais`)
-- `central_alerta_ativo` (default true)
-- `central_alerta_minutos_pendencia` (default 10)
-- `central_alerta_min_pendencias` (default 2)
-- `central_alerta_cooldown_min` (default 30)
-- `central_alerta_piora_minutos` (default 5) — limiar mínimo de piora por tempo
+## 2. Captura assistida por página — edge `ia-site-ingestao`
+Admin-only (valida sessão + papel), validação Zod do `url`, CORS:
+- **Restrição de domínio:** nesta fase só aceita URLs de `www.fermarica.com.br` (rejeita sites externos).
+- Busca o HTML, remove `script/style/nav/header/footer/aside`, extrai texto principal, normaliza espaços.
+- Deriva `titulo` (`<title>`/`<h1>`), `resumo` curto, `categoria`/`prioridade`/`temporal` sugeridos (heurística de palavras-chave) e `hash`.
+- **Retorna a prévia extraída sem salvar.** O admin revisa/ajusta e então grava (rascunho).
+- (Firecrawl é evolução futura; não necessário na Fase 1.)
 
-Disparar quando: ≥1 pendência há mais de X min **OU** ≥Y pendências sem atendente. Frequência do cron fixa (~5 min); critérios/cooldown configuráveis.
+## 3. Atualização e controle de mudanças
+- Recaptura de URL existente: comparar por `hash`. Hash igual → não duplica. Hash diferente → atualização controlada do rascunho / revisão explícita. **Nunca** sobrescrever silenciosamente um documento `ativo` sem revisão humana.
+- Data: se `data_conteudo` não puder ser inferida com segurança, deixar **NULL** (nunca inventar data).
 
-## 4. Consolidação (anti-spam)
-Um único alerta consolidado por Comunicador por ciclo:
-> "Central FER: há N conversa(s) aguardando atendimento humano (mais antiga há M min). Acesse a Central para assumir a fila."
-Sem nome do assistido, conteúdo da conversa, dados sensíveis ou uma mensagem por conversa.
+## 4. Recuperação controlada — `src/lib/siteConhecimento.ts`
+Módulo puro (sem I/O), espelhado na edge (padrão do projeto). `selecionarDocumentos(query, intencao, docs)`:
+- Filtra por categoria-alvo; busca textual em `titulo/resumo/corpo` com normalização consistente (lowercase, sem acento, espaços, tolerância leve).
+- Considera apenas `status='ativo'` e `usar_na_ia=true`.
+- Relevância **determinística e simples**: match em `titulo` > `resumo` > `corpo`, depois prioridade. Sem ranking sofisticado nesta fase. Limita contexto (default 3).
+- **Anti-contaminação:** pergunta de tratamento nunca retorna `doacao`/`campanha`.
+- **Guarda temporal:** docs `temporal=true` não entram por padrão, nunca viram fonte de agenda; só quando a pergunta for claramente sobre aquele conteúdo e a data fizer sentido.
 
-## 5. Cooldown, snapshot e reenvio
-`ultimo_snapshot`: `total_pendentes`, `idade_mais_antiga_min`, `gerado_em`, `motivo_disparo` (recomendado).
-- **Piora relevante** = aumento de `total_pendentes` OU aumento de `idade_mais_antiga_min` acima de `central_alerta_piora_minutos`.
-- Após o cooldown: reenviar só se a fila continuar pendente.
-- Antes do cooldown: reenviar só se houver piora relevante.
-Lógica determinística, simples e previsível.
+## 5. Mapeamento intenção → categorias
+- Explicação de tratamento/terapia → `tratamento`
+- Funcionamento da casa → `institucional` + `contato`
+- Contato/localização/canais → `contato`
+- Doação → `doacao`; campanha → `campanha`; evento → `evento`
 
-## 6. Relação com claim
-Avaliar só pendências `status='aberto'` sem `atendente_id`. Conversa assumida/em atendimento/encerrada sai do cálculo. Receber alerta não dá posse — posse exclusiva pelo claim seguro.
+Só consultar a base quando houver indício de **pergunta pública de conhecimento**.
 
-## 7. RPCs de apoio (SECURITY DEFINER, pequenas e estáveis)
-- `fila_humana_pendente()` → `total_pendentes`, `idade_mais_antiga_min` (base `whatsapp_handoffs`).
-- `comunicadores_elegiveis()` → `user_id`, `celular`; só elegíveis (função + voluntário ativo + telefone válido + vínculo único por telefone + opt-in + ativo). Sem CPF; exclui telefones ambíguos e vínculos não confiáveis.
+## 6. Integração com a IA atual (whatsapp-inbound, aditiva)
+1. Resolver escopo/orquestrador como hoje (sem mudar precedência).
+2. Pergunta temporal/operacional/pessoal → **não consulta o site**.
+3. Pergunta pública de conhecimento (`pedido_informacao`, `programacao_publica` conceitual, e `complexo` **somente** com indício claro de conhecimento público) → consulta `ia_site_documentos` (`ativo` + `usar_na_ia`), roda `selecionarDocumentos`.
+4. Com docs relevantes → resposta **grounded** nos fatos do site via `humanizarRespostaIA` (sem inventar).
+5. Sem docs relevantes → comportamento atual inalterado (ponte/handoff).
 
-## 8. Edge function `central-fila-alerta`
-Padrão de `alertas-operacionais`: `guardCronOrStaff` + `x-cron-secret`, service_role. Fluxo: ler regras → verificar `central_alerta_ativo` → `fila_humana_pendente()` → validar gatilho → `comunicadores_elegiveis()` → por comunicador: reler estado, aplicar cooldown, comparar snapshot, **revalidar elegibilidade e gatilho antes do envio** → enviar consolidado via channel-adapter → atualizar `ultimo_alerta_em`/`ultimo_snapshot` → auditar.
-**Idempotência:** cooldown + snapshot + revalidação de estado antes do envio impedem duplicidade para o mesmo comunicador no mesmo estado, mesmo com execuções sobrepostas.
+Regra: não usar a base para qualquer `complexo` — apenas quando claramente for pergunta pública de conhecimento.
 
-## 9. Auditoria
-`audit_logs` ação `ALERTA_CENTRAL_ENVIADO`, campos mínimos: `comunicador_user_id`, `telefone_destino_normalizado`, `gatilho_acionado`, `total_pendentes`, `idade_mais_antiga_min`, `snapshot_anterior`, `snapshot_novo`, `consolidado`, `enviado`, `erro` (se houver).
+## 7. Painel admin — aba "Base do Site"
+`src/components/central-ia/BaseSiteIA.tsx` (admin-only):
+- Listar docs com URL, categoria, prioridade, status, temporal, `usar_na_ia`.
+- "Adicionar por URL" → chama `ia-site-ingestao`, mostra prévia, salva como rascunho.
+- Editar, ativar/inativar, excluir, toggle `usar_na_ia`.
+- Filtros: categoria, status, `usar_na_ia`, URL/título.
 
-## 10. Frontend mínimo
-Opt-in em local existente e coerente (Meu Perfil / card de preferências), exibido apenas quando fizer sentido para usuário elegível/Comunicador, para ligar/desligar alertas da Central. Exibir as novas chaves em Regras Operacionais reaproveitando a UI atual.
+## 8. Regras Operacionais (calibração sem deploy)
+Adicionar em `regras_operacionais`:
+- `site_ia_ativo` — liga/desliga toda a consulta ao site.
+- `site_ia_max_documentos` — limite de contexto (default 3).
 
-## 11. Segurança e privacidade
-Só elegíveis recebem; edge function com permissões corretas; sem bypass de claim nem dupla posse. Mensagem minimalista; sem conteúdo da conversa, nome do assistido ou dados sensíveis.
+## 9. Fases
+- **Fase 1 (esta entrega):** Tratamentos + institucional permanente + contato.
+- **Fase 2:** doação, campanhas, eventos (peso menor, só quando perguntado).
+- **Fase 3:** posts/notícias e temporais (peso baixo, guarda temporal forte).
+
+## 10. Testes
+- **Conhecimento:** magnetismo, desobsessão, evangelhoterapia, apometria, "quais tratamentos a casa realiza".
+- **Não-contaminação:** tratamento nunca traz doação/campanha.
+- **Temporais:** conteúdo temporal não vira agenda, não sobrepõe exceção/programação real.
+- **Integração:** captura entra como rascunho; não entra na IA sem ativação; respeita `usar_na_ia`; domínio permitido respeitado.
+- **Regressão:** orquestrador, classificador, handoff, fila humana, métricas, claim intactos.
+
+## 11. Critérios de aceite
+IA usa o site como base complementar; tratamentos claramente influenciados; doação/campanha não contaminam tratamento; temporais não sobrepõem agenda/exceção; capturas entram como rascunho e só ativam após revisão; captura restrita ao domínio institucional; integração sem quebrar a arquitetura; testes de conhecimento e regressão cobrindo o comportamento.
 
 ## 12. Detalhes técnicos
-- **Migration:** tabela `comunicador_alerta_config` (GRANTs: `authenticated` gerencia o próprio registro, `service_role` ALL; RLS própria + leitura admin; trigger updated_at); RPC `fila_humana_pendente()`; RPC `comunicadores_elegiveis()`.
-- **Dados (insert tool):** inserir chaves em `regras_operacionais`; garantir função "Comunicador".
-- **Edge:** nova function `central-fila-alerta`.
-- **Cron:** `cron.schedule` (insert tool, contém URL+anon) a cada 5 min com `x-cron-secret`.
-- **Lógica pura:** `src/lib/centralAlerta.ts` (gatilho, consolidação, cooldown, piora relevante, idempotência lógica).
-
-## 13. Testes
-Unitários (`centralAlerta.ts`): elegibilidade, telefone ambíguo → não elegível, gatilho, consolidação, cooldown, regra de piora, idempotência lógica, opt-in desligado → não recebe. Não-regressão: suíte WhatsApp (IA, handoff, classificador híbrido, orquestrador, métricas, claim). Typecheck + build limpos.
-
-## 14. Critérios de aceite
-Pendências identificadas corretamente; só elegíveis recebem; envio ao celular pessoal; consolidação; cooldown/anti-spam; conversa assumida deixa de alertar; posse só por claim; auditoria íntegra; telefones ambíguos não geram elegibilidade; sem regressão; build/typecheck/testes ok.
-
-## 15. Forma de execução
-Melhoria operacional da fila humana + alerta externo controlado + reforço de governança, sem arquitetura paralela, sem spam, sem quebra do estável. Ao concluir: parar e apresentar relatório (elegibilidade, vínculo por telefone, gatilho, cooldown, snapshot, consolidação, auditoria, testes executados, confirmação de ausência de regressão).
+- Migração da tabela (CREATE TABLE + GRANT + RLS + policies + trigger).
+- Edge `ia-site-ingestao` (role, Zod, restrição de domínio, CORS).
+- `src/lib/siteConhecimento.ts` + testes; `types.ts` regenerado.
+- Alteração **aditiva** no `whatsapp-inbound` (espelha lógica pura), sem mexer na precedência.
+- Nova aba/componente na Central de IA; 2 chaves novas em Regras Operacionais.
