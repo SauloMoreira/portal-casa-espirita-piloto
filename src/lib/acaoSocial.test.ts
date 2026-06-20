@@ -6,6 +6,7 @@ import {
   validarAlimento,
   formatPrazoData,
   prazoEntregaInfo,
+  mensagemInstitucional,
   type AlimentoAcaoSocial,
   type AcaoSocialConfig,
 } from "./acaoSocial";
