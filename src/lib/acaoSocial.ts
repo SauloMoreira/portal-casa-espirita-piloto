@@ -33,6 +33,16 @@ export function prazoEntregaInfo(
   };
 }
 
+/**
+ * Mensagem institucional única da Ação Social (ex.: orientação sobre prazo de
+ * validade dos alimentos doados). Deve ser exibida uma só vez no card, nunca
+ * repetida em cada item. Retorna null quando não houver mensagem cadastrada.
+ */
+export function mensagemInstitucional(config?: AcaoSocialConfig | null): string | null {
+  const texto = config?.mensagem_institucional?.trim();
+  return texto ? texto : null;
+}
+
 /** Unidades sugeridas para a lista de alimentos da ação social. */
 export const UNIDADES_ALIMENTO = [
   "kg",
