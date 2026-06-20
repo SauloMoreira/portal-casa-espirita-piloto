@@ -123,11 +123,19 @@ export default function Usuarios() {
   };
 
   const fetchUsers = async () => {
-    const { data: roles } = await supabase.from("user_roles").select("user_id, role");
-    const { data: profiles } = await supabase.from("profiles").select("*");
+    const [{ data: roles }, { data: profiles }, { data: emails }] = await Promise.all([
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("profiles").select("*"),
+      supabase.rpc("lista_usuarios_email"),
+    ]);
     if (roles) {
       const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
-      setUsers(roles.map((r: any) => ({ ...r, profile: profileMap.get(r.user_id) || null })));
+      const emailMap = new Map((emails || []).map((e: any) => [e.user_id, e.email]));
+      setUsers(roles.map((r: any) => ({
+        ...r,
+        profile: profileMap.get(r.user_id) || null,
+        email: emailMap.get(r.user_id) || null,
+      })));
     }
   };
 
