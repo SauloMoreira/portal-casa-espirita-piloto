@@ -267,16 +267,23 @@ export default function AcaoSocial() {
           </div>
           <div className="space-y-1.5">
             <Label>Mensagem institucional (opcional)</Label>
-            <Textarea
+            <MarkdownEditorLeve
               value={mensagem}
-              onChange={(e) => setMensagem(e.target.value)}
-              rows={4}
-              placeholder="Ex.: orientação geral sobre os alimentos doados (prazo de validade, cuidados etc.)"
+              onChange={setMensagem}
+              rows={6}
+              placeholder="Ex.: orientações gerais sobre os alimentos doados. Use a barra acima para negrito, itálico, subtítulo, listas e links."
             />
             <p className="text-xs text-muted-foreground">
               Aparece uma única vez no card dos assistidos. Use para orientações gerais — não
-              repita o texto em cada alimento.
+              repita o texto em cada alimento. Formatação leve apenas (negrito, itálico, subtítulo,
+              listas e links seguros); HTML, scripts e estilos são removidos automaticamente.
             </p>
+            {limparMensagemInstitucional(mensagem) && (
+              <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                <p className="text-xs text-muted-foreground mb-1.5">Prévia para o assistido:</p>
+                <MensagemInstitucionalRenderer texto={mensagem} />
+              </div>
+            )}
           </div>
           {(() => {
             const preview = prazoEntregaInfo({
