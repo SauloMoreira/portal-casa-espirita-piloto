@@ -22,6 +22,8 @@ export interface EntrevistaTipoTratamento {
   bloqueia_proximo_tratamento: boolean;
   modo_agendamento: string;
   quantidade_padrao_sessoes: number;
+  trabalho_publico?: boolean;
+  permite_entrada_sem_agendamento?: boolean;
 }
 
 export interface EntrevistaAssistidoForm {
