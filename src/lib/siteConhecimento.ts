@@ -156,10 +156,11 @@ function pontuarRelevancia(doc: SiteDocumento, termos: string[]): number {
   return score;
 }
 
-/** Quebra a query em termos relevantes (>= 3 chars), já normalizados. */
+/** Quebra a query em termos relevantes (>= 3 chars), já normalizados e sem pontuação. */
 function termosDaQuery(query: string): string[] {
   return normalizarSite(query)
     .split(" ")
+    .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ""))
     .filter((t) => t.length >= 3);
 }
 
