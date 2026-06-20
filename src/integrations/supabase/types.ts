@@ -2561,6 +2561,13 @@ export type Database = {
       }
       is_active_admin: { Args: { _uid: string }; Returns: boolean }
       is_active_master: { Args: { _uid: string }; Returns: boolean }
+      lista_usuarios_email: {
+        Args: never
+        Returns: {
+          email: string
+          user_id: string
+        }[]
+      }
       marcar_envio_concluido: {
         Args: { p_comunicacao_id: string }
         Returns: Json
