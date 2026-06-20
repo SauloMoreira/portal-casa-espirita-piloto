@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Heart, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { traduzirErroSenha } from "@/lib/authErrors";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
