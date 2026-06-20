@@ -314,19 +314,8 @@ export function projetarAgendaConsolidada(
     return addDays(new Date(ultima + "T12:00:00"), 1);
   };
 
-  // Livre concomitante — independentes
-  for (const t of tratamentos.filter((x) => x.modo_agendamento === MODO_LIVRE_CONCOMITANTE)) {
-    const p = projetar(t, t.dataInicio ?? baseStart);
-    out.set(t.ref, { ref: t.ref, tratamento_id: t.tratamento_id, ...p });
-  }
-
-  // Agendado por data inicial — só gera se houver data
-  for (const t of tratamentos.filter((x) => x.modo_agendamento === MODO_AGENDADO_POR_DATA_INICIAL)) {
-    const p = projetar(t, t.dataInicio ?? null);
-    out.set(t.ref, { ref: t.ref, tratamento_id: t.tratamento_id, ...p });
-  }
-
-  // Sequencial bloqueante — encadeado por ordem
+  // 1) Sequencial bloqueante PRIMEIRO — encadeado por ordem. Resolver a cadeia
+  // antes dos demais garante saber o marco posterior ao fim da cadeia aplicável.
   const sequenciais = tratamentos
     .filter(
       (x) =>
@@ -339,6 +328,7 @@ export function projetarAgendaConsolidada(
   let chainStart: Date = baseStart;
   let anteriorRef: string | null = null;
   let dataFinalAnterior: string | null = null;
+  let cadeiaBloqueanteExiste = false;
 
   for (const t of sequenciais) {
     const p = projetar(t, chainStart);
@@ -355,7 +345,64 @@ export function projetarAgendaConsolidada(
       chainStart = prox;
       anteriorRef = t.ref;
       dataFinalAnterior = p.sessoes[p.sessoes.length - 1].data_sessao;
+      cadeiaBloqueanteExiste = true;
     }
+  }
+
+  // Marco para sugestões do caso público: fim da cadeia bloqueante aplicável,
+  // quando existir; caso contrário, a própria base resolvida.
+  const marcoPublico: Date = cadeiaBloqueanteExiste ? chainStart : baseStart;
+
+  // 2) Livre concomitante — independentes (caso público tratado à parte)
+  for (const t of tratamentos.filter((x) => x.modo_agendamento === MODO_LIVRE_CONCOMITANTE)) {
+    if (isTratamentoPublicoLivre(t)) {
+      const restante = quantidadeRestante(t.quantidade_total, t.quantidade_realizada);
+      const eleg = elegibilidadeAgenda({ status: t.status, restante, temDataInicio: true });
+      const liberadoDesde = dataParaString(baseStart);
+
+      // Sugestões: primeira ocorrência válida do PRÓPRIO tratamento em/após o
+      // marco posterior ao fim da cadeia (ou da base, se não houver cadeia).
+      // São apenas projeção/exibição — NÃO viram agenda rígida.
+      const sugestoes = eleg.geraAgenda
+        ? normalizarSessoes(
+            generateSessionDates(
+              marcoPublico,
+              t.tipo.dia_semana,
+              normalizarHorario(t.tipo.horario),
+              t.tipo.frequencia_valor || 1,
+              t.tipo.frequencia_unidade || "semanas",
+              restante,
+            ),
+          )
+        : [];
+
+      out.set(t.ref, {
+        ref: t.ref,
+        tratamento_id: t.tratamento_id,
+        geraAgenda: false, // nunca gera agenda rígida
+        motivoNaoGera: eleg.geraAgenda
+          ? "Tratamento público livre: liberado para comparecimento com sugestões (não é agenda rígida)."
+          : eleg.motivoNaoGera,
+        restante,
+        sessoes: [],
+        tratamentoPublicoComSugestao: true,
+        liberadoDesde,
+        liberadoParaComparecimento: true,
+        sugestoesAPartirDe: sugestoes[0]?.data_sessao ?? null,
+        sugestoes,
+      });
+      continue;
+    }
+
+    // Livre normal: max(baseStart, dataInicio?) → usa dataInicio quando informado.
+    const p = projetar(t, t.dataInicio ?? baseStart);
+    out.set(t.ref, { ref: t.ref, tratamento_id: t.tratamento_id, ...p });
+  }
+
+  // 3) Agendado por data inicial — só gera se houver data
+  for (const t of tratamentos.filter((x) => x.modo_agendamento === MODO_AGENDADO_POR_DATA_INICIAL)) {
+    const p = projetar(t, t.dataInicio ?? null);
+    out.set(t.ref, { ref: t.ref, tratamento_id: t.tratamento_id, ...p });
   }
 
   // Preserva a ordem de entrada
