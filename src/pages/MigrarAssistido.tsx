@@ -455,7 +455,7 @@ export default function MigrarAssistido() {
                     <Input type="number" min={0} value={l.quantidade_realizada} onChange={(e) => updateLinha(i, { quantidade_realizada: Number(e.target.value) })} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Próxima sessão</Label>
+                    <Label>Data de início da projeção</Label>
                     <Input type="date" value={l.proxima_sessao_data ?? ""} onChange={(e) => updateLinha(i, { proxima_sessao_data: e.target.value })} />
                   </div>
                   <div className="space-y-2">
