@@ -104,7 +104,6 @@ const navGroups: NavGroup[] = [
       { title: "Agenda do Tratamento", url: "/coordenador-agenda", icon: Calendar, roles: ["coordenador_de_tratamento"] },
       { title: "Meus Tratamentos", url: "/meus-tratamentos", icon: Heart, roles: ["assistido"] },
       { title: "Minha Agenda", url: "/minha-agenda", icon: Calendar, roles: ["assistido"] },
-      { title: "Meu Perfil", url: "/meu-perfil", icon: User, roles: ["assistido"] },
       { title: "Documentos", url: "/meus-documentos", icon: FileText, roles: ["assistido"] },
     ],
   },

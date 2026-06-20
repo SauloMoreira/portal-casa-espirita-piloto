@@ -95,6 +95,33 @@ export async function setWhatsappAtivo(
   if (error) throw error;
 }
 
+/**
+ * Lê a preferência de comunicações gerais do assistido.
+ * Default seguro = true quando não há registro prévio.
+ */
+export async function getComunicacaoGeralAtiva(assistidoId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("notificacoes_preferencias")
+    .select("comunicacao_geral_ativa")
+    .eq("assistido_id", assistidoId)
+    .maybeSingle();
+  return data ? (data as any).comunicacao_geral_ativa !== false : true;
+}
+
+/**
+ * Persiste a preferência de comunicações gerais via upsert seguro por
+ * assistido_id (funciona mesmo sem registro prévio). Compatível com a RLS.
+ */
+export async function setComunicacaoGeralAtiva(assistidoId: string, ativa: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("notificacoes_preferencias")
+    .upsert(
+      { assistido_id: assistidoId, comunicacao_geral_ativa: ativa },
+      { onConflict: "assistido_id" },
+    );
+  if (error) throw error;
+}
+
 export async function listFila(limit = 100): Promise<FilaItem[]> {
   const { data, error } = await supabase
     .from("notificacoes_fila")
