@@ -47,7 +47,8 @@ describe("montarPromptGeracao", () => {
     expect(p).toContain("Cesta Básica");
     expect(p).toContain("Ajude famílias");
     expect(p).toContain("Doe alimentos");
-    expect(p).toContain("Sem texto sobreposto");
+    expect(p).toContain("texto exato");
+    expect(p).toContain("LETRA POR LETRA");
   });
 
   it("usa os dados de evento incluindo local", () => {
