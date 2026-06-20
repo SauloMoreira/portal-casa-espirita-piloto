@@ -161,7 +161,7 @@ export const MODO_SEQUENCIAL_BLOQUEANTE = "sequencial_bloqueante";
 export const MODO_LIVRE_CONCOMITANTE = "livre_concomitante";
 export const MODO_AGENDADO_POR_DATA_INICIAL = "agendado_por_data_inicial";
 
-import { addDays } from "date-fns";
+
 
 export interface TratamentoProjecaoInput {
   /** Identificador estável usado para mapear o resultado (ex.: vinculo_id ou index). */
