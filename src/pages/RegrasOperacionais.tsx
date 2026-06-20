@@ -108,7 +108,8 @@ export default function RegrasOperacionais() {
     setLoadingEntrevista(false);
   };
 
-  const isBooleanRule = (chave: string) => chave === "retorno_fraterno_pos_conclusao";
+  const isBooleanRule = (chave: string) =>
+    chave === "retorno_fraterno_pos_conclusao" || chave === "central_alerta_ativo";
 
   return (
     <div className="space-y-6">
