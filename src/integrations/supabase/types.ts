@@ -2727,6 +2727,7 @@ export type Database = {
         }
         Returns: Json
       }
+      sou_comunicador_elegivel: { Args: never; Returns: boolean }
       staff_names: {
         Args: { _ids?: string[] }
         Returns: {
