@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   projetarAgendaConsolidada,
+  isTratamentoPublicoLivre,
+  ocorrenciaContaParaTratamentoPublico,
   type TratamentoProjecaoInput,
 } from "@/lib/agendaRules";
 
