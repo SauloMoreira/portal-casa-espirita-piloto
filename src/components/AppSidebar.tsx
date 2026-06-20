@@ -339,7 +339,27 @@ export function AppSidebar() {
       {/* Footer: user info */}
       <SidebarFooter className="border-t border-sidebar-border/40 p-3">
         {!collapsed ? (
-          <div className="mb-2 flex items-center gap-3">
+          <div
+            {...(isAssistido
+              ? {
+                  role: "button" as const,
+                  tabIndex: 0,
+                  "aria-label": "Abrir meu perfil",
+                  onClick: () => navigate("/meu-perfil"),
+                  onKeyDown: (e: React.KeyboardEvent) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      navigate("/meu-perfil");
+                    }
+                  },
+                }
+              : {})}
+            className={cn(
+              "mb-2 flex items-center gap-3 rounded-md p-1.5 -m-1.5 transition-colors",
+              isAssistido &&
+                "cursor-pointer hover:bg-sidebar-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+            )}
+          >
             <div className="h-9 w-9 shrink-0 rounded-full bg-sidebar-accent/60 flex items-center justify-center overflow-hidden ring-2 ring-sidebar-border/30">
               {profile?.foto_url ? (
                 <img src={profile.foto_url} alt="" className="h-full w-full object-cover" />
@@ -367,7 +387,27 @@ export function AppSidebar() {
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <div className="flex justify-center mb-2">
-                <div className="h-8 w-8 rounded-full bg-sidebar-accent/60 flex items-center justify-center overflow-hidden ring-2 ring-sidebar-border/30">
+                <div
+                  {...(isAssistido
+                    ? {
+                        role: "button" as const,
+                        tabIndex: 0,
+                        "aria-label": "Abrir meu perfil",
+                        onClick: () => navigate("/meu-perfil"),
+                        onKeyDown: (e: React.KeyboardEvent) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            navigate("/meu-perfil");
+                          }
+                        },
+                      }
+                    : {})}
+                  className={cn(
+                    "h-8 w-8 rounded-full bg-sidebar-accent/60 flex items-center justify-center overflow-hidden ring-2 ring-sidebar-border/30",
+                    isAssistido &&
+                      "cursor-pointer hover:ring-sidebar-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                  )}
+                >
                   {profile?.foto_url ? (
                     <img src={profile.foto_url} alt="" className="h-full w-full object-cover" />
                   ) : (
@@ -377,7 +417,7 @@ export function AppSidebar() {
               </div>
             </TooltipTrigger>
             <TooltipContent side="right" className="font-sans text-xs">
-              {profile?.nome_completo || user?.email}
+              {isAssistido ? "Meu Perfil" : profile?.nome_completo || user?.email}
             </TooltipContent>
           </Tooltip>
         )}
