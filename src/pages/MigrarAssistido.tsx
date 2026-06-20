@@ -449,7 +449,9 @@ export default function MigrarAssistido() {
         </CardHeader>
         <CardContent className="space-y-5">
           {linhas.map((l, i) => {
-            const temData = !!l.proxima_sessao_data?.trim();
+            const modo = tratamentoMap[l.tratamento_id]?.modo_agendamento;
+            const exigeDataManual = modo === MODO_AGENDADO_POR_DATA_INICIAL;
+            const temData = exigeDataManual && !!l.proxima_sessao_data?.trim();
             const statusIncompat = temData && !statusPermiteProximaSessao(l.status);
             return (
               <div key={i} className="rounded-xl border border-border/60 p-4 space-y-3">
