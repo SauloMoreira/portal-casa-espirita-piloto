@@ -48,7 +48,7 @@ export default function MeuPerfil() {
         setAssistidoId(assistido.id);
         setForm({
           nome: assistido.nome || "",
-          email: assistido.email || "",
+          email: assistido.email || user.email || "",
           celular: assistido.celular ? maskPhone(assistido.celular) : "",
           cpf: assistido.cpf ? maskCPF(assistido.cpf) : "",
           data_nascimento: assistido.data_nascimento || "",

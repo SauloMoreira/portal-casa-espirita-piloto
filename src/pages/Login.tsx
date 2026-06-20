@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mail, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { traduzirErroAuth } from "@/lib/authErrors";
 import ferIcon from "@/assets/fer-icon.png";
 
 export default function Login() {
@@ -38,7 +39,7 @@ export default function Login() {
     } catch (error: any) {
       toast({
         title: "Erro ao entrar",
-        description: error?.message || "Verifique suas credenciais e tente novamente.",
+        description: traduzirErroAuth(error?.message),
         variant: "destructive",
       });
     } finally {
