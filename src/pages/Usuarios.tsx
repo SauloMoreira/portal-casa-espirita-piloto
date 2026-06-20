@@ -324,7 +324,7 @@ export default function Usuarios() {
                 {errors.nome_completo && <p className="text-xs text-destructive">{errors.nome_completo}</p>}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>CPF *</Label>
                   <Input value={form.cpf} onChange={(e) => setForm({ ...form, cpf: maskCPF(e.target.value) })} placeholder="000.000.000-00" maxLength={14} className={errors.cpf ? "border-destructive" : ""} />
@@ -335,13 +335,18 @@ export default function Usuarios() {
                   <Input value={form.celular} onChange={(e) => setForm({ ...form, celular: maskPhone(e.target.value) })} placeholder="(00) 00000-0000" maxLength={15} className={errors.celular ? "border-destructive" : ""} />
                   {errors.celular && <p className="text-xs text-destructive">{errors.celular}</p>}
                 </div>
-                {!editUserId && (
-                  <div className="space-y-2">
-                    <Label>E-mail *</Label>
-                    <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={errors.email ? "border-destructive" : ""} />
-                    {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-                  </div>
-                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>E-mail {editUserId ? "" : "*"}</Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  readOnly={!!editUserId}
+                  onChange={editUserId ? undefined : (e) => setForm({ ...form, email: e.target.value })}
+                  className={errors.email ? "border-destructive" : (editUserId ? "bg-muted/40" : "")}
+                />
+                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               </div>
 
               {!editUserId && (
