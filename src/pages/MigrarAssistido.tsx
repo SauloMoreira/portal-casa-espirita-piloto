@@ -282,10 +282,13 @@ export default function MigrarAssistido() {
             },
           ]),
         ),
+        pularAgenda,
       });
       toast({
-        title: "Assistido migrado com sucesso!",
-        description: `${res.vinculosCriados} tratamento(s) e ${res.sessoesCriadas} sessão(ões) gerada(s).`,
+        title: pularAgenda ? "Assistido salvo (sem agenda)" : "Assistido migrado e reconciliado!",
+        description: pularAgenda
+          ? `${res.vinculosCriados} tratamento(s) salvo(s). Nenhuma agenda foi gerada — use "Recalcular agenda pela regra oficial" depois.`
+          : `${res.vinculosCriados} tratamento(s) e ${res.sessoesCriadas} sessão(ões) gravada(s).`,
       });
       navigate("/assistidos");
     } catch (e: any) {
