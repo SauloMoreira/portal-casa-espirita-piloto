@@ -2,14 +2,16 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   buildAssistidoLegadoInsert,
   validateTratamentoLegado,
-  previewAgendaTratamento,
+  previewAgendaMigracao,
   type AssistidoLegadoBase,
   type TratamentoLegadoInput,
+  type TipoMigracao,
 } from "@/lib/migracaoLegado";
 import {
   normalizarSessoes,
   projetarAgendaConsolidada,
   sessoesIguais,
+  MODO_AGENDADO_POR_DATA_INICIAL,
   type ParametrosTipoAgenda,
 } from "@/lib/agendaRules";
 import type { SessaoGerada } from "@/types/fazerEntrevista";
@@ -24,8 +26,10 @@ export interface MigrarAssistidoParams {
   dataMigracao: string;
   observacaoMigracao?: string | null;
   tratamentos: TratamentoLegadoInput[];
-  /** Parâmetros oficiais de agenda por tratamento_id (dia/horário/frequência). */
-  tipoAgendaPorTratamento: Record<string, ParametrosTipoAgenda>;
+  /** Tipos oficiais por tratamento_id (agenda + modo + ordem + flags públicas). */
+  tiposPorTratamento: Record<string, TipoMigracao>;
+  /** Data base da projeção (yyyy-MM-dd). Piso em hoje aplicado neste contexto. */
+  dataBaseProjecao?: string | null;
   /**
    * Payload da prévia exibida ao operador, por índice de tratamento. O serviço
    * recalcula e compara: só grava se for idêntico ao canônico do backend.
@@ -41,6 +45,7 @@ export interface MigrarAssistidoParams {
     }
   >;
 }
+
 
 export interface MigrarAssistidoResult {
   assistidoId: string;
