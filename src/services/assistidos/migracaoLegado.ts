@@ -240,32 +240,55 @@ export interface ReconciliarVinculoInput {
   quantidade_total: number;
   quantidade_realizada: number;
   observacao?: string | null;
-  /** Data de início da projeção (yyyy-MM-dd) ou null para não gerar agora. */
-  dataInicio?: string | null;
+  /** Parâmetros oficiais de agenda do tipo de tratamento. */
   tipo: ParametrosTipoAgenda;
+  /** Modo de agendamento oficial do tipo de tratamento. */
+  modo_agendamento: string;
+  /** Ordem oficial do tratamento (cadeia sequencial). */
+  ordem_tratamento: number;
+  /** Override de data inicial (modo por data inicial / livre). */
+  dataInicio?: string | null;
 }
 
 /**
- * Reconciliação segura de um assistido legado JÁ existente (vínculos criados,
- * sem agenda). Reutiliza a mesma regra oficial e a mesma RPC idempotente —
- * reexecução não duplica agenda nem corrompe estado.
+ * Reconciliação segura de um assistido legado JÁ existente. Reutiliza a MESMA
+ * inteligência oficial do fluxo normal através de `projetarAgendaConsolidada`:
+ * tratamentos sequenciais são ENCADEADOS por ordem (cada um começa após a
+ * última sessão do anterior) e os livres rodam em paralelo. Sem cálculo de
+ * datas paralelo e sem regra própria de agenda.
+ *
+ * A mesma RPC idempotente é usada — reexecução não duplica agenda.
  */
 export async function reconciliarAssistidoLegado(
   assistidoId: string,
   vinculos: ReconciliarVinculoInput[],
+  baseStart: Date = new Date(),
 ): Promise<MigrarAssistidoResult> {
+  const parseInicio = (s?: string | null): Date | null => {
+    if (!s || !s.trim()) return null;
+    const d = new Date(s.trim() + "T12:00:00");
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const projecoes = projetarAgendaConsolidada(
+    vinculos.map((v) => ({
+      ref: v.vinculo_id,
+      tratamento_id: v.tratamento_id,
+      status: v.status,
+      quantidade_total: v.quantidade_total,
+      quantidade_realizada: v.quantidade_realizada,
+      modo_agendamento: v.modo_agendamento,
+      ordem_tratamento: v.ordem_tratamento,
+      tipo: v.tipo,
+      dataInicio: parseInicio(v.dataInicio),
+    })),
+    baseStart,
+  );
+
+  const projPorRef = new Map(projecoes.map((p) => [p.ref, p]));
+
   const tratamentosPayload = vinculos.map((v) => {
-    const preview = previewAgendaTratamento(
-      {
-        tratamento_id: v.tratamento_id,
-        status: v.status,
-        quantidade_total: v.quantidade_total,
-        quantidade_realizada: v.quantidade_realizada,
-        proxima_sessao_data: v.dataInicio,
-      },
-      v.tipo,
-      v.dataInicio,
-    );
+    const proj = projPorRef.get(v.vinculo_id);
     return {
       vinculo_id: v.vinculo_id,
       tratamento_id: v.tratamento_id,
@@ -273,7 +296,7 @@ export async function reconciliarAssistidoLegado(
       quantidade_total: v.quantidade_total,
       quantidade_realizada: v.quantidade_realizada,
       observacao: v.observacao?.trim() || null,
-      sessoes: normalizarSessoes(preview.sessoes),
+      sessoes: normalizarSessoes(proj?.sessoes ?? []),
     };
   });
 
