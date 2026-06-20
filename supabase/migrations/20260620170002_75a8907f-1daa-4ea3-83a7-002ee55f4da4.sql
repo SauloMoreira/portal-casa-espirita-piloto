@@ -1,0 +1,1 @@
+ALTER TABLE public.acao_social_config ADD COLUMN IF NOT EXISTS mensagem_institucional text;

@@ -64,6 +64,7 @@ export type Database = {
           created_at: string
           exibir_prazo: boolean
           id: string
+          mensagem_institucional: string | null
           observacao_prazo: string | null
           prazo_final_entrega: string | null
           updated_at: string
@@ -73,6 +74,7 @@ export type Database = {
           created_at?: string
           exibir_prazo?: boolean
           id?: string
+          mensagem_institucional?: string | null
           observacao_prazo?: string | null
           prazo_final_entrega?: string | null
           updated_at?: string
@@ -82,6 +84,7 @@ export type Database = {
           created_at?: string
           exibir_prazo?: boolean
           id?: string
+          mensagem_institucional?: string | null
           observacao_prazo?: string | null
           prazo_final_entrega?: string | null
           updated_at?: string
