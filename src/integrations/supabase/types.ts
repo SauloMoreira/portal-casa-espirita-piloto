@@ -2045,6 +2045,7 @@ export type Database = {
           cep: string | null
           cidade: string | null
           complemento: string | null
+          comunicacao_geral_ativa: boolean
           cpf: string | null
           created_at: string
           created_by: string | null
@@ -2065,6 +2066,7 @@ export type Database = {
           cep?: string | null
           cidade?: string | null
           complemento?: string | null
+          comunicacao_geral_ativa?: boolean
           cpf?: string | null
           created_at?: string
           created_by?: string | null
@@ -2085,6 +2087,7 @@ export type Database = {
           cep?: string | null
           cidade?: string | null
           complemento?: string | null
+          comunicacao_geral_ativa?: boolean
           cpf?: string | null
           created_at?: string
           created_by?: string | null

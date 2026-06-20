@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS comunicacao_geral_ativa boolean NOT NULL DEFAULT true;
