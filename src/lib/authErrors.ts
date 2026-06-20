@@ -29,3 +29,36 @@ export function traduzirErroAuth(mensagem: string | undefined | null): string {
 
   return fallback;
 }
+
+/**
+ * Traduz mensagens de erro relacionadas à definição/redefinição de senha.
+ */
+export function traduzirErroSenha(mensagem: string | undefined | null): string {
+  const fallback = "Não foi possível redefinir a senha. Tente novamente.";
+
+  if (!mensagem) return fallback;
+
+  const m = mensagem.toLowerCase();
+
+  if (m.includes("weak") || m.includes("easy to guess") || m.includes("pwned") || m.includes("known to be")) {
+    return "Esta senha é muito fraca ou fácil de adivinhar. Escolha uma senha mais forte.";
+  }
+  if (m.includes("at least") || m.includes("should be at least") || m.includes("minimum") || m.includes("too short")) {
+    return "A senha é muito curta. Use uma senha mais longa.";
+  }
+  if (m.includes("different from the old") || m.includes("should be different")) {
+    return "A nova senha deve ser diferente da senha anterior.";
+  }
+  if (
+    m.includes("rate limit") ||
+    m.includes("too many") ||
+    m.includes("many requests")
+  ) {
+    return "Muitas tentativas. Aguarde alguns instantes e tente novamente.";
+  }
+  if (m.includes("expired") || m.includes("invalid") || m.includes("token")) {
+    return "O link de redefinição é inválido ou expirou. Solicite um novo.";
+  }
+
+  return fallback;
+}
