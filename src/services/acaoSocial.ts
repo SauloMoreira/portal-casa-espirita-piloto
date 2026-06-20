@@ -62,6 +62,7 @@ export type AcaoSocialConfigInput = {
   prazo_final_entrega?: string | null;
   observacao_prazo?: string | null;
   exibir_prazo?: boolean;
+  mensagem_institucional?: string | null;
 };
 
 /** Busca a configuração única da Ação Social (prazo de entrega do mês). */
