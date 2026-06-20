@@ -274,7 +274,7 @@ export default function Usuarios() {
       nome_completo: p?.nome_completo || "",
       celular: maskPhone(p?.celular || ""),
       cpf: maskCPF(p?.cpf || ""),
-      email: "", password: "",
+      email: u.email || "", password: "",
       cep: p?.cep || "",
       logradouro: p?.logradouro || "",
       numero: p?.numero || "",
