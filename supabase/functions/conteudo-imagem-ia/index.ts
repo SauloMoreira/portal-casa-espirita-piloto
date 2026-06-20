@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 
-const IMAGE_MODEL = "google/gemini-2.5-flash-image";
+const IMAGE_MODEL = "google/gemini-3-pro-image-preview";
 const BUCKET = "avatars";
 const MAX_DIM = 1600;
 

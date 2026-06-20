@@ -109,34 +109,30 @@ export function montarPromptGeracao(
   const linhas: string[] = [];
   const rotuloTipo = tipo === "campanha" ? "campanha institucional" : "evento";
   linhas.push(
-    `Arte promocional puramente ilustrativa para uma ${rotuloTipo} de uma casa espírita de assistência (instituição beneficente).`,
+    `Crie uma arte promocional para uma ${rotuloTipo} de uma casa espírita de assistência (instituição beneficente).`,
   );
-  // Os campos abaixo servem APENAS como inspiração temática/visual.
-  // Eles NÃO devem ser escritos, renderizados ou estilizados como texto na imagem.
+  // Os campos abaixo devem ser renderizados como texto, EXATAMENTE como escritos.
   linhas.push(
-    `Use as informações a seguir somente como tema e inspiração visual (NÃO escreva nenhuma dessas palavras na imagem):`,
+    `O texto da arte deve ser reproduzido LETRA POR LETRA, exatamente como abaixo, em português do Brasil, ` +
+      `sem inventar, traduzir, abreviar ou alterar nenhuma palavra. Verifique a ortografia de cada palavra:`,
   );
-  if (dados.titulo) linhas.push(`Título: ${dados.titulo.trim()}.`);
-  if (dados.subtitulo) linhas.push(`Subtítulo: ${dados.subtitulo.trim()}.`);
-  if (dados.descricao_curta) linhas.push(`Resumo: ${dados.descricao_curta.trim()}.`);
-  if (dados.descricao_completa) linhas.push(`Contexto: ${dados.descricao_completa.trim().slice(0, 400)}.`);
-  if (tipo === "evento" && dados.local) linhas.push(`Local: ${dados.local.trim()}.`);
+  if (dados.titulo) linhas.push(`Título (texto exato): "${dados.titulo.trim()}".`);
+  if (dados.subtitulo) linhas.push(`Subtítulo (texto exato): "${dados.subtitulo.trim()}".`);
+  if (dados.descricao_curta) linhas.push(`Texto de apoio (exato): "${dados.descricao_curta.trim()}".`);
+  if (dados.descricao_completa) linhas.push(`Texto principal (exato): "${dados.descricao_completa.trim().slice(0, 400)}".`);
+  if (tipo === "evento" && dados.local) linhas.push(`Local (texto exato): "${dados.local.trim()}".`);
 
   const fmt = formatoConfig(formato);
   linhas.push(
     `Estilo institucional, acolhedor, elegante, limpo, moderno e harmonioso. ` +
       `Paleta serena (tons de verde-azulado/teal e sálvia), iluminação suave. ` +
       `Composição ${orientacaoFormato(formato)} em ${fmt.label.toLowerCase()}, ` +
-      `enquadramento na proporção ${fmt.ratio} (largura:altura), com o assunto principal centralizado e bem aproveitado nessa proporção.`,
+      `enquadramento na proporção ${fmt.ratio} (largura:altura), com o assunto principal e o texto bem distribuídos nessa proporção.`,
   );
-  // Regra absoluta contra texto: modelos de imagem tendem a "escrever" o título/descrição
-  // de forma ilegível e com erros. Proibimos qualquer texto de forma enfática.
   linhas.push(
-    `REGRA ABSOLUTA: a imagem deve ser 100% livre de texto. ` +
-      `Sem texto sobreposto, sem letras, sem palavras, sem números, sem títulos, sem legendas, ` +
-      `sem tipografia, sem caligrafia, sem logotipos com texto e sem qualquer escrita em qualquer idioma. ` +
-      `Apenas elementos visuais (ilustração, formas, cenas, símbolos). ` +
-      `Sem cara de panfleto, sem poluição visual, sem elementos agressivos.`,
+    `REQUISITO DE TIPOGRAFIA: todo texto deve estar perfeitamente legível, nítido, com gramática e ortografia corretas em português do Brasil, ` +
+      `usando exatamente as palavras fornecidas acima — não acrescente, não remova e não modifique nenhuma letra ou acento. ` +
+      `Não invente texto adicional. Use uma fonte limpa e elegante, bem contrastada com o fundo.`,
   );
   return linhas.join(" ");
 }
