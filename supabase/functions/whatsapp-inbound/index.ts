@@ -908,7 +908,139 @@ const INTENCOES_HUMANIZAVEIS = new Set<Intencao>([
   "onde_ver_app", "programacao_publica", "eventos", "campanhas", "acao_social",
 ]);
 
-// ===================== FASE 2 — ORQUESTRADOR (precedência + próxima válida) =====================
+// ===================== BASE DE CONHECIMENTO DO SITE (apoio público) =====================
+// Espelho determinístico de src/lib/siteConhecimento.ts (testado em vitest).
+// Camada de APOIO para perguntas públicas de conhecimento. Nunca sobrepõe agenda
+// real, exceções, programação padrão ou agendamento pessoal — essas perguntas
+// sequer chegam aqui (são resolvidas antes). Anti-contaminação e guarda temporal
+// aplicadas. Leitura via service_role; só usa documentos ativos + usar_na_ia.
+type CategoriaSite =
+  | "tratamento" | "institucional" | "contato" | "doacao"
+  | "campanha" | "evento" | "comunicado" | "outros";
+interface SiteDoc {
+  url: string; titulo: string; resumo: string; corpo: string;
+  categoria: CategoriaSite; prioridade: "alta" | "media" | "baixa" | "condicionada";
+  temporal: boolean; usar_na_ia: boolean; status: string;
+}
+
+function normSite(s: string): string {
+  return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+}
+const SITE_KW_TRATAMENTO = ["magnetismo", "desobsessao", "evangelhoterapia", "evangelho terapia", "apometria", "passe", "agua fluidificada", "fluidificada", "tratamento", "tratamentos", "terapia", "terapias", "sessao espirita", "que tratamentos", "quais tratamentos", "o que e o", "o que e a", "como funciona o tratamento", "cura", "mediunidade"];
+const SITE_KW_CONTATO = ["contato", "telefone", "whatsapp", "email", "e-mail", "endereco", "onde fica", "onde e", "localizacao", "como chegar", "horario de funcionamento", "que horas abre", "como falar", "canais", "redes sociais"];
+const SITE_KW_INSTITUCIONAL = ["o que e a fer", "como funciona a fer", "como funciona a casa", "sobre a casa", "sobre a fer", "historia", "missao", "fundacao", "federacao", "quem somos", "o que e a casa", "como funciona", "funcionamento da casa", "trabalho da casa"];
+const SITE_KW_DOACAO = ["doar", "doacao", "doacoes", "contribuir", "ajudar a casa", "contribuicao"];
+const SITE_KW_CAMPANHA = ["campanha", "campanhas", "socio mantenedor", "mantenedor"];
+const SITE_KW_EVENTO = ["evento", "eventos", "palestra especial", "encontro"];
+function siteAlgum(txt: string, termos: string[]): boolean {
+  return termos.some((raw) => txt.includes(normSite(raw)));
+}
+function indicaConhecimentoPublico(query: string): boolean {
+  const txt = normSite(query);
+  if (!txt) return false;
+  return siteAlgum(txt, SITE_KW_TRATAMENTO) || siteAlgum(txt, SITE_KW_CONTATO)
+    || siteAlgum(txt, SITE_KW_INSTITUCIONAL) || siteAlgum(txt, SITE_KW_DOACAO)
+    || siteAlgum(txt, SITE_KW_CAMPANHA) || siteAlgum(txt, SITE_KW_EVENTO);
+}
+function siteCategoriasAlvo(query: string, intencao: string): Set<CategoriaSite> {
+  const txt = normSite(query);
+  const alvos = new Set<CategoriaSite>();
+  if (siteAlgum(txt, SITE_KW_TRATAMENTO)) alvos.add("tratamento");
+  if (siteAlgum(txt, SITE_KW_INSTITUCIONAL)) { alvos.add("institucional"); alvos.add("contato"); }
+  if (siteAlgum(txt, SITE_KW_CONTATO)) alvos.add("contato");
+  if (siteAlgum(txt, SITE_KW_DOACAO)) alvos.add("doacao");
+  if (siteAlgum(txt, SITE_KW_CAMPANHA)) alvos.add("campanha");
+  if (siteAlgum(txt, SITE_KW_EVENTO)) alvos.add("evento");
+  if (alvos.size === 0 && (intencao === "pedido_informacao" || intencao === "programacao_publica")) {
+    alvos.add("institucional"); alvos.add("contato");
+  }
+  return alvos;
+}
+const SITE_PESO: Record<string, number> = { alta: 3, media: 2, baixa: 1, condicionada: 0.5 };
+function siteTermos(query: string): string[] {
+  return normSite(query).split(" ").map((t) => t.replace(/[^\p{L}\p{N}]/gu, "")).filter((t) => t.length >= 3);
+}
+function selecionarDocumentosSite(query: string, intencao: string, docs: SiteDoc[], max: number): SiteDoc[] {
+  const alvos = siteCategoriasAlvo(query, intencao);
+  if (alvos.size === 0) return [];
+  const perguntaTratamento = alvos.has("tratamento");
+  const termos = siteTermos(query);
+  const candidatos = (docs || [])
+    .filter((d) => d && d.status === "ativo" && d.usar_na_ia === true)
+    .filter((d) => alvos.has(d.categoria))
+    .filter((d) => !(perguntaTratamento && (d.categoria === "doacao" || d.categoria === "campanha")))
+    .filter((d) => {
+      if (!d.temporal) return true;
+      const titulo = normSite(d.titulo);
+      return termos.some((t) => titulo.includes(t));
+    });
+  return candidatos
+    .map((d) => {
+      const titulo = normSite(d.titulo), resumo = normSite(d.resumo), corpo = normSite(d.corpo);
+      let score = 0;
+      for (const t of termos) {
+        if (!t) continue;
+        if (titulo.includes(t)) score += 3;
+        else if (resumo.includes(t)) score += 2;
+        else if (corpo.includes(t)) score += 1;
+      }
+      return { doc: d, score, peso: SITE_PESO[d.prioridade] ?? 1 };
+    })
+    .filter((r) => r.score > 0)
+    .sort((a, b) => (b.score - a.score) || (b.peso - a.peso))
+    .slice(0, Math.max(1, max))
+    .map((r) => r.doc);
+}
+function montarContextoSite(docs: SiteDoc[]): string {
+  if (!docs || docs.length === 0) return "";
+  return docs.map((d) => `• ${d.titulo.trim()}: ${(d.resumo || d.corpo || "").trim()}`).join("\n");
+}
+
+/** Define se a intenção/mensagem habilita a consulta à base do site. */
+function siteQualifica(intencao: Intencao, texto: string): boolean {
+  if (intencao === "pedido_informacao") return true;
+  if (intencao === "complexo") return indicaConhecimentoPublico(texto);
+  if (intencao === "programacao_publica") {
+    return !temDataExplicita(texto) && indicaConhecimentoPublico(texto);
+  }
+  return false;
+}
+
+/**
+ * Consulta a base do site (regras + documentos ativos) e devolve um bloco
+ * factual grounded para humanização, ou null quando desativada/sem documentos.
+ */
+async function consultarConhecimentoSite(
+  admin: ReturnType<typeof createClient>,
+  texto: string,
+  intencao: Intencao,
+): Promise<string | null> {
+  try {
+    if (!siteQualifica(intencao, texto)) return null;
+    const { data: regras } = await admin
+      .from("regras_operacionais")
+      .select("chave, valor, ativo")
+      .in("chave", ["site_ia_ativo", "site_ia_max_documentos"]);
+    const rAtivo = (regras || []).find((r: any) => r.chave === "site_ia_ativo");
+    const ativo = rAtivo ? (rAtivo.valor === "true" && rAtivo.ativo !== false) : true;
+    if (!ativo) return null;
+    const rMax = (regras || []).find((r: any) => r.chave === "site_ia_max_documentos");
+    const max = rMax ? (parseInt(rMax.valor, 10) || 3) : 3;
+
+    const { data: docs } = await admin
+      .from("ia_site_documentos")
+      .select("url, titulo, resumo, corpo, categoria, prioridade, temporal, usar_na_ia, status")
+      .eq("status", "ativo")
+      .eq("usar_na_ia", true);
+    const selecionados = selecionarDocumentosSite(texto, intencao, (docs || []) as SiteDoc[], max);
+    if (selecionados.length === 0) return null;
+    return montarContextoSite(selecionados);
+  } catch (_e) {
+    return null;
+  }
+}
+
+
 // Espelho determinístico de src/lib/whatsappOrquestrador.ts (testado em vitest).
 // Regras puras: cruzam os fatos já consultados no banco para decidir a fonte
 // vencedora e a próxima ocorrência REALMENTE válida (validando exceções).
