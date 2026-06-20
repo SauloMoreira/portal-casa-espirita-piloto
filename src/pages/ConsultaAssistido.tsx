@@ -392,7 +392,7 @@ function BlocoSessoes({
   historico = false,
 }: {
   titulo: string;
-  icone: React.ReactNode;
+  icone: ReactNode;
   sessoes: SessaoConsolidada[];
   vazio: string;
   historico?: boolean;
