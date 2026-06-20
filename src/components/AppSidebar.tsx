@@ -340,24 +340,19 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border/40 p-3">
         {!collapsed ? (
           <div
-            {...(isAssistido
-              ? {
-                  role: "button" as const,
-                  tabIndex: 0,
-                  "aria-label": "Abrir meu perfil",
-                  onClick: () => navigate("/meu-perfil"),
-                  onKeyDown: (e: React.KeyboardEvent) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      navigate("/meu-perfil");
-                    }
-                  },
-                }
-              : {})}
+            role="button"
+            tabIndex={0}
+            aria-label="Abrir meu perfil"
+            onClick={() => navigate("/meu-perfil")}
+            onKeyDown={(e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate("/meu-perfil");
+              }
+            }}
             className={cn(
               "mb-2 flex items-center gap-3 rounded-md p-1.5 -m-1.5 transition-colors",
-              isAssistido &&
-                "cursor-pointer hover:bg-sidebar-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+              "cursor-pointer hover:bg-sidebar-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
             )}
           >
             <div className="h-9 w-9 shrink-0 rounded-full bg-sidebar-accent/60 flex items-center justify-center overflow-hidden ring-2 ring-sidebar-border/30">
