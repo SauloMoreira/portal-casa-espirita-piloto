@@ -98,6 +98,7 @@ const makeConfig = (over: Partial<AcaoSocialConfig>): AcaoSocialConfig =>
     prazo_final_entrega: over.prazo_final_entrega ?? null,
     observacao_prazo: over.observacao_prazo ?? null,
     exibir_prazo: over.exibir_prazo ?? true,
+    mensagem_institucional: over.mensagem_institucional ?? null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     updated_by: null,
