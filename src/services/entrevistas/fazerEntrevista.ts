@@ -15,7 +15,7 @@ const ASSISTIDO_SELECT =
   "id, nome, cpf, celular, email, status, quantidade_palestras";
 
 const TRATAMENTO_SELECT =
-  "id, nome, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade, status, ordem_tratamento, tratamento_livre, bloqueia_proximo_tratamento, modo_agendamento, quantidade_padrao_sessoes";
+  "id, nome, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade, status, ordem_tratamento, tratamento_livre, bloqueia_proximo_tratamento, modo_agendamento, quantidade_padrao_sessoes, trabalho_publico, permite_entrada_sem_agendamento";
 
 export async function fetchInitialData(): Promise<EntrevistaInitialData> {
   const [{ data: assist }, { data: trat }, { data: config }] = await Promise.all([
