@@ -71,6 +71,7 @@ interface MergedUser {
   user_id: string;
   role: string;
   profile: Profile | null;
+  email: string | null;
 }
 
 const emptyForm = {
