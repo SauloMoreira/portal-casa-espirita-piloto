@@ -252,7 +252,12 @@ export default function GovernancaAcessos() {
             const needsMaster = r.required_approvals === 1 && !isMaster;
             // Bootstrap: a sole administrator may approve their own request.
             const requesterBlocked = isRequester && !soleAdmin;
+            // Approval restrictions: requester/target/exception-flow limits.
             const blocked = !!decided || requesterBlocked || isTarget || needsMaster;
+            // Rejecting (cancelling) is always allowed to any active admin who
+            // hasn't decided yet — including the requester. This prevents a
+            // request from deadlocking with no way to cancel it.
+            const rejectBlocked = !!decided;
             const approvedCount = approvalsFor(r.id).filter((a) => a.decision === "aprovar").length;
             return (
               <div key={r.id} className="rounded-xl border p-4 space-y-2">
