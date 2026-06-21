@@ -292,7 +292,7 @@ export default function GovernancaAcessos() {
                   <Button size="sm" disabled={blocked || loading} onClick={() => handleDecidir(r, "aprovar")}>
                     <Check className="h-4 w-4 mr-1" /> Aprovar
                   </Button>
-                  <Button size="sm" variant="destructive" disabled={blocked || loading}
+                  <Button size="sm" variant="destructive" disabled={rejectBlocked || loading}
                     onClick={() => { setRejectTarget(r); setRejectMotivo(""); }}>
                     <X className="h-4 w-4 mr-1" /> Rejeitar
                   </Button>
