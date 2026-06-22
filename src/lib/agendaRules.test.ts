@@ -3,6 +3,7 @@ import {
   projetarAgendaConsolidada,
   isTratamentoPublicoLivre,
   ocorrenciaContaParaTratamentoPublico,
+  construirPlanoEtapas,
   type TratamentoProjecaoInput,
 } from "@/lib/agendaRules";
 
