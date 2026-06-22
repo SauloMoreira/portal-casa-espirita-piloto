@@ -389,6 +389,7 @@ export function useFazerEntrevista() {
     dataEntrevista,
     quantidades,
     datasIniciais,
+    horarios,
     tratamentoMap,
     user,
     tipoEntrevista,
