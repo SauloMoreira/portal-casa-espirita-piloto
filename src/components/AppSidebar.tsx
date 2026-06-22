@@ -80,12 +80,12 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: "Visão Geral",
-    icon: LayoutDashboard,
+    label: "Início",
+    icon: Home,
     items: [
-      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "entrevistador", "tarefeiro", "assistido", "coordenador_de_tratamento"] },
+      { title: "Painel Inicial", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "entrevistador", "tarefeiro", "assistido", "coordenador_de_tratamento"] },
       { title: "Notificações", url: "/notificacoes", icon: Bell, roles: ["admin", "entrevistador", "tarefeiro", "assistido", "coordenador_de_tratamento"] },
-      { title: "Central de Ajuda", url: "/ajuda", icon: LifeBuoy, roles: ["admin", "entrevistador", "tarefeiro", "assistido", "coordenador_de_tratamento"] },
+      { title: "Ajuda", url: "/ajuda", icon: LifeBuoy, roles: ["admin", "entrevistador", "tarefeiro", "assistido", "coordenador_de_tratamento"] },
     ],
   },
   {
@@ -93,24 +93,27 @@ const navGroups: NavGroup[] = [
     icon: HandHeart,
     items: [
       { title: "Assistidos", url: "/assistidos", icon: HandHeart, roles: ["admin", "entrevistador"] },
-      { title: "Consulta do Assistido", url: "/consulta-assistido", icon: UserSearch, roles: ["admin"] },
-      { title: "Migrar Assistido", url: "/migrar-assistido", icon: History, roles: ["admin"] },
-      { title: "Homologação da Agenda", url: "/homologacao-agenda", icon: FlaskConical, roles: ["admin"] },
+      { title: "Visão do Assistido", url: "/consulta-assistido", icon: UserSearch, roles: ["admin"] },
+      { title: "Agenda de Tratamentos", url: "/agenda", icon: BookOpen, roles: ["admin", "entrevistador", "tarefeiro"] },
+      { title: "Registro de Presenças", url: "/presenca", icon: ClipboardCheck, roles: ["admin", "tarefeiro"] },
       { title: "Agendar Entrevista", url: "/entrevistas", icon: Calendar, roles: ["admin", "entrevistador", "tarefeiro"] },
-      { title: "Realizar Entrevista", url: "/fazer-entrevista", icon: ClipboardCheck, roles: ["admin", "entrevistador"] },
-      { title: "Agenda", url: "/agenda", icon: BookOpen, roles: ["admin", "entrevistador", "tarefeiro"] },
-      { title: "Presença", url: "/presenca", icon: Heart, roles: ["admin", "tarefeiro"] },
+      { title: "Realizar Entrevista", url: "/fazer-entrevista", icon: Stethoscope, roles: ["admin", "entrevistador"] },
       { title: "Sessões Públicas", url: "/sessoes-publicas", icon: QrCode, roles: ["admin", "tarefeiro"] },
     ],
   },
   {
-    label: "Tratamentos",
+    label: "Coordenação",
     icon: Stethoscope,
     items: [
-      { title: "Tratamentos", url: "/tratamentos", icon: Heart, roles: ["admin"] },
       { title: "Lista de Espera", url: "/lista-espera", icon: ClipboardCheck, roles: ["coordenador_de_tratamento"] },
       { title: "Meus Tratamentos", url: "/coordenador-tratamentos", icon: Heart, roles: ["coordenador_de_tratamento"] },
       { title: "Agenda do Tratamento", url: "/coordenador-agenda", icon: Calendar, roles: ["coordenador_de_tratamento"] },
+    ],
+  },
+  {
+    label: "Meu Espaço",
+    icon: User,
+    items: [
       { title: "Meus Tratamentos", url: "/meus-tratamentos", icon: Heart, roles: ["assistido"] },
       { title: "Minha Agenda", url: "/minha-agenda", icon: Calendar, roles: ["assistido"] },
       { title: "Documentos", url: "/meus-documentos", icon: FileText, roles: ["assistido"] },
@@ -121,23 +124,29 @@ const navGroups: NavGroup[] = [
     icon: Users,
     items: [
       { title: "Usuários", url: "/usuarios", icon: Users, roles: ["admin"] },
-      { title: "Solicitações de Cadastro", url: "/solicitacoes-cadastro", icon: UserPlus, roles: ["admin"] },
-      { title: "Governança de Acessos", url: "/governanca-acessos", icon: ShieldCheck, roles: ["admin"] },
-      { title: "Segurança da Conta", url: "/seguranca", icon: KeyRound, roles: ["admin"] },
       { title: "Voluntários", url: "/voluntarios", icon: UserCheck, roles: ["admin"] },
-      { title: "Funções Voluntariado", url: "/funcoes-voluntariado", icon: ClipboardCheck, roles: ["admin"] },
+      { title: "Funções de Voluntariado", url: "/funcoes-voluntariado", icon: ClipboardCheck, roles: ["admin"] },
     ],
   },
   {
-    label: "Inteligência",
+    label: "Acesso e Segurança",
+    icon: ShieldCheck,
+    items: [
+      { title: "Solicitações de Cadastro", url: "/solicitacoes-cadastro", icon: UserPlus, roles: ["admin"] },
+      { title: "Permissões de Acesso", url: "/governanca-acessos", icon: ShieldCheck, roles: ["admin"] },
+      { title: "Segurança da Conta", url: "/seguranca", icon: KeyRound, roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Inteligência e Monitoramento",
     icon: Brain,
     items: [
       { title: "Central de IA", url: "/central-ia", icon: Brain, roles: ["admin", "entrevistador"] },
-      { title: "Central de Notificações", url: "/central-notificacoes", icon: MessageCircle, roles: ["admin", "coordenador_de_tratamento"] },
+      { title: "Fila de Notificações", url: "/central-notificacoes", icon: MessageCircle, roles: ["admin", "coordenador_de_tratamento"] },
       { title: "Relatórios", url: "/relatorios", icon: BarChart3, roles: ["admin", "entrevistador", "coordenador_de_tratamento", "tarefeiro"] },
-      { title: "Exceções", url: "/excecoes", icon: AlertTriangle, roles: ["admin"] },
-      { title: "Exceções Operacionais", url: "/excecoes-operacionais", icon: CalendarX, roles: ["admin", "coordenador_de_tratamento"] },
       { title: "Programação Padrão", url: "/programacao-padrao", icon: CalendarClock, roles: ["admin", "coordenador_de_tratamento"] },
+      { title: "Exceções Operacionais", url: "/excecoes-operacionais", icon: CalendarX, roles: ["admin", "coordenador_de_tratamento"] },
+      { title: "Exceções do Sistema", url: "/excecoes", icon: AlertTriangle, roles: ["admin"] },
       { title: "Auditoria", url: "/auditoria", icon: Shield, roles: ["admin"] },
     ],
   },
@@ -146,14 +155,29 @@ const navGroups: NavGroup[] = [
     icon: Landmark,
     items: [
       { title: "Instituição", url: "/instituicao", icon: Building2, roles: ["admin"] },
-      { title: "Painel Institucional", url: "/painel-institucional", icon: LayoutDashboard, roles: ["admin"] },
+      { title: "Gestão Institucional", url: "/painel-institucional", icon: LayoutDashboard, roles: ["admin"] },
       { title: "Ação Social", url: "/acao-social", icon: Apple, roles: ["admin"] },
       { title: "Campanhas", url: "/campanhas", icon: Megaphone, roles: ["admin"] },
       { title: "Eventos", url: "/eventos", icon: CalendarDays, roles: ["admin"] },
       { title: "Comunicação", url: "/comunicacao-institucional", icon: Send, roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Configurações e Regras",
+    icon: SlidersHorizontal,
+    items: [
+      { title: "Tipos de Tratamento", url: "/tratamentos", icon: Heart, roles: ["admin"] },
       { title: "Regras Operacionais", url: "/regras", icon: Cog, roles: ["admin"] },
       { title: "Configurações", url: "/configuracoes", icon: Settings, roles: ["admin"] },
       { title: "Gestão de Cores", url: "/configuracoes/cores", icon: Palette, roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Ferramentas Administrativas",
+    icon: Wrench,
+    items: [
+      { title: "Migrar Assistido", url: "/migrar-assistido", icon: History, roles: ["admin"] },
+      { title: "Homologação da Nova Agenda", url: "/homologacao-agenda", icon: FlaskConical, roles: ["admin"] },
     ],
   },
 ];
