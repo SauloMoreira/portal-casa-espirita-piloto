@@ -35,6 +35,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 import {
   listConversasEnriquecidas, encerrarConversa, reabrirConversa,
   atualizarStatusConversa, marcarConversaRevisada,
+  getConversaMensagens, rotuloTipoMensagemConversa,
 } from "./notificacoesService";
 
 const payload = {
