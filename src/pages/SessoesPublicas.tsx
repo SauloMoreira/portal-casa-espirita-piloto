@@ -55,6 +55,7 @@ export default function SessoesPublicas() {
   const [manualSearch, setManualSearch] = useState("");
   const [manualResults, setManualResults] = useState<any[]>([]);
   const [quickForm, setQuickForm] = useState({ nome: "", celular: "", faixa_etaria: "" });
+  const [assistidoSelecionado, setAssistidoSelecionado] = useState<{ id: string; nome: string; celular: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [pulse, setPulse] = useState(false);
   const { user } = useAuth();
