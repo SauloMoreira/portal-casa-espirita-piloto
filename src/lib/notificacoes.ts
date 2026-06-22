@@ -54,6 +54,87 @@ function formatValue(key: string, raw: unknown): string {
   return value;
 }
 
+// ============================================================================
+// Reminder temporal reference (hoje / amanhã / data completa)
+// ============================================================================
+
+/** Official operational timezone of the institution. */
+export const TIMEZONE_OFICIAL = "America/Sao_Paulo";
+
+/** Returns the local calendar date (YYYY-MM-DD) of an instant in a timezone. */
+export function localDateISO(instant: Date, timeZone: string = TIMEZONE_OFICIAL): string {
+  // en-CA renders as YYYY-MM-DD.
+  return instant.toLocaleDateString("en-CA", { timeZone });
+}
+
+/** Format an ISO date (YYYY-MM-DD...) as DD/MM/YYYY. */
+export function formatarDataBR(data: string): string {
+  const m = /(\d{4})-(\d{2})-(\d{2})/.exec(String(data || ""));
+  if (!m) return String(data || "");
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+/**
+ * Whole-calendar-day difference between the session date and "now", both
+ * evaluated in the official timezone. 0 = same day, 1 = next day, etc.
+ */
+export function diffDiasCalendario(
+  sessaoData: string,
+  agora: Date,
+  timeZone: string = TIMEZONE_OFICIAL,
+): number {
+  const hojeISO = localDateISO(agora, timeZone);
+  const sessaoISO = String(sessaoData || "").slice(0, 10);
+  const a = Date.parse(`${hojeISO}T00:00:00Z`);
+  const b = Date.parse(`${sessaoISO}T00:00:00Z`);
+  if (isNaN(a) || isNaN(b)) return NaN;
+  return Math.round((b - a) / 86_400_000);
+}
+
+/**
+ * Builds the natural temporal reference compared at SEND time:
+ *  - same local day   → "hoje, DD/MM/YYYY"
+ *  - next local day   → "amanhã, DD/MM/YYYY"
+ *  - otherwise        → "no dia DD/MM/YYYY"
+ */
+export function referenciaTemporalLembrete(
+  sessaoData: string,
+  agora: Date,
+  timeZone: string = TIMEZONE_OFICIAL,
+): string {
+  const dataFmt = formatarDataBR(sessaoData);
+  const diff = diffDiasCalendario(sessaoData, agora, timeZone);
+  if (diff === 0) return `hoje, ${dataFmt}`;
+  if (diff === 1) return `amanhã, ${dataFmt}`;
+  return `no dia ${dataFmt}`;
+}
+
+/** Builds the session start instant from date + time in the official timezone. */
+export function sessaoInstante(
+  sessaoData: string,
+  horario: string,
+  // São Paulo no longer observes DST → fixed -03:00.
+  tzOffset: string = "-03:00",
+): Date {
+  const d = String(sessaoData || "").slice(0, 10);
+  const h = String(horario || "00:00").slice(0, 5);
+  return new Date(`${d}T${h}:00${tzOffset}`);
+}
+
+/**
+ * A reminder is stale/expired when, at dispatch time, the session has already
+ * started or passed (now >= session start). Such items must NOT be sent.
+ */
+export function lembreteVencido(
+  sessaoData: string,
+  horario: string,
+  agora: Date,
+): boolean {
+  const inst = sessaoInstante(sessaoData, horario);
+  if (isNaN(inst.getTime())) return false;
+  return agora.getTime() >= inst.getTime();
+}
+
 /** Parse a "HH:MM" or "HH:MM:SS" string into minutes since midnight. */
 export function parseHoraMin(hora: string): number {
   const [h, m] = hora.split(":");
