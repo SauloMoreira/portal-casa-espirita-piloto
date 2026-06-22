@@ -281,7 +281,7 @@ export default function TarefeiroDashboard() {
                               variant="default"
                               className="gap-1 h-7 text-xs"
                               disabled={loadingId === item.assistido_tratamento_id}
-                              onClick={() => registrarPresenca(item.assistido_tratamento_id, "presente")}
+                              onClick={() => registrarPresenca(item, "presente")}
                             >
                               <Check className="h-3 w-3" /> Presente
                             </Button>
@@ -290,7 +290,7 @@ export default function TarefeiroDashboard() {
                               variant="outline"
                               className="gap-1 h-7 text-xs"
                               disabled={loadingId === item.assistido_tratamento_id}
-                              onClick={() => registrarPresenca(item.assistido_tratamento_id, "ausente")}
+                              onClick={() => registrarPresenca(item, "ausente")}
                             >
                               <X className="h-3 w-3" /> Ausente
                             </Button>
