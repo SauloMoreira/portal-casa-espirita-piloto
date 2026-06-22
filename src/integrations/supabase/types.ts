@@ -2001,6 +2001,7 @@ export type Database = {
           data_base_utilizada: string | null
           data_prevista: string | null
           eh_publico_livre: boolean
+          horario_previsto: string | null
           id: string
           numero_etapa: number
           ordem_tratamento: number | null
@@ -2019,6 +2020,7 @@ export type Database = {
           data_base_utilizada?: string | null
           data_prevista?: string | null
           eh_publico_livre?: boolean
+          horario_previsto?: string | null
           id?: string
           numero_etapa: number
           ordem_tratamento?: number | null
@@ -2037,6 +2039,7 @@ export type Database = {
           data_base_utilizada?: string | null
           data_prevista?: string | null
           eh_publico_livre?: boolean
+          horario_previsto?: string | null
           id?: string
           numero_etapa?: number
           ordem_tratamento?: number | null
