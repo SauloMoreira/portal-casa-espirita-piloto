@@ -36,7 +36,99 @@ import {
   listConversasEnriquecidas, encerrarConversa, reabrirConversa,
   atualizarStatusConversa, marcarConversaRevisada,
   getConversaMensagens, rotuloTipoMensagemConversa,
+  filaItemNome, filaItemTratamento, filaItemPrevisao,
+  filtrarFila, ordenarFila,
+  type FilaItem,
 } from "./notificacoesService";
+
+function mkFila(p: Partial<FilaItem> = {}): FilaItem {
+  return {
+    id: p.id ?? "f1",
+    evento_origem: p.evento_origem ?? "sessao_lembrete",
+    assistido_id: p.assistido_id ?? "a1",
+    telefone_normalizado: p.telefone_normalizado ?? "5511999999999",
+    canal: p.canal ?? "whatsapp",
+    template_codigo: p.template_codigo ?? "sessao_lembrete",
+    status: p.status ?? "agendado",
+    scheduled_at: p.scheduled_at ?? "2026-06-24T19:00:00Z",
+    sent_at: p.sent_at ?? null,
+    retry_count: p.retry_count ?? 0,
+    external_message_id: p.external_message_id ?? null,
+    erro: p.erro ?? null,
+    created_at: p.created_at ?? "2026-06-20T10:00:00Z",
+    payload_json: p.payload_json ?? { nome: "Ana Rosa", tratamento: "Desobsessão" },
+  };
+}
+
+describe("Fila — resolução de campos a partir do payload oficial", () => {
+  it("exibe nome quando houver no payload", () => {
+    expect(filaItemNome(mkFila())).toBe("Ana Rosa");
+  });
+  it("retorna null (fallback) quando não houver nome", () => {
+    expect(filaItemNome(mkFila({ payload_json: {} }))).toBeNull();
+    expect(filaItemNome(mkFila({ payload_json: null }))).toBeNull();
+  });
+  it("exibe tratamento quando houver", () => {
+    expect(filaItemTratamento(mkFila())).toBe("Desobsessão");
+  });
+  it("não quebra e retorna null quando não houver tratamento", () => {
+    expect(filaItemTratamento(mkFila({ payload_json: { nome: "X" } }))).toBeNull();
+  });
+  it("previsão de envio vem de scheduled_at", () => {
+    expect(filaItemPrevisao(mkFila({ scheduled_at: "2026-06-24T19:00:00Z" }))).toBe("2026-06-24T19:00:00Z");
+  });
+});
+
+describe("Fila — filtros combináveis", () => {
+  const base = [
+    mkFila({ id: "a", status: "agendado", payload_json: { nome: "Ana", tratamento: "Desobsessão" }, telefone_normalizado: "5511111", scheduled_at: "2026-06-24T19:00:00Z" }),
+    mkFila({ id: "b", status: "enviado", payload_json: { nome: "Bruno", tratamento: "Anti-Goécia" }, telefone_normalizado: "5522222", scheduled_at: "2026-06-23T19:00:00Z", sent_at: "2026-06-23T19:01:00Z" }),
+    mkFila({ id: "c", status: "cancelado", payload_json: {}, telefone_normalizado: "5533333", scheduled_at: "2026-06-25T19:00:00Z" }),
+  ];
+  it("filtra por status", () => {
+    expect(filtrarFila(base, { status: "enviado" }).map((f) => f.id)).toEqual(["b"]);
+  });
+  it("status 'todos' não filtra", () => {
+    expect(filtrarFila(base, { status: "todos" })).toHaveLength(3);
+  });
+  it("filtra por nome", () => {
+    expect(filtrarFila(base, { nome: "ana" }).map((f) => f.id)).toEqual(["a"]);
+  });
+  it("filtra por telefone", () => {
+    expect(filtrarFila(base, { telefone: "22222" }).map((f) => f.id)).toEqual(["b"]);
+  });
+  it("filtra por tratamento", () => {
+    expect(filtrarFila(base, { tratamento: "goécia" }).map((f) => f.id)).toEqual(["b"]);
+  });
+  it("filtra por período de previsão", () => {
+    expect(filtrarFila(base, { previsaoDe: "2026-06-24", previsaoAte: "2026-06-24" }).map((f) => f.id)).toEqual(["a"]);
+  });
+  it("filtra por período de envio real", () => {
+    expect(filtrarFila(base, { envioDe: "2026-06-23", envioAte: "2026-06-23" }).map((f) => f.id)).toEqual(["b"]);
+  });
+  it("combina filtros sem confusão", () => {
+    expect(filtrarFila(base, { status: "agendado", tratamento: "deso" }).map((f) => f.id)).toEqual(["a"]);
+    expect(filtrarFila(base, { status: "enviado", tratamento: "deso" })).toHaveLength(0);
+  });
+});
+
+describe("Fila — ordenação", () => {
+  const base = [
+    mkFila({ id: "a", scheduled_at: "2026-06-24T19:00:00Z", sent_at: null, payload_json: { nome: "Bruno" } }),
+    mkFila({ id: "b", scheduled_at: "2026-06-23T19:00:00Z", sent_at: "2026-06-23T19:01:00Z", payload_json: { nome: "Ana" } }),
+    mkFila({ id: "c", scheduled_at: "2026-06-25T19:00:00Z", sent_at: null, payload_json: { nome: "Carlos" } }),
+  ];
+  it("ordena por previsão mais próxima", () => {
+    expect(ordenarFila(base, "previsao_proxima").map((f) => f.id)).toEqual(["b", "a", "c"]);
+  });
+  it("ordena por previsão mais recente", () => {
+    expect(ordenarFila(base, "previsao_recente").map((f) => f.id)).toEqual(["c", "a", "b"]);
+  });
+  it("ordena por nome", () => {
+    expect(ordenarFila(base, "nome").map((f) => f.id)).toEqual(["b", "a", "c"]);
+  });
+});
+
 
 const payload = {
   autorizado: true,
