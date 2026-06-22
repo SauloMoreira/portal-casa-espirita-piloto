@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isTratamentoHolistico,
   validarHorarioHolistico,
+  podeConfirmarAgendamento,
   construirPlanoEtapas,
 } from "@/lib/agendaRules";
 
@@ -34,6 +35,22 @@ describe("validarHorarioHolistico", () => {
     expect(validarHorarioHolistico({ holistico: false, horario: "" }).valido).toBe(true);
   });
 });
+
+describe("podeConfirmarAgendamento — gate do modal de agendamento/remarcação", () => {
+  it("holístico só libera com data E horário válidos", () => {
+    expect(podeConfirmarAgendamento({ holistico: true, data: "2026-06-22", horario: "14:30" })).toBe(true);
+    expect(podeConfirmarAgendamento({ holistico: true, data: "2026-06-22", horario: "" })).toBe(false);
+    expect(podeConfirmarAgendamento({ holistico: true, data: "2026-06-22", horario: null })).toBe(false);
+    expect(podeConfirmarAgendamento({ holistico: true, data: "", horario: "14:30" })).toBe(false);
+  });
+
+  it("não holístico libera apenas com data válida, sem exigir horário", () => {
+    expect(podeConfirmarAgendamento({ holistico: false, data: "2026-06-22", horario: null })).toBe(true);
+    expect(podeConfirmarAgendamento({ holistico: false, data: "2026-06-22", horario: "" })).toBe(true);
+    expect(podeConfirmarAgendamento({ holistico: false, data: "", horario: "14:30" })).toBe(false);
+  });
+});
+
 
 describe("construirPlanoEtapas — horario_previsto", () => {
   const BASE = new Date("2026-06-20T12:00:00");

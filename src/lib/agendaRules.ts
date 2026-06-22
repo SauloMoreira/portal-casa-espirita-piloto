@@ -357,6 +357,24 @@ export function validarHorarioHolistico(params: {
 }
 
 /**
+ * Gate PURO de habilitação do botão "Confirmar Agendamento" no modal de
+ * agendamento/remarcação. Só libera quando:
+ *  - há data válida; e
+ *  - se o tratamento for holístico, há horário válido ("HH:MM").
+ * Para não holístico, o horário é opcional e não bloqueia.
+ */
+export function podeConfirmarAgendamento(params: {
+  holistico: boolean;
+  data: string | null | undefined;
+  horario: string | null | undefined;
+}): boolean {
+  const temData = !!(params.data && params.data.trim());
+  if (!temData) return false;
+  if (!params.holistico) return true;
+  return !!normalizarHorario(params.horario);
+}
+
+/**
  * Predicado explícito de elegibilidade de uma ocorrência para contar progresso
  * em tratamento público livre. Centraliza a regra de "qual presença conta":
  *  - a ocorrência pertence ao trabalho público correto do tratamento;

@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { addDays, addWeeks, addMonths, getDay, startOfDay, format } from "date-fns";
 import { CartaAgendamento } from "@/components/CartaAgendamento";
 import { carregarListaEspera, type ListaEsperaItem } from "@/services/coordenacao/listaEspera";
-import type { MotivoListaEspera } from "@/lib/agendaRules";
+import { isTratamentoHolistico, normalizarHorario, podeConfirmarAgendamento, type MotivoListaEspera } from "@/lib/agendaRules";
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -48,6 +48,7 @@ export default function CoordenadorListaEspera() {
   const [agendarOpen, setAgendarOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<WaitItem | null>(null);
   const [dataInicial, setDataInicial] = useState("");
+  const [horario, setHorario] = useState("");
   const [saving, setSaving] = useState(false);
   const [tratNomes, setTratNomes] = useState<string[]>([]);
   const [cartaOpen, setCartaOpen] = useState(false);
@@ -98,6 +99,7 @@ export default function CoordenadorListaEspera() {
   const openAgendar = (item: WaitItem) => {
     setSelectedItem(item);
     setDataInicial("");
+    setHorario(normalizarHorario(item.horario) || "");
     setAgendarOpen(true);
   };
 
@@ -127,6 +129,18 @@ export default function CoordenadorListaEspera() {
       return;
     }
 
+    const holistico = isTratamentoHolistico(selectedItem.tratamento_tipo);
+    const horarioEfetivo = normalizarHorario(horario);
+
+    if (holistico && !horarioEfetivo) {
+      toast({
+        title: "Horário obrigatório",
+        description: "Tratamentos holísticos exigem o horário da consulta.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (selectedItem.dia_semana !== null) {
       const selectedDate = new Date(dataInicial + "T12:00:00");
       if (getDay(selectedDate) !== selectedItem.dia_semana) {
@@ -148,7 +162,7 @@ export default function CoordenadorListaEspera() {
     for (let i = 0; i < selectedItem.quantidade_total; i++) {
       sessions.push({
         data_sessao: format(cursor, "yyyy-MM-dd"),
-        horario: selectedItem.horario || null,
+        horario: horarioEfetivo || selectedItem.horario || null,
       });
       const fv = selectedItem.frequencia_valor || 1;
       const fu = selectedItem.frequencia_unidade || "semanas";
@@ -418,7 +432,33 @@ export default function CoordenadorListaEspera() {
                   <p className="text-xs text-destructive">A data deve ser {DIAS_SEMANA[selectedItem.dia_semana]}</p>
                 )}
               </div>
-              <Button onClick={handleAgendar} disabled={saving || !dataInicial} className="w-full">
+              {isTratamentoHolistico(selectedItem.tratamento_tipo) && (
+                <div className="space-y-2">
+                  <Label>Horário da consulta (obrigatório)</Label>
+                  <Input
+                    type="time"
+                    value={horario}
+                    onChange={(e) => setHorario(e.target.value)}
+                  />
+                  {!normalizarHorario(horario) && (
+                    <p className="text-xs text-destructive">
+                      Tratamentos holísticos exigem o horário da consulta.
+                    </p>
+                  )}
+                </div>
+              )}
+              <Button
+                onClick={handleAgendar}
+                disabled={
+                  saving ||
+                  !podeConfirmarAgendamento({
+                    holistico: isTratamentoHolistico(selectedItem.tratamento_tipo),
+                    data: dataInicial,
+                    horario,
+                  })
+                }
+                className="w-full"
+              >
                 {saving ? "Agendando..." : "Confirmar Agendamento"}
               </Button>
             </div>

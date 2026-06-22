@@ -34,6 +34,7 @@ export interface ListaEsperaItem {
   quantidade_total: number;
   entrevista_data: string | null;
   status: string;
+  tratamento_tipo: string | null;
   dia_semana: number | null;
   horario: string | null;
   frequencia_valor: number | null;
@@ -59,7 +60,7 @@ export async function carregarListaEspera(
   const { data: meusTrat } = await supabase
     .from("tipos_tratamento")
     .select(
-      "id, nome, dia_semana, horario, frequencia_valor, frequencia_unidade, modo_agendamento, trabalho_publico, permite_entrada_sem_agendamento",
+      "id, nome, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade, modo_agendamento, trabalho_publico, permite_entrada_sem_agendamento",
     )
     .eq("coordenador_responsavel_id", userId);
 
@@ -160,6 +161,7 @@ export async function carregarListaEspera(
       quantidade_total: v.quantidade_total,
       entrevista_data: entDate,
       status: v.status,
+      tratamento_tipo: trat.tipo ?? null,
       dia_semana: trat.dia_semana ?? null,
       horario: trat.horario ?? null,
       frequencia_valor: trat.frequencia_valor ?? 1,
