@@ -572,5 +572,77 @@ describe("construirPlanoConsolidado — apenas a próxima etapa necessária ativ
   });
 });
 
+// ===========================================================================
+// HOMOLOGAÇÃO AMPLIADA (Fase 10) — perfis adicionais sob gate
+// ===========================================================================
+describe("homologação ampliada — perfis operacionais distintos", () => {
+  // Cenário: cadeia sequencial com tratamento de quantidade parametrizada
+  // diferente de 7 (ex.: Reiki = 4). Prova que não há número fixo escondido.
+  it("respeita quantidade parametrizada diferente de 7 numa cadeia consolidada", () => {
+    const inputs: PlanoConsolidadoInput[] = [
+      {
+        ref: "reiki",
+        tratamento_id: "trk",
+        status: "aguardando_inicio",
+        quantidade_total: 4,
+        quantidade_realizada: 0,
+        modo_agendamento: "sequencial_bloqueante",
+        ordem_tratamento: 1,
+        tipo: tipo(4, "19:00"),
+      },
+      {
+        ref: "homeo",
+        tratamento_id: "trh",
+        status: "aguardando_inicio",
+        quantidade_total: 4,
+        quantidade_realizada: 0,
+        modo_agendamento: "sequencial_bloqueante",
+        ordem_tratamento: 2,
+        tipo: tipo(5, "19:00"),
+      },
+    ];
+    const planos = construirPlanoConsolidado(inputs, BASE);
+    const reiki = planos.find((p) => p.ref === "reiki")!;
+    const homeo = planos.find((p) => p.ref === "homeo")!;
+
+    // Exatamente 4 etapas (parametrizado), não 7.
+    expect(reiki.plano.etapas).toHaveLength(4);
+    expect(homeo.plano.etapas).toHaveLength(4);
+    // Apenas o primeiro da cadeia ativa; o seguinte fica previsto/bloqueado.
+    expect(reiki.plano.sessaoAtiva?.numero_etapa).toBe(1);
+    expect(homeo.plano.sessaoAtiva).toBeNull();
+    const ativasTotais = planos.flatMap((p) =>
+      p.plano.etapas.filter((e) => e.status_etapa === "ativa"),
+    );
+    expect(ativasTotais).toHaveLength(1);
+  });
+
+  // Cenário: ausência cedo na cadeia (etapa ativa marcada como ausente no
+  // histórico) não promove etapas seguintes — a cadeia permanece intacta.
+  it("ausência cedo na cadeia não vira cascata (etapas seguintes seguem previstas)", () => {
+    const plano = construirPlanoEtapas({
+      status: "em_andamento",
+      quantidade_total: 7,
+      quantidade_realizada: 0,
+      ordem_tratamento: 1,
+      modo_agendamento: "sequencial_bloqueante",
+      tipo: tipo(3, "19:00"),
+      dataInicio: BASE,
+      baseStart: BASE,
+      statusPorEtapa: { 1: "ausente" },
+    });
+    // Etapa 1 fica ausente (histórico); nenhuma etapa seguinte é ativada
+    // automaticamente pela construção (remarcação é feita pelo RPC de ausência).
+    expect(plano.etapas[0].status_etapa).toBe("ausente");
+    expect(
+      plano.etapas.slice(1).every((e) => e.status_etapa === "prevista"),
+    ).toBe(true);
+    expect(
+      plano.etapas.filter((e) => e.status_etapa === "ativa"),
+    ).toHaveLength(0);
+  });
+});
+
+
 
 
