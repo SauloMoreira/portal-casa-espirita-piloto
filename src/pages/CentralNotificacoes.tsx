@@ -12,6 +12,10 @@ import { PainelWhatsapp } from "@/components/notificacoes/PainelWhatsapp";
 import { AlertaCentralCard } from "@/components/notificacoes/AlertaCentralCard";
 import { AtendimentoDrawer } from "@/components/notificacoes/AtendimentoDrawer";
 import { ConversasTab } from "@/components/notificacoes/ConversasTab";
+import { FilaDetalheDrawer } from "@/components/notificacoes/FilaDetalheDrawer";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   listFila, listConversas, listHandoffsEnriquecidos, assumirHandoff, fecharHandoff, processarFila,
   type FilaItem, type Conversa, type HandoffEnriquecido,
