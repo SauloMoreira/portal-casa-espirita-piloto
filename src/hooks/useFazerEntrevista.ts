@@ -615,6 +615,7 @@ export function useFazerEntrevista() {
     setObservacoesManual,
     quantidades,
     datasIniciais,
+    horarios,
     novoAssistidoOpen,
     setNovoAssistidoOpen,
     assistidoForm,
