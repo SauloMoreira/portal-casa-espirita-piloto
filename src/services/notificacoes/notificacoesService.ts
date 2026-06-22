@@ -66,6 +66,10 @@ export interface MensagemConversa {
   status: string | null;
   erro: string | null;
   created_at: string;
+  /** Tipo da mensagem inbound: texto, audio, imagem, video, documento, etc. */
+  tipo_mensagem?: string | null;
+  /** Indica que a mensagem é uma mídia/placeholder (não texto puro). */
+  midia?: boolean;
 }
 
 /** Preferência do assistido logado (cria default se não existir). */
@@ -293,6 +297,20 @@ export async function listHandoffsEnriquecidos(limit = 100): Promise<HandoffEnri
 }
 
 /** Histórico de mensagens (inbound/outbound) de uma conversa, por telefone. */
+/** Rótulo amigável (placeholder) para mensagens inbound não textuais. */
+export function rotuloTipoMensagemConversa(tipo: string): string {
+  switch (tipo) {
+    case "audio": return "🎤 Usuário enviou um áudio";
+    case "imagem": return "🖼️ Usuário enviou uma imagem";
+    case "video": return "🎬 Usuário enviou um vídeo";
+    case "documento": return "📎 Usuário enviou um documento";
+    case "localizacao": return "📍 Usuário enviou uma localização";
+    case "contato": return "👤 Usuário enviou um contato";
+    case "sticker": return "🌟 Usuário enviou uma figurinha";
+    default: return "💬 Usuário enviou uma mensagem";
+  }
+}
+
 export async function getConversaMensagens(telefone: string): Promise<MensagemConversa[]> {
   if (!telefone) return [];
   const { data, error } = await supabase
@@ -304,11 +322,20 @@ export async function getConversaMensagens(telefone: string): Promise<MensagemCo
   if (error) throw error;
   return (data ?? []).map((l: any): MensagemConversa => {
     if (l.direcao === "entrada") {
+      const tipo = (l.payload_recebido?.tipo_mensagem as string | undefined) ?? null;
+      const ehMidia = !!tipo && tipo !== "texto";
+      // Prioriza o conteúdo de exibição (legenda/placeholder), depois o texto puro,
+      // e por fim um placeholder pelo tipo — para a pergunta NUNCA sumir do histórico.
+      const texto =
+        (l.payload_recebido?.conteudo_exibicao as string | undefined)?.trim() ||
+        (l.payload_recebido?.texto as string | undefined)?.trim() ||
+        (ehMidia ? rotuloTipoMensagemConversa(tipo!) : "");
       return {
         id: l.id, direcao: "entrada",
-        texto: l.payload_recebido?.texto ?? "",
+        texto,
         autor: "assistido",
         status: l.status, erro: l.erro, created_at: l.created_at,
+        tipo_mensagem: tipo, midia: ehMidia,
       };
     }
     const autorRaw = l.payload_enviado?.autor;
@@ -320,7 +347,7 @@ export async function getConversaMensagens(telefone: string): Promise<MensagemCo
       autor,
       status: l.status, erro: l.erro, created_at: l.created_at,
     };
-  }).filter((m) => m.texto || m.direcao === "saida");
+  });
 }
 
 export async function assumirHandoff(id: string, atendenteId: string, conversaId: string): Promise<void> {

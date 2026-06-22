@@ -479,6 +479,74 @@ function resumo(texto: string, max = 160): string {
   return t.length > max ? t.slice(0, max - 1) + "…" : t;
 }
 
+/** Rótulo amigável (placeholder) para mensagens inbound não textuais. */
+function rotuloTipoMensagem(tipo: string): string {
+  switch (tipo) {
+    case "audio": return "🎤 Usuário enviou um áudio";
+    case "imagem": return "🖼️ Usuário enviou uma imagem";
+    case "video": return "🎬 Usuário enviou um vídeo";
+    case "documento": return "📎 Usuário enviou um documento";
+    case "localizacao": return "📍 Usuário enviou uma localização";
+    case "contato": return "👤 Usuário enviou um contato";
+    case "sticker": return "🌟 Usuário enviou uma figurinha";
+    default: return "💬 Usuário enviou uma mensagem";
+  }
+}
+
+/**
+ * Interpreta o payload do webhook (Z-API / Baileys) e retorna o conteúdo útil
+ * da mensagem inbound. Garante que mensagens não textuais (áudio, imagem,
+ * documento, localização, etc.) sejam identificadas pelo TIPO e nunca fiquem
+ * "sem pergunta" no histórico do atendimento.
+ *
+ * - `texto`: legenda/transcrição/texto puro quando existir (pode ser vazio).
+ * - `tipo`: 'texto' | 'audio' | 'imagem' | 'video' | 'documento' |
+ *           'localizacao' | 'contato' | 'sticker' | 'desconhecido'.
+ * - `conteudoExibicao`: texto a ser persistido/exibido (legenda quando houver,
+ *   caso contrário o rótulo placeholder do tipo). Nunca vazio.
+ */
+function interpretarConteudoInbound(
+  body: any, data: any,
+): { texto: string; tipo: string; conteudoExibicao: string } {
+  const b = body ?? {};
+  const d = data ?? {};
+  const m = d?.message ?? {};
+
+  const textoPuro: string =
+    b?.text?.message || d?.text?.message ||
+    m?.conversation || m?.extendedTextMessage?.text ||
+    (typeof b?.message === "string" ? b.message : "") ||
+    (typeof b?.text === "string" ? b.text : "") || "";
+
+  if (textoPuro && textoPuro.trim()) {
+    return { texto: textoPuro.trim(), tipo: "texto", conteudoExibicao: textoPuro.trim() };
+  }
+
+  // Detecta mídia / tipos especiais e extrai legenda (caption) quando houver.
+  type Det = { tipo: string; caption?: string };
+  const candidatos: Array<Det | null> = [
+    (b.image || m.imageMessage) ? { tipo: "imagem", caption: b.image?.caption ?? m.imageMessage?.caption } : null,
+    (b.audio || m.audioMessage) ? { tipo: "audio" } : null,
+    (b.video || m.videoMessage) ? { tipo: "video", caption: b.video?.caption ?? m.videoMessage?.caption } : null,
+    (b.document || m.documentMessage) ? { tipo: "documento", caption: b.document?.fileName ?? b.document?.caption ?? m.documentMessage?.fileName } : null,
+    (b.location || m.locationMessage) ? { tipo: "localizacao" } : null,
+    (b.contact || b.contacts || m.contactMessage) ? { tipo: "contato" } : null,
+    (b.sticker || m.stickerMessage) ? { tipo: "sticker" } : null,
+  ];
+  const achado = candidatos.find((c): c is Det => c !== null);
+  if (achado) {
+    const caption = (achado.caption || "").trim();
+    const rotulo = rotuloTipoMensagem(achado.tipo);
+    return {
+      texto: caption,
+      tipo: achado.tipo,
+      conteudoExibicao: caption ? `${rotulo}: ${caption}` : rotulo,
+    };
+  }
+
+  return { texto: "", tipo: "desconhecido", conteudoExibicao: rotuloTipoMensagem("desconhecido") };
+}
+
 function formatarHorario(h: string | null | undefined): string {
   if (!h) return "";
   const [hh, mm] = h.split(":");
@@ -1280,11 +1348,13 @@ Deno.serve(async (req) => {
       body?.phone || data?.phone ||
       data?.key?.remoteJid || data?.remoteJid || "";
     const fromMe: boolean = body?.fromMe ?? data?.fromMe ?? data?.key?.fromMe ?? false;
-    const texto: string =
-      body?.text?.message || data?.text?.message ||
-      data?.message?.conversation ||
-      data?.message?.extendedTextMessage?.text ||
-      body?.message || body?.text || "";
+    const conteudoInbound = interpretarConteudoInbound(body, data);
+    // `texto` segue o caminho de classificação da IA (texto puro / legenda).
+    // `tipoMensagem` e `conteudoExibicao` garantem rastreabilidade do que chegou,
+    // inclusive para mídia (áudio/imagem/documento/localização) sem texto.
+    const texto: string = conteudoInbound.texto;
+    const tipoMensagem: string = conteudoInbound.tipo;
+    const conteudoExibicaoInbound: string = conteudoInbound.conteudoExibicao;
 
     if (fromMe || !remoteJid) {
       return new Response(JSON.stringify({ ignored: true }), {
@@ -1340,7 +1410,7 @@ Deno.serve(async (req) => {
       conversaId = convExist.id;
       await admin.from("whatsapp_conversas").update({
         ultimo_contato_em: new Date().toISOString(),
-        ultima_mensagem: resumo(texto),
+        ultima_mensagem: resumo(conteudoExibicaoInbound),
         assistido_id: assistido?.id ?? convExist.assistido_id,
         nome_contato: nomeContato ?? convExist.nome_contato,
         tipo_contato: tipoContato ?? convExist.tipo_contato,
@@ -1350,7 +1420,7 @@ Deno.serve(async (req) => {
       const { data: novaConv } = await admin.from("whatsapp_conversas").insert({
         telefone, assistido_id: assistido?.id ?? null, status_conversa: "ativa",
         nome_contato: nomeContato, tipo_contato: tipoContato,
-        ultima_mensagem: resumo(texto),
+        ultima_mensagem: resumo(conteudoExibicaoInbound),
       }).select("id").single();
       conversaId = novaConv!.id;
     }
@@ -1982,13 +2052,17 @@ Deno.serve(async (req) => {
       return c.length > 120 ? c.slice(0, 119) + "…" : c;
     };
     const turnosComUser = [...turnosAnteriores,
-      { papel: "user", resumo: resumirT(texto), em: new Date().toISOString() }].slice(-4);
+      { papel: "user", resumo: resumirT(conteudoExibicaoInbound), em: new Date().toISOString() }].slice(-4);
 
     // Log inbound with full audit context (identification + intent + fallback).
+    // `conteudo_exibicao` e `tipo_mensagem` garantem que mensagens não textuais
+    // (áudio/imagem/documento/localização) sejam rastreáveis no atendimento.
     await admin.from("notificacoes_log").insert({
       fila_id: null, direcao: "entrada",
       payload_recebido: {
         telefone, texto, intencao,
+        tipo_mensagem: tipoMensagem,
+        conteudo_exibicao: conteudoExibicaoInbound,
         assistido_identificado: !!assistido,
         assistido_id: assistido?.id ?? null,
         resposta_fonte: respostaFonte,

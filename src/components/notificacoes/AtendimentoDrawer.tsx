@@ -151,6 +151,9 @@ export function AtendimentoDrawer({ handoff, open, onOpenChange, onChanged }: Pr
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                       <AutorBadge autor={m.autor} />
+                      {m.midia && m.tipo_mensagem && (
+                        <Badge variant="outline" className="text-[10px] uppercase">{m.tipo_mensagem}</Badge>
+                      )}
                       <span>{dt(m.created_at)}</span>
                       {m.status === "falha" && <span className="text-destructive">falha no envio</span>}
                     </div>

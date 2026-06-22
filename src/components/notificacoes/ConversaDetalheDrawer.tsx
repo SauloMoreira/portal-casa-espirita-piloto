@@ -156,7 +156,9 @@ export function ConversaDetalheDrawer({ conversa, open, onOpenChange, onChanged 
                   <div className={`flex flex-col gap-1 ${m.direcao === "entrada" ? "items-start" : "items-end"}`}>
                     <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
                       m.direcao === "entrada"
-                        ? "bg-muted text-foreground rounded-tl-sm"
+                        ? m.midia
+                          ? "bg-muted text-foreground rounded-tl-sm italic"
+                          : "bg-muted text-foreground rounded-tl-sm"
                         : m.autor === "humano"
                           ? "bg-primary text-primary-foreground rounded-tr-sm"
                           : m.autor === "sistema"
@@ -167,6 +169,9 @@ export function ConversaDetalheDrawer({ conversa, open, onOpenChange, onChanged 
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                       <AutorBadge autor={m.autor} />
+                      {m.midia && m.tipo_mensagem && (
+                        <Badge variant="outline" className="text-[10px] uppercase">{m.tipo_mensagem}</Badge>
+                      )}
                       <span>{dt(m.created_at)}</span>
                       {m.status === "falha" && <span className="text-destructive">falha no envio</span>}
                     </div>
