@@ -198,7 +198,25 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const mensagem = renderTemplate(tpl.corpo_template, item.payload_json || {});
+      // Build the payload for rendering. Session reminders get a temporal
+      // reference computed at SEND time (timezone-aware) and a stale guard.
+      const payload: Record<string, unknown> = { ...(item.payload_json || {}) };
+      const ehLembreteSessao =
+        item.evento_origem === "sessao_lembrete" || item.template_codigo === "sessao_lembrete";
+      if (ehLembreteSessao) {
+        const sessaoData = String((item.payload_json || {}).data || "");
+        const horario = String((item.payload_json || {}).horario || "");
+        // Do not send reminders for sessions that already started/passed.
+        if (lembreteVencido(sessaoData, horario, agora)) {
+          await admin.from("notificacoes_fila").update({ status: "cancelado", erro: "lembrete_vencido" }).eq("id", item.id);
+          await logFila(admin, item.id, "saida", null, null, "cancelado", "lembrete_vencido");
+          result.ignorados++;
+          continue;
+        }
+        payload.quando = referenciaTemporalLembrete(sessaoData, agora);
+      }
+
+      const mensagem = renderTemplate(tpl.corpo_template, payload);
       const send = await adapter.send(item.telefone_normalizado, mensagem);
       await logFila(admin, item.id, "saida", { telefone: item.telefone_normalizado, mensagem }, send.raw ?? null, send.ok ? "enviado" : "falha", send.error);
 
