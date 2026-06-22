@@ -166,6 +166,67 @@ export async function listFila(limit = 100): Promise<FilaItem[]> {
   return (data as FilaItem[]) ?? [];
 }
 
+/** Uma entrada da trilha de log (notificacoes_log) de um item da fila. */
+export interface FilaLogEntry {
+  id: string;
+  direcao: "entrada" | "saida";
+  status: string | null;
+  erro: string | null;
+  mensagem: string | null;
+  telefone: string | null;
+  external_message_id: string | null;
+  created_at: string;
+}
+
+/** Detalhe completo de um item da fila: dados + texto enviado + trilha de log. */
+export interface FilaItemDetalhe {
+  item: FilaItem;
+  assistido_nome: string | null;
+  mensagem_enviada: string | null;
+  logs: FilaLogEntry[];
+}
+
+/**
+ * Carrega o detalhe completo de um item da fila para auditoria/transparência:
+ * dados do envio, conteúdo efetivamente enviado e a trilha em notificacoes_log.
+ */
+export async function getFilaItemDetalhe(item: FilaItem): Promise<FilaItemDetalhe> {
+  const { data: logsRaw, error } = await supabase
+    .from("notificacoes_log")
+    .select("*")
+    .eq("fila_id", item.id)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+
+  const logs: FilaLogEntry[] = (logsRaw ?? []).map((l: any) => ({
+    id: l.id,
+    direcao: l.direcao,
+    status: l.status,
+    erro: l.erro,
+    mensagem: l.payload_enviado?.mensagem ?? l.payload_recebido?.texto ?? null,
+    telefone: l.payload_enviado?.telefone ?? l.payload_recebido?.telefone ?? null,
+    external_message_id:
+      l.payload_recebido?.messageId ?? l.payload_recebido?.id ?? null,
+    created_at: l.created_at,
+  }));
+
+  const mensagem_enviada =
+    logs.find((l) => l.direcao === "saida" && l.mensagem)?.mensagem ?? null;
+
+  let assistido_nome: string | null = null;
+  if (item.assistido_id) {
+    const { data: a } = await supabase
+      .from("assistidos")
+      .select("nome")
+      .eq("id", item.assistido_id)
+      .maybeSingle();
+    assistido_nome = (a as any)?.nome ?? null;
+  }
+
+  return { item, assistido_nome, mensagem_enviada, logs };
+}
+
+
 export async function listConversas(limit = 100): Promise<Conversa[]> {
   const { data, error } = await supabase
     .from("whatsapp_conversas")
