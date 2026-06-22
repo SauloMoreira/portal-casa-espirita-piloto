@@ -502,7 +502,7 @@ export default function SessoesPublicas() {
       </Dialog>
 
       {/* Manual Registration Dialog */}
-      <Dialog open={showManual} onOpenChange={(v) => { setShowManual(v); if (!v) { setManualSearch(""); setManualResults([]); setQuickForm({ nome: "", celular: "", faixa_etaria: "" }); } }}>
+      <Dialog open={showManual} onOpenChange={(v) => { setShowManual(v); if (!v) { setManualSearch(""); setManualResults([]); setQuickForm({ nome: "", celular: "", faixa_etaria: "" }); setAssistidoSelecionado(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Registro Manual</DialogTitle>
