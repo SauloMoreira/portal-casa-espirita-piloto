@@ -1348,11 +1348,13 @@ Deno.serve(async (req) => {
       body?.phone || data?.phone ||
       data?.key?.remoteJid || data?.remoteJid || "";
     const fromMe: boolean = body?.fromMe ?? data?.fromMe ?? data?.key?.fromMe ?? false;
-    const texto: string =
-      body?.text?.message || data?.text?.message ||
-      data?.message?.conversation ||
-      data?.message?.extendedTextMessage?.text ||
-      body?.message || body?.text || "";
+    const conteudoInbound = interpretarConteudoInbound(body, data);
+    // `texto` segue o caminho de classificação da IA (texto puro / legenda).
+    // `tipoMensagem` e `conteudoExibicao` garantem rastreabilidade do que chegou,
+    // inclusive para mídia (áudio/imagem/documento/localização) sem texto.
+    const texto: string = conteudoInbound.texto;
+    const tipoMensagem: string = conteudoInbound.tipo;
+    const conteudoExibicaoInbound: string = conteudoInbound.conteudoExibicao;
 
     if (fromMe || !remoteJid) {
       return new Response(JSON.stringify({ ignored: true }), {
