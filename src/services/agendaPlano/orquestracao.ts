@@ -280,6 +280,7 @@ export interface PresencaResult {
 export async function registrarPresencaPlano(
   vinculoId: string,
   data: string,
+  registradoPor: string,
 ): Promise<PresencaResult> {
   const { data: vincRow, error: errV } = await supabase
     .from("assistido_tratamentos")
