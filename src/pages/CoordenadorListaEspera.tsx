@@ -60,66 +60,11 @@ export default function CoordenadorListaEspera() {
 
   const fetchData = async () => {
     if (!user) return;
-
-    const { data: meusTrat } = await supabase
-      .from("tipos_tratamento")
-      .select("id, nome, dia_semana, horario, frequencia_valor, frequencia_unidade")
-      .eq("coordenador_responsavel_id", user.id);
-
-    if (!meusTrat || meusTrat.length === 0) { setItems([]); return; }
-
-    const tratMap = Object.fromEntries(meusTrat.map((t: any) => [t.id, t]));
-    const tratIds = meusTrat.map((t: any) => t.id);
-    setTratNomes(meusTrat.map((t: any) => t.nome));
-
-    const { data: vinculos } = await supabase
-      .from("assistido_tratamentos")
-      .select("id, assistido_id, tratamento_id, quantidade_total, status, entrevista_id, prioridade, urgencia, created_at")
-      .in("tratamento_id", tratIds)
-      .eq("status", "aguardando_agendamento");
-
-    if (!vinculos || vinculos.length === 0) { setItems([]); return; }
-
-    const assistidoIds = [...new Set(vinculos.map((v: any) => v.assistido_id))];
-    const { data: assistidos } = await supabase
-      .from("assistidos")
-      .select("id, nome")
-      .in("id", assistidoIds);
-
-    const assistMap = Object.fromEntries((assistidos || []).map((a: any) => [a.id, a.nome]));
-
-    const entrevistaIds = vinculos.map((v: any) => v.entrevista_id).filter(Boolean);
-    const { data: entrevistas } = entrevistaIds.length > 0
-      ? await supabase.from("entrevistas_fraternas").select("id, data").in("id", entrevistaIds)
-      : { data: [] };
-
-    const entMap = Object.fromEntries((entrevistas || []).map((e: any) => [e.id, e.data]));
-    const today = new Date();
-
-    const result: WaitItem[] = vinculos.map((v: any) => {
-      const trat = tratMap[v.tratamento_id];
-      const entDate = v.entrevista_id ? entMap[v.entrevista_id] || null : null;
-      return {
-        id: v.id,
-        assistido_id: v.assistido_id,
-        assistido_nome: assistMap[v.assistido_id] || "—",
-        tratamento_id: v.tratamento_id,
-        tratamento_nome: trat?.nome || "—",
-        quantidade_total: v.quantidade_total,
-        entrevista_data: entDate,
-        status: v.status,
-        dia_semana: trat?.dia_semana ?? null,
-        horario: trat?.horario ?? null,
-        frequencia_valor: trat?.frequencia_valor ?? 1,
-        frequencia_unidade: trat?.frequencia_unidade ?? "semanas",
-        prioridade: v.prioridade || "normal",
-        urgencia: v.urgencia || null,
-        dias_espera: entDate ? differenceInDays(today, new Date(entDate)) : differenceInDays(today, new Date(v.created_at)),
-      };
-    });
-
-    setItems(result);
+    const { itens, tratamentoNomes } = await carregarListaEspera(user.id);
+    setTratNomes(tratamentoNomes);
+    setItems(itens);
   };
+
 
   useEffect(() => { fetchData(); }, [user]);
 
