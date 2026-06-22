@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ClipboardCheck, Calendar, Check, X, Heart, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { withRetry, isTransientError } from "@/lib/resilience";
+import { registrarPresencaRoteada } from "@/services/agendaPlano/orquestracao";
 
 /** Normaliza texto para busca (sem acentos, minúsculo). */
 const norm = (s: string) =>
@@ -28,6 +29,8 @@ interface TratamentoDoDia {
   quantidade_faltante: number | null;
   status: string;
   presenca_registrada: boolean;
+  tem_plano: boolean;
+  usa_novo_modelo: boolean;
 }
 
 export default function Presenca() {
@@ -58,23 +61,28 @@ export default function Presenca() {
     const assistidoIds = [...new Set(sessoes.map((s) => s.assistido_id))];
 
     // Fetch related data in parallel
-    const [{ data: tratamentos }, { data: vinculos }, { data: assistidos }, { data: presencas }] = await Promise.all([
+    const [{ data: tratamentos }, { data: vinculos }, { data: assistidos }, { data: presencas }, { data: planoRows }] = await Promise.all([
       supabase.from("tipos_tratamento").select("id, nome, tarefeiro_id").in("id", tratIds),
       supabase.from("assistido_tratamentos")
-        .select("id, quantidade_total, quantidade_realizada, quantidade_faltante, status")
+        .select("id, assistido_id, quantidade_total, quantidade_realizada, quantidade_faltante, status")
         .in("id", atIds)
         .in("status", ["aguardando_inicio", "em_andamento", "liberado"]),
-      supabase.from("assistidos").select("id, nome").in("id", assistidoIds),
+      supabase.from("assistidos").select("id, nome, usa_agenda_plano").in("id", assistidoIds),
       supabase.from("presencas_tratamentos")
         .select("assistido_tratamento_id")
         .in("assistido_tratamento_id", atIds)
         .eq("data", data),
+      supabase.from("plano_tratamento_sessoes")
+        .select("assistido_tratamento_id")
+        .in("assistido_tratamento_id", atIds),
     ]);
 
     const tratMap = Object.fromEntries((tratamentos || []).map((t) => [t.id, t]));
     const vinculoMap = Object.fromEntries((vinculos || []).map((v) => [v.id, v]));
     const assistMap = Object.fromEntries((assistidos || []).map((a) => [a.id, a.nome]));
+    const gateMap = new Set((assistidos || []).filter((a) => a.usa_agenda_plano === true).map((a) => a.id));
     const presencaSet = new Set((presencas || []).map((p) => p.assistido_tratamento_id));
+    const planoSet = new Set((planoRows || []).map((p) => p.assistido_tratamento_id));
 
     // Filter by tarefeiro if needed
     const result: TratamentoDoDia[] = sessoes
@@ -99,6 +107,8 @@ export default function Presenca() {
           quantidade_faltante: vinculo?.quantidade_faltante ?? null,
           status: vinculo?.status || "",
           presenca_registrada: presencaSet.has(s.assistido_tratamento_id),
+          tem_plano: planoSet.has(s.assistido_tratamento_id),
+          usa_novo_modelo: gateMap.has(s.assistido_id),
         };
       });
 
@@ -108,30 +118,50 @@ export default function Presenca() {
 
   useEffect(() => { fetchData(); }, [data]);
 
-  const registrarPresenca = async (atId: string, statusPresenca: "presente" | "ausente") => {
+  const registrarPresenca = async (item: TratamentoDoDia, statusPresenca: "presente" | "ausente") => {
+    const atId = item.assistido_tratamento_id;
     setLoadingId(atId);
     try {
-      const { error } = await withRetry(
+      const res = await withRetry(
         async () =>
-          supabase.rpc("registrar_presenca", {
-            p_assistido_tratamento_id: atId,
-            p_data: data,
-            p_status_presenca: statusPresenca,
-            p_registrado_por: user!.id,
+          registrarPresencaRoteada({
+            vinculoId: atId,
+            status: statusPresenca,
+            data,
+            registradoPor: user!.id,
+            temPlano: item.tem_plano,
+            usaNovoModelo: item.usa_novo_modelo,
           }),
         { retries: 3, baseDelayMs: 500, shouldRetry: (e) => isTransientError(e) },
       );
 
-      if (error) {
-        toast({ title: "Erro", description: error.message, variant: "destructive" });
+      if (res.rota === "plano") {
+        toast({
+          title:
+            statusPresenca === "presente"
+              ? "Presença registrada"
+              : "Ausência registrada e sessão remarcada",
+        });
       } else {
-        toast({ title: statusPresenca === "presente" ? "Presença registrada" : "Ausência registrada" });
-        fetchData();
+        if (statusPresenca === "ausente") {
+          console.info(
+            "[presenca] remarcação automática indisponível (legado)",
+            { vinculoId: atId, usaNovoModelo: res.usaNovoModelo, temPlano: res.temPlano },
+          );
+          toast({
+            title: "Ausência registrada",
+            description:
+              "Remarcação automática indisponível: vínculo ainda no modelo legado (requer conversão controlada).",
+          });
+        } else {
+          toast({ title: "Presença registrada" });
+        }
       }
+      fetchData();
     } catch (e: any) {
       toast({
-        title: "Falha de conexão",
-        description: "Não foi possível registrar. Verifique a internet e tente novamente.",
+        title: "Falha ao registrar",
+        description: e?.message ?? "Não foi possível registrar. Verifique a internet e tente novamente.",
         variant: "destructive",
       });
     }
@@ -236,7 +266,7 @@ export default function Presenca() {
                           variant="default"
                           className="gap-1 h-12 text-base"
                           disabled={loadingId === item.assistido_tratamento_id}
-                          onClick={() => registrarPresenca(item.assistido_tratamento_id, "presente")}
+                          onClick={() => registrarPresenca(item, "presente")}
                         >
                           <Check className="h-5 w-5" /> Presente
                         </Button>
@@ -244,7 +274,7 @@ export default function Presenca() {
                           variant="outline"
                           className="gap-1 h-12 text-base"
                           disabled={loadingId === item.assistido_tratamento_id}
-                          onClick={() => registrarPresenca(item.assistido_tratamento_id, "ausente")}
+                          onClick={() => registrarPresenca(item, "ausente")}
                         >
                           <X className="h-5 w-5" /> Ausente
                         </Button>
@@ -287,7 +317,7 @@ export default function Presenca() {
                                 variant="default"
                                 className="gap-1 h-8"
                                 disabled={loadingId === item.assistido_tratamento_id}
-                                onClick={() => registrarPresenca(item.assistido_tratamento_id, "presente")}
+                                onClick={() => registrarPresenca(item, "presente")}
                               >
                                 <Check className="h-3 w-3" /> Presente
                               </Button>
@@ -296,7 +326,7 @@ export default function Presenca() {
                                 variant="outline"
                                 className="gap-1 h-8"
                                 disabled={loadingId === item.assistido_tratamento_id}
-                                onClick={() => registrarPresenca(item.assistido_tratamento_id, "ausente")}
+                                onClick={() => registrarPresenca(item, "ausente")}
                               >
                                 <X className="h-3 w-3" /> Ausente
                               </Button>

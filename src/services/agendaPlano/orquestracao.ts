@@ -353,10 +353,40 @@ export async function registrarAusenciaPlano(
 
   const { data: tt } = await supabase
     .from("tipos_tratamento")
-    .select("id, dia_semana, horario, frequencia_valor, frequencia_unidade")
+    .select("id, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade")
     .eq("id", vinc.tratamento_id)
     .maybeSingle();
-  const tipo = tt as ParametrosTipoAgenda | null;
+  const tipo = tt as (ParametrosTipoAgenda & { tipo?: string | null }) | null;
+
+  // Horário efetivo na remarcação: preserva override operacional por sessão.
+  // Precedência: agenda da sessão ativa → horario_previsto da etapa ativa →
+  // horário padrão do tipo (fallback final).
+  const { data: etapaAtivaRow } = await supabase
+    .from("plano_tratamento_sessoes")
+    .select("horario_previsto, agenda_sessao_id")
+    .eq("assistido_tratamento_id", vinculoId)
+    .eq("status_etapa", "ativa")
+    .order("numero_etapa")
+    .limit(1)
+    .maybeSingle();
+  const etapaAtiva = etapaAtivaRow as
+    | { horario_previsto: string | null; agenda_sessao_id: string | null }
+    | null;
+
+  let horarioSessaoAtual: string | null = null;
+  if (etapaAtiva?.agenda_sessao_id) {
+    const { data: agendaRow } = await supabase
+      .from("agenda_tratamentos_assistido")
+      .select("horario")
+      .eq("id", etapaAtiva.agenda_sessao_id)
+      .maybeSingle();
+    horarioSessaoAtual = (agendaRow as { horario: string | null } | null)?.horario ?? null;
+  }
+
+  const novoHorario =
+    normalizarHorario(horarioSessaoAtual) ??
+    normalizarHorario(etapaAtiva?.horario_previsto) ??
+    normalizarHorario(tipo?.horario);
 
   // Nova data = próxima data válida APÓS a falta, para a MESMA etapa.
   const aposFalta = new Date(data + "T12:00:00");
@@ -375,7 +405,7 @@ export async function registrarAusenciaPlano(
     p_data: data,
     p_registrado_por: registradoPor,
     p_nova_data: novaData ?? undefined,
-    p_nova_horario: normalizarHorario(tipo?.horario) ?? undefined,
+    p_nova_horario: novoHorario ?? undefined,
   } as never);
   if (error) throw new Error(error.message);
 
@@ -388,6 +418,103 @@ export async function registrarAusenciaPlano(
 }
 
 // ===========================================================================
+// ROTEADOR OPERACIONAL (Presença/Painel do Tarefeiro)
+// ---------------------------------------------------------------------------
+// Decide entre o NOVO MODELO (remarca/avança o plano) e o LEGADO em runtime.
+// Critério oficial e ESTRITO: vínculo só é "novo modelo" quando o gate
+// `assistidos.usa_agenda_plano = true` E existe plano em
+// `plano_tratamento_sessoes`. As flags vindas da UI são apenas hints; a rota
+// final é SEMPRE revalidada aqui contra o estado atual do backend.
+// NUNCA converte/reconcilia: legado permanece legado.
+// ===========================================================================
+
+/** Existe ao menos uma etapa de plano para o vínculo? */
+export async function vinculoTemPlano(vinculoId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from("plano_tratamento_sessoes")
+    .select("id", { count: "exact", head: true })
+    .eq("assistido_tratamento_id", vinculoId);
+  if (error) throw new Error(error.message);
+  return (count ?? 0) > 0;
+}
+
+/** Gate oficial: assistido do vínculo habilitado no novo modelo. */
+export async function vinculoUsaNovoModelo(vinculoId: string): Promise<boolean> {
+  const { data: vincRow, error: errV } = await supabase
+    .from("assistido_tratamentos")
+    .select("assistido_id")
+    .eq("id", vinculoId)
+    .maybeSingle();
+  if (errV) throw new Error(errV.message);
+  const assistidoId = (vincRow as { assistido_id: string } | null)?.assistido_id;
+  if (!assistidoId) return false;
+  const { data: aRow, error: errA } = await supabase
+    .from("assistidos")
+    .select("usa_agenda_plano")
+    .eq("id", assistidoId)
+    .maybeSingle();
+  if (errA) throw new Error(errA.message);
+  return (aRow as { usa_agenda_plano: boolean | null } | null)?.usa_agenda_plano === true;
+}
+
+export type StatusPresenca = "presente" | "ausente";
+
+export interface RoteamentoPresencaParams {
+  vinculoId: string;
+  status: StatusPresenca;
+  data: string;
+  registradoPor: string;
+  /** Hint da UI (performance); a rota final é revalidada no serviço. */
+  temPlano?: boolean;
+  /** Hint da UI (performance); a rota final é revalidada no serviço. */
+  usaNovoModelo?: boolean;
+}
+
+export interface RoteamentoPresencaResult {
+  rota: "plano" | "legado";
+  usaNovoModelo: boolean;
+  temPlano: boolean;
+  remarcacaoAplicavel: boolean;
+}
+
+/**
+ * Roteia presença/ausência operacional para o novo modelo ou o legado.
+ * Revalida SEMPRE o estado real (gate + plano) antes de decidir a rota.
+ */
+export async function registrarPresencaRoteada(
+  params: RoteamentoPresencaParams,
+): Promise<RoteamentoPresencaResult> {
+  const { vinculoId, status, data, registradoPor } = params;
+
+  // Revalidação obrigatória: nunca confiar cegamente nas flags da UI.
+  const usaNovoModelo =
+    params.usaNovoModelo === false ? false : await vinculoUsaNovoModelo(vinculoId);
+  const temPlano =
+    params.temPlano === false ? false : await vinculoTemPlano(vinculoId);
+
+  const ehNovoModelo = usaNovoModelo === true && temPlano === true;
+
+  if (ehNovoModelo) {
+    if (status === "presente") {
+      await registrarPresencaPlano(vinculoId, data, registradoPor);
+    } else {
+      await registrarAusenciaPlano(vinculoId, data, registradoPor);
+    }
+    return { rota: "plano", usaNovoModelo, temPlano, remarcacaoAplicavel: status === "ausente" };
+  }
+
+  // LEGADO: registra presença/ausência sem remarcar, converter ou reconciliar.
+  const { error } = await supabase.rpc("registrar_presenca", {
+    p_assistido_tratamento_id: vinculoId,
+    p_data: data,
+    p_status_presenca: status,
+    p_registrado_por: registradoPor,
+  } as never);
+  if (error) throw new Error(error.message);
+  return { rota: "legado", usaNovoModelo, temPlano, remarcacaoAplicavel: false };
+}
+
+
 // HOMOLOGAÇÃO CONTROLADA (painel admin)
 // ---------------------------------------------------------------------------
 // Superfície administrativa segura para conduzir a homologação do novo modelo:
