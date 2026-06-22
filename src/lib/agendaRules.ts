@@ -617,3 +617,115 @@ export function construirPlanoEtapas(params: ConstruirPlanoParams): PlanoConstru
 function dataParaStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
+
+// ===========================================================================
+// CONVERSÃO PARA O NOVO MODELO — plano CONSOLIDADO por assistido.
+//
+// Esta é a ÚNICA fonte da estrutura do plano na conversão/homologação. Aplica
+// a regra de "de quem é a vez" (apenas a próxima etapa necessária fica ativa),
+// reusando `construirPlanoEtapas` (datas via `projetarAgendaRestante`). NÃO
+// persiste nada — devolve, por vínculo, as etapas + a sessão ativa, prontas
+// para a porta única `pts_converter_assistido`.
+// ===========================================================================
+
+const STATUS_TERMINAL_VINCULO = new Set(["concluido", "cancelado", "suspenso"]);
+
+export interface PlanoConsolidadoInput {
+  /** Identificador estável (vinculo_id). */
+  ref: string;
+  tratamento_id: string;
+  status: string;
+  quantidade_total: number;
+  quantidade_realizada: number;
+  modo_agendamento: string;
+  ordem_tratamento: number | null;
+  tipo: ParametrosTipoAgenda;
+  trabalhoPublico?: boolean;
+  permiteEntradaSemAgendamento?: boolean;
+  /** Data inicial específica (modo por data inicial). */
+  dataInicio?: Date | null;
+  /** Estados terminais já gravados por etapa (preserva histórico). */
+  statusPorEtapa?: Record<number, StatusEtapaPlano>;
+}
+
+export interface PlanoConsolidadoResultado {
+  ref: string;
+  tratamento_id: string;
+  plano: PlanoConstruido;
+}
+
+/**
+ * Constrói o plano de TODOS os vínculos de um assistido aplicando a regra de
+ * "apenas a próxima etapa necessária fica ativa":
+ *  - sequencial_bloqueante: somente o PRIMEIRO vínculo não-terminal com restante
+ *    (por `ordem_tratamento`) recebe sessão ativa agora; os demais ficam
+ *    integralmente previstos (bloqueados pela etapa anterior);
+ *  - livre_concomitante: independentes — cada elegível tem sua própria etapa ativa;
+ *  - público livre: liberado para comparecimento (sem agenda rígida, sessão ativa null);
+ *  - agendado_por_data_inicial: ativa apenas se houver data inicial.
+ *
+ * Nunca gera agenda longa: cada vínculo tem no máximo UMA sessão ativa.
+ */
+export function construirPlanoConsolidado(
+  inputs: PlanoConsolidadoInput[],
+  baseStart: Date,
+): PlanoConsolidadoResultado[] {
+  // Define qual sequencial é "a vez": primeiro não-terminal com restante > 0.
+  const sequenciais = inputs
+    .filter(
+      (t) =>
+        t.modo_agendamento === MODO_SEQUENCIAL_BLOQUEANTE ||
+        (t.modo_agendamento !== MODO_LIVRE_CONCOMITANTE &&
+          t.modo_agendamento !== MODO_AGENDADO_POR_DATA_INICIAL),
+    )
+    .sort((a, b) => (a.ordem_tratamento ?? 999) - (b.ordem_tratamento ?? 999));
+
+  const refSequencialAtivo =
+    sequenciais.find(
+      (t) =>
+        !STATUS_TERMINAL_VINCULO.has(t.status) &&
+        quantidadeRestante(t.quantidade_total, t.quantidade_realizada) > 0,
+    )?.ref ?? null;
+
+  return inputs.map((t) => {
+    const publico = isTratamentoPublicoLivre({
+      modo_agendamento: t.modo_agendamento,
+      trabalhoPublico: t.trabalhoPublico,
+      permiteEntradaSemAgendamento: t.permiteEntradaSemAgendamento,
+    });
+
+    const ehSequencial =
+      t.modo_agendamento === MODO_SEQUENCIAL_BLOQUEANTE ||
+      (t.modo_agendamento !== MODO_LIVRE_CONCOMITANTE &&
+        t.modo_agendamento !== MODO_AGENDADO_POR_DATA_INICIAL);
+
+    // Resolve a data de início (= ativar agora ou não) por modo.
+    let dataInicio: Date | null;
+    if (publico) {
+      dataInicio = baseStart; // público: liberado, sem agenda rígida
+    } else if (ehSequencial) {
+      dataInicio = t.ref === refSequencialAtivo ? baseStart : null;
+    } else if (t.modo_agendamento === MODO_AGENDADO_POR_DATA_INICIAL) {
+      dataInicio = t.dataInicio ?? null;
+    } else {
+      // livre_concomitante normal: cada elegível ativa independentemente
+      dataInicio = t.dataInicio ?? baseStart;
+    }
+
+    const plano = construirPlanoEtapas({
+      status: t.status,
+      quantidade_total: t.quantidade_total,
+      quantidade_realizada: t.quantidade_realizada,
+      ordem_tratamento: t.ordem_tratamento,
+      modo_agendamento: t.modo_agendamento,
+      tipo: t.tipo,
+      dataInicio,
+      trabalhoPublico: t.trabalhoPublico,
+      permiteEntradaSemAgendamento: t.permiteEntradaSemAgendamento,
+      baseStart,
+      statusPorEtapa: t.statusPorEtapa,
+    });
+
+    return { ref: t.ref, tratamento_id: t.tratamento_id, plano };
+  });
+}

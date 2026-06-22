@@ -2860,6 +2860,10 @@ export type Database = {
         }
         Returns: Json
       }
+      pts_converter_assistido: {
+        Args: { p_assistido_id: string; p_planos: Json }
+        Returns: Json
+      }
       pts_persistir_plano: {
         Args: { p_etapas: Json; p_sessao_ativa?: Json; p_vinculo_id: string }
         Returns: Json
@@ -2885,6 +2889,7 @@ export type Database = {
         }
         Returns: Json
       }
+      pts_rollback_piloto: { Args: { p_assistido_id: string }; Returns: Json }
       registrar_auditoria_reconciliacao: {
         Args: { p_assistido_id: string; p_dados: Json }
         Returns: string
