@@ -36,6 +36,7 @@ import type {
   IaTratamentoSugerido,
 } from "@/types/ia";
 import { recordDecisaoFinal } from "@/services/ia/sugestoes";
+import { isTratamentoHolistico, validarHorarioHolistico } from "@/lib/agendaRules";
 
 
 
