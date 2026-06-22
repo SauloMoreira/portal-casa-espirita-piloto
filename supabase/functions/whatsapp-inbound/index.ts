@@ -1493,28 +1493,54 @@ Deno.serve(async (req) => {
           resposta = RETENCAO_HUMANO_MENSAGEM;
         }
       } else if (intencao === "opt_out" && assistido) {
-        await admin.from("notificacoes_preferencias").upsert({
-          assistido_id: assistido.id, whatsapp_ativo: false,
-          opt_out_at: new Date().toISOString(), opt_out_motivo: "solicitado_via_whatsapp",
-          consentimento_status: "revogado", consentimento_at: new Date().toISOString(),
-          consentimento_origem: "whatsapp",
-        }, { onConflict: "assistido_id" });
-        await admin.from("consentimentos_comunicacao").insert({
-          assistido_id: assistido.id, canal: "whatsapp", acao: "revogado",
-          origem: "whatsapp", observacao: "solicitado_via_whatsapp",
-        });
-        resposta = "Tudo certo! Você não receberá mais mensagens operacionais por aqui. Se mudar de ideia, é só responder 'quero receber'. 🌿";
+        // Opt-out das comunicações da casa pelo próprio WhatsApp. Idempotente:
+        // se já estiver cancelado, apenas reconfirma sem duplicar trilha.
+        const { data: prefAtual } = await admin
+          .from("notificacoes_preferencias")
+          .select("whatsapp_ativo, comunicacao_geral_ativa, consentimento_status")
+          .eq("assistido_id", assistido.id)
+          .maybeSingle();
+        const jaCancelado = !!prefAtual
+          && prefAtual.whatsapp_ativo === false
+          && prefAtual.comunicacao_geral_ativa === false
+          && prefAtual.consentimento_status === "revogado";
+        if (!jaCancelado) {
+          await admin.from("notificacoes_preferencias").upsert({
+            assistido_id: assistido.id, whatsapp_ativo: false, comunicacao_geral_ativa: false,
+            opt_out_at: new Date().toISOString(), opt_out_motivo: "solicitado_via_whatsapp",
+            consentimento_status: "revogado", consentimento_at: new Date().toISOString(),
+            consentimento_origem: "whatsapp",
+          }, { onConflict: "assistido_id" });
+          await admin.from("consentimentos_comunicacao").insert({
+            assistido_id: assistido.id, canal: "whatsapp", acao: "revogado",
+            origem: "whatsapp", observacao: "opt_out_via_whatsapp",
+          });
+        }
+        resposta = "Pronto! Você não receberá mais comunicações da casa por WhatsApp. Se mudar de ideia, é só responder \"VOLTAR\" a qualquer momento. 🌿";
       } else if (intencao === "reativar" && assistido) {
-        await admin.from("notificacoes_preferencias").upsert({
-          assistido_id: assistido.id, whatsapp_ativo: true, opt_out_at: null, opt_out_motivo: null,
-          consentimento_status: "concedido", consentimento_at: new Date().toISOString(),
-          consentimento_origem: "whatsapp",
-        }, { onConflict: "assistido_id" });
-        await admin.from("consentimentos_comunicacao").insert({
-          assistido_id: assistido.id, canal: "whatsapp", acao: "concedido",
-          origem: "whatsapp", observacao: "reativado_via_whatsapp",
-        });
-        resposta = "Pronto! Voltamos a enviar seus lembretes por aqui. 🌿";
+        // Reativação pelo próprio WhatsApp. Idempotente: se já ativo, reconfirma.
+        const { data: prefAtual } = await admin
+          .from("notificacoes_preferencias")
+          .select("whatsapp_ativo, comunicacao_geral_ativa, consentimento_status")
+          .eq("assistido_id", assistido.id)
+          .maybeSingle();
+        const jaAtivo = !prefAtual
+          || (prefAtual.whatsapp_ativo !== false
+            && prefAtual.comunicacao_geral_ativa !== false
+            && prefAtual.consentimento_status !== "revogado");
+        if (!jaAtivo) {
+          await admin.from("notificacoes_preferencias").upsert({
+            assistido_id: assistido.id, whatsapp_ativo: true, comunicacao_geral_ativa: true,
+            opt_out_at: null, opt_out_motivo: null,
+            consentimento_status: "concedido", consentimento_at: new Date().toISOString(),
+            consentimento_origem: "whatsapp",
+          }, { onConflict: "assistido_id" });
+          await admin.from("consentimentos_comunicacao").insert({
+            assistido_id: assistido.id, canal: "whatsapp", acao: "concedido",
+            origem: "whatsapp", observacao: "reativado_via_whatsapp",
+          });
+        }
+        resposta = "Pronto! Voltamos a enviar as comunicações da casa por aqui. 🌿";
       } else if (intencao === "tratamento_hoje" && assistido) {
         // Personal question about the assistido's own session on the requested
         // day. Order: identify -> operational exceptions -> real agenda.
