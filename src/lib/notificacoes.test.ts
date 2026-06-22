@@ -8,7 +8,81 @@ import {
   precisaHandoff,
   dedupeKey,
   parseHoraMin,
+  referenciaTemporalLembrete,
+  diffDiasCalendario,
+  lembreteVencido,
+  formatarDataBR,
 } from "./notificacoes";
+
+describe("referência temporal do lembrete", () => {
+  // 22/06/2026 14:00 em São Paulo (UTC-3) => 17:00Z.
+  const agora = new Date("2026-06-22T17:00:00Z");
+
+  it("usa 'hoje' quando a sessão é no mesmo dia local", () => {
+    expect(referenciaTemporalLembrete("2026-06-22", agora)).toBe("hoje, 22/06/2026");
+  });
+
+  it("usa 'amanhã' quando a sessão é no dia local seguinte", () => {
+    expect(referenciaTemporalLembrete("2026-06-23", agora)).toBe("amanhã, 23/06/2026");
+  });
+
+  it("usa data completa quando a diferença é maior que 1 dia", () => {
+    expect(referenciaTemporalLembrete("2026-06-24", agora)).toBe("no dia 24/06/2026");
+  });
+
+  it("nunca mistura relativo incoerente com a data", () => {
+    const texto = referenciaTemporalLembrete("2026-06-22", agora);
+    expect(texto).not.toContain("amanhã");
+    expect(texto).toContain("hoje, 22/06/2026");
+  });
+
+  it("respeita a timezone na virada do dia", () => {
+    // 23/06 01:00Z = 22/06 22:00 em São Paulo → ainda 'hoje' para sessão 22/06.
+    const tarde = new Date("2026-06-23T01:00:00Z");
+    expect(referenciaTemporalLembrete("2026-06-22", tarde)).toBe("hoje, 22/06/2026");
+    expect(referenciaTemporalLembrete("2026-06-23", tarde)).toBe("amanhã, 23/06/2026");
+  });
+
+  it("diffDiasCalendario calcula dias inteiros", () => {
+    expect(diffDiasCalendario("2026-06-22", agora)).toBe(0);
+    expect(diffDiasCalendario("2026-06-23", agora)).toBe(1);
+    expect(diffDiasCalendario("2026-06-25", agora)).toBe(3);
+  });
+
+  it("formatarDataBR converte ISO para DD/MM/YYYY", () => {
+    expect(formatarDataBR("2026-06-24")).toBe("24/06/2026");
+    expect(formatarDataBR("2026-06-24T19:00:00")).toBe("24/06/2026");
+  });
+});
+
+describe("guarda de lembrete vencido", () => {
+  it("não considera vencido antes do horário da sessão", () => {
+    const agora = new Date("2026-06-22T20:00:00Z"); // 17:00 SP
+    expect(lembreteVencido("2026-06-22", "19:00", agora)).toBe(false);
+  });
+
+  it("considera vencido quando a sessão já começou", () => {
+    const agora = new Date("2026-06-22T22:30:00Z"); // 19:30 SP
+    expect(lembreteVencido("2026-06-22", "19:00", agora)).toBe(true);
+  });
+
+  it("considera vencido em dia anterior já passado", () => {
+    const agora = new Date("2026-06-23T12:00:00Z");
+    expect(lembreteVencido("2026-06-22", "19:00", agora)).toBe(true);
+  });
+
+  it("renderiza o template oficial com referência natural", () => {
+    const corpo = "Olá, {{nome}}! 🌿 Lembrete da sua sessão de {{tratamento}} {{quando}} às {{horario}}. Até breve!";
+    const out = renderTemplate(corpo, {
+      nome: "Andréa Vilela",
+      tratamento: "Magnetismo",
+      quando: "hoje, 22/06/2026",
+      horario: "19:00:00",
+    });
+    expect(out).toBe("Olá, Andréa Vilela! 🌿 Lembrete da sua sessão de Magnetismo hoje, 22/06/2026 às 19:00. Até breve!");
+  });
+});
+
 
 describe("renderTemplate", () => {
   it("substitui variáveis simples", () => {
