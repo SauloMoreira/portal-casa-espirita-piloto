@@ -14,8 +14,15 @@ function parseHoraMin(hora: string): number {
   return Number(h) * 60 + Number(m || 0);
 }
 
+function minutosLocais(date: Date, timeZone = TIMEZONE_OFICIAL): number {
+  const hhmm = date.toLocaleTimeString("en-GB", {
+    timeZone, hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  return parseHoraMin(hhmm);
+}
+
 function dentroJanela(date: Date, inicio: string, fim: string): boolean {
-  const minutos = date.getHours() * 60 + date.getMinutes();
+  const minutos = minutosLocais(date);
   return minutos >= parseHoraMin(inicio) && minutos < parseHoraMin(fim);
 }
 
@@ -172,8 +179,8 @@ Deno.serve(async (req) => {
         result.ignorados++;
         continue;
       }
-      // daily limit
-      const startDay = new Date(); startDay.setHours(0, 0, 0, 0);
+      // daily limit (start of day in the official timezone)
+      const startDay = new Date(`${localDateISO(agora)}T00:00:00-03:00`);
       const { count } = await admin
         .from("notificacoes_fila")
         .select("id", { count: "exact", head: true })
