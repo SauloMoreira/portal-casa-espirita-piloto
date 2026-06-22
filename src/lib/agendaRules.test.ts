@@ -452,4 +452,125 @@ describe("construirPlanoEtapas — plano previsto + agenda ativa", () => {
   });
 });
 
+// ===========================================================================
+// construirPlanoConsolidado — conversão para o novo modelo (caso Andréa)
+// ===========================================================================
+import { construirPlanoConsolidado, type PlanoConsolidadoInput } from "@/lib/agendaRules";
+
+describe("construirPlanoConsolidado — apenas a próxima etapa necessária ativa", () => {
+  const cenarioAndrea = (): PlanoConsolidadoInput[] => [
+    {
+      ref: "desob",
+      tratamento_id: "t1",
+      status: "concluido",
+      quantidade_total: 7,
+      quantidade_realizada: 7,
+      modo_agendamento: "sequencial_bloqueante",
+      ordem_tratamento: 1,
+      tipo: tipo(3, "19:00"),
+    },
+    {
+      ref: "anti",
+      tratamento_id: "t2",
+      status: "concluido",
+      quantidade_total: 7,
+      quantidade_realizada: 7,
+      modo_agendamento: "sequencial_bloqueante",
+      ordem_tratamento: 2,
+      tipo: tipo(3, "19:00"),
+    },
+    {
+      ref: "magnet",
+      tratamento_id: "t3",
+      status: "em_andamento",
+      quantidade_total: 7,
+      quantidade_realizada: 2,
+      modo_agendamento: "sequencial_bloqueante",
+      ordem_tratamento: 3,
+      tipo: tipo(3, "19:00"),
+    },
+    {
+      ref: "cura",
+      tratamento_id: "t4",
+      status: "aguardando_inicio",
+      quantidade_total: 7,
+      quantidade_realizada: 0,
+      modo_agendamento: "sequencial_bloqueante",
+      ordem_tratamento: 4,
+      tipo: tipo(3, "19:00"),
+    },
+    {
+      ref: "evang",
+      tratamento_id: "t5",
+      status: "aguardando_inicio",
+      quantidade_total: 7,
+      quantidade_realizada: 0,
+      modo_agendamento: "livre_concomitante",
+      ordem_tratamento: 5,
+      tipo: tipo(4, "20:00"),
+      trabalhoPublico: true,
+      permiteEntradaSemAgendamento: true,
+    },
+  ];
+
+  it("ativa apenas o sequencial em andamento e mantém o próximo previsto", () => {
+    const planos = construirPlanoConsolidado(cenarioAndrea(), BASE);
+    const byRef = new Map(planos.map((p) => [p.ref, p]));
+
+    // Exatamente UMA etapa ativa em todo o plano (somente Magnetismo).
+    const ativasTotais = planos.flatMap((p) =>
+      p.plano.etapas.filter((e) => e.status_etapa === "ativa"),
+    );
+    expect(ativasTotais.length).toBe(1);
+
+    const magnet = byRef.get("magnet")!;
+    expect(magnet.plano.sessaoAtiva).not.toBeNull();
+    expect(magnet.plano.sessaoAtiva!.numero_etapa).toBe(3);
+
+    // Cura: sem etapa ativa, todas previstas (bloqueada pela cadeia).
+    const cura = byRef.get("cura")!;
+    expect(cura.plano.sessaoAtiva).toBeNull();
+    expect(cura.plano.etapas.every((e) => e.status_etapa === "prevista")).toBe(true);
+  });
+
+  it("preserva tratamento público livre (liberado, sem agenda rígida)", () => {
+    const planos = construirPlanoConsolidado(cenarioAndrea(), BASE);
+    const evang = planos.find((p) => p.ref === "evang")!;
+    expect(evang.plano.publicoLivre).toBe(true);
+    expect(evang.plano.sessaoAtiva).toBeNull();
+    expect(
+      evang.plano.etapas.some(
+        (e) => e.status_etapa === "liberada_para_comparecimento_publico",
+      ),
+    ).toBe(true);
+  });
+
+  it("respeita estados terminais já gravados (histórico preservado)", () => {
+    const inputs = cenarioAndrea();
+    inputs[2].statusPorEtapa = { 1: "realizada", 2: "realizada" };
+    const planos = construirPlanoConsolidado(inputs, BASE);
+    const magnet = planos.find((p) => p.ref === "magnet")!;
+    expect(magnet.plano.etapas[0].status_etapa).toBe("realizada");
+    expect(magnet.plano.etapas[1].status_etapa).toBe("realizada");
+  });
+
+  it("não ativa nada quando não há sequencial elegível", () => {
+    const concluidos = cenarioAndrea().map((t) =>
+      t.ref === "magnet"
+        ? { ...t, status: "concluido", quantidade_realizada: 7 }
+        : t,
+    );
+    // Remove o público para isolar: nenhuma etapa rígida ativa esperada.
+    const semPublico = concluidos.filter((t) => t.ref !== "evang");
+    const planos = construirPlanoConsolidado(semPublico, BASE);
+    const ativas = planos.flatMap((p) =>
+      p.plano.etapas.filter((e) => e.status_etapa === "ativa"),
+    );
+    // Cura (aguardando_inicio) vira a vez quando Magnetismo conclui.
+    expect(ativas.length).toBe(1);
+    expect(planos.find((p) => p.ref === "cura")!.plano.sessaoAtiva).not.toBeNull();
+  });
+});
+
+
 
