@@ -96,3 +96,37 @@ export async function registrarConsentimento(
     );
   if (prefErr) throw prefErr;
 }
+
+/**
+ * Liga/desliga a permissão de COMUNICAÇÕES DA CASA (institucional/campanhas/
+ * eventos) para o assistido, no modelo OPT-OUT (nasce ativa por padrão).
+ *
+ * Grava a trilha imutável em `consentimentos_comunicacao` e atualiza o snapshot
+ * `comunicacao_geral_ativa` na preferência. Não altera o canal operacional
+ * (`whatsapp_ativo`), que controla apenas lembretes de sessão/entrevista.
+ */
+export async function setComunicacaoCasa(
+  assistidoId: string,
+  ativa: boolean,
+  origem: ConsentimentoOrigem = "app",
+): Promise<void> {
+  // 1) trilha imutável da alteração da permissão da casa
+  const { error: histErr } = await supabase.from("consentimentos_comunicacao").insert({
+    assistido_id: assistidoId,
+    canal: "whatsapp",
+    acao: ativa ? "concedido" : "revogado",
+    origem,
+    versao_termo: VERSAO_TERMO_CONSENTIMENTO,
+    observacao: ativa ? "comunicacao_casa_reativada" : "comunicacao_casa_cancelada",
+  });
+  if (histErr) throw histErr;
+
+  // 2) snapshot na preferência (gate respeitado pelo comunicacao-dispatch)
+  const { error: prefErr } = await supabase
+    .from("notificacoes_preferencias")
+    .upsert(
+      { assistido_id: assistidoId, comunicacao_geral_ativa: ativa },
+      { onConflict: "assistido_id" },
+    );
+  if (prefErr) throw prefErr;
+}
