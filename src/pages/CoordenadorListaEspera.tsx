@@ -48,6 +48,7 @@ export default function CoordenadorListaEspera() {
   const [agendarOpen, setAgendarOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<WaitItem | null>(null);
   const [dataInicial, setDataInicial] = useState("");
+  const [horario, setHorario] = useState("");
   const [saving, setSaving] = useState(false);
   const [tratNomes, setTratNomes] = useState<string[]>([]);
   const [cartaOpen, setCartaOpen] = useState(false);
