@@ -159,8 +159,8 @@ export const HUMANO_TERMOS = [
 // ("meu", "minha", "tenho", "tratamento", "sessão", "entrevista") is routed to
 // the assistido's real data instead of the generic house schedule.
 export const KEYWORDS: Array<{ intent: Intencao; terms: string[] }> = [
-  { intent: "opt_out", terms: ["parar", "cancelar mensagens", "nao quero", "não quero", "sair", "descadastr", "remover"] },
-  { intent: "reativar", terms: ["voltar a receber", "reativar", "quero receber"] },
+  { intent: "opt_out", terms: ["parar", "pare", "cancelar mensagens", "cancelar", "nao quero", "não quero", "sair", "descadastr", "remover", "remova", "stop"] },
+  { intent: "reativar", terms: ["voltar a receber", "voltar", "reativar", "ativar", "quero receber", "receber", "quero voltar"] },
   // ===== PERSONAL intents (require an identified assistido + real data) =====
   { intent: "horario_entrevista", terms: [
     "entrevista", "tenho entrevista", "minha entrevista", "entrevista marcada", "entrevista fraterna",

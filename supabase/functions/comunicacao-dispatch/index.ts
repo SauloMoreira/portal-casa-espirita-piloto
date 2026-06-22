@@ -134,10 +134,13 @@ Deno.serve(async (req) => {
           .eq("assistido_id", env.assistido_id)
           .maybeSingle();
 
-        const consentido =
-          pref && pref.whatsapp_ativo === true && pref.consentimento_status === "concedido";
+        // Modelo OPT-OUT: as comunicações da casa nascem ATIVAS por padrão.
+        // Só bloqueia quando há opt-out EXPLÍCITO de canal (whatsapp_ativo=false)
+        // ou consentimento revogado. Estados ausente/`pendente` => permitido.
+        const canalBloqueado =
+          pref && (pref.whatsapp_ativo === false || pref.consentimento_status === "revogado");
 
-        if (!consentido) {
+        if (canalBloqueado) {
           await admin
             .from("comunicacoes_institucionais_envios")
             .update({ status: "bloqueado", motivo: "consentimento_revogado" })
@@ -146,7 +149,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Preferência de comunicações gerais (default true quando ausente).
+        // Preferência de comunicações gerais/da casa (default true quando ausente).
         const aceitaGeral = !pref || pref.comunicacao_geral_ativa !== false;
         if (!aceitaGeral) {
           await admin
