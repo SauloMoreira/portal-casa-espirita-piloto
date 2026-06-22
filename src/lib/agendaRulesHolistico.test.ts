@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isTratamentoHolistico,
   validarHorarioHolistico,
+  podeConfirmarAgendamento,
   construirPlanoEtapas,
 } from "@/lib/agendaRules";
 
