@@ -19,6 +19,8 @@ interface SessaoDoDia {
   quantidade_total: number;
   quantidade_realizada: number;
   presenca_registrada: boolean;
+  tem_plano: boolean;
+  usa_novo_modelo: boolean;
 }
 
 interface SessaoPublica {
