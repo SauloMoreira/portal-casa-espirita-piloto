@@ -410,7 +410,8 @@ describe("previewAgendaMigracao — projeção consolidada na migração", () =>
     expect(pub.geraAgenda).toBe(false);
     expect(pub.sessoes).toHaveLength(0);
     expect(pub.tratamentoPublicoComSugestao).toBe(true);
-    expect(pub.liberadoDesde).toBe(BASE);
+    // Base aplica piso em "hoje": liberadoDesde é o maior entre BASE e hoje.
+    expect(pub.liberadoDesde! >= BASE).toBe(true);
     expect(pub.sugestoes!.length).toBeGreaterThan(0);
     expect(pub.sugestoesAPartirDe).toBeTruthy();
   });

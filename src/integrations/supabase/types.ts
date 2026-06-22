@@ -256,6 +256,7 @@ export type Database = {
           created_by: string
           data_inicio: string | null
           entrevista_id: string | null
+          faltas_consecutivas: number
           id: string
           observacao_migracao: string | null
           observacoes: string | null
@@ -264,8 +265,11 @@ export type Database = {
           quantidade_faltante: number | null
           quantidade_realizada: number
           quantidade_total: number
+          remarcacoes_automaticas: number
           status: string
           tratamento_id: string
+          ultima_presenca_em: string | null
+          ultimo_status_operacional: string | null
           updated_at: string
           urgencia: string | null
         }
@@ -276,6 +280,7 @@ export type Database = {
           created_by: string
           data_inicio?: string | null
           entrevista_id?: string | null
+          faltas_consecutivas?: number
           id?: string
           observacao_migracao?: string | null
           observacoes?: string | null
@@ -284,8 +289,11 @@ export type Database = {
           quantidade_faltante?: number | null
           quantidade_realizada?: number
           quantidade_total?: number
+          remarcacoes_automaticas?: number
           status?: string
           tratamento_id: string
+          ultima_presenca_em?: string | null
+          ultimo_status_operacional?: string | null
           updated_at?: string
           urgencia?: string | null
         }
@@ -296,6 +304,7 @@ export type Database = {
           created_by?: string
           data_inicio?: string | null
           entrevista_id?: string | null
+          faltas_consecutivas?: number
           id?: string
           observacao_migracao?: string | null
           observacoes?: string | null
@@ -304,8 +313,11 @@ export type Database = {
           quantidade_faltante?: number | null
           quantidade_realizada?: number
           quantidade_total?: number
+          remarcacoes_automaticas?: number
           status?: string
           tratamento_id?: string
+          ultima_presenca_em?: string | null
+          ultimo_status_operacional?: string | null
           updated_at?: string
           urgencia?: string | null
         }
@@ -362,6 +374,7 @@ export type Database = {
           status: string
           telefone: string | null
           updated_at: string
+          usa_agenda_plano: boolean
           user_id: string | null
         }
         Insert: {
@@ -392,6 +405,7 @@ export type Database = {
           status?: string
           telefone?: string | null
           updated_at?: string
+          usa_agenda_plano?: boolean
           user_id?: string | null
         }
         Update: {
@@ -422,6 +436,7 @@ export type Database = {
           status?: string
           telefone?: string | null
           updated_at?: string
+          usa_agenda_plano?: boolean
           user_id?: string | null
         }
         Relationships: []
@@ -1976,6 +1991,71 @@ export type Database = {
         }
         Relationships: []
       }
+      plano_tratamento_sessoes: {
+        Row: {
+          agenda_sessao_id: string | null
+          assistido_id: string
+          assistido_tratamento_id: string
+          bloqueado_por_etapa_anterior: boolean
+          created_at: string
+          data_base_utilizada: string | null
+          data_prevista: string | null
+          eh_publico_livre: boolean
+          id: string
+          numero_etapa: number
+          ordem_tratamento: number | null
+          origem: string
+          quantidade_total_do_tratamento: number
+          status_etapa: Database["public"]["Enums"]["status_etapa_plano"]
+          tipo_tratamento_id: string
+          updated_at: string
+        }
+        Insert: {
+          agenda_sessao_id?: string | null
+          assistido_id: string
+          assistido_tratamento_id: string
+          bloqueado_por_etapa_anterior?: boolean
+          created_at?: string
+          data_base_utilizada?: string | null
+          data_prevista?: string | null
+          eh_publico_livre?: boolean
+          id?: string
+          numero_etapa: number
+          ordem_tratamento?: number | null
+          origem?: string
+          quantidade_total_do_tratamento: number
+          status_etapa?: Database["public"]["Enums"]["status_etapa_plano"]
+          tipo_tratamento_id: string
+          updated_at?: string
+        }
+        Update: {
+          agenda_sessao_id?: string | null
+          assistido_id?: string
+          assistido_tratamento_id?: string
+          bloqueado_por_etapa_anterior?: boolean
+          created_at?: string
+          data_base_utilizada?: string | null
+          data_prevista?: string | null
+          eh_publico_livre?: boolean
+          id?: string
+          numero_etapa?: number
+          ordem_tratamento?: number | null
+          origem?: string
+          quantidade_total_do_tratamento?: number
+          status_etapa?: Database["public"]["Enums"]["status_etapa_plano"]
+          tipo_tratamento_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_tratamento_sessoes_agenda_sessao_id_fkey"
+            columns: ["agenda_sessao_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_tratamentos_assistido"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presencas_palestras: {
         Row: {
           assistido_id: string
@@ -2780,6 +2860,31 @@ export type Database = {
         }
         Returns: Json
       }
+      pts_persistir_plano: {
+        Args: { p_etapas: Json; p_sessao_ativa?: Json; p_vinculo_id: string }
+        Returns: Json
+      }
+      pts_registrar_ausencia: {
+        Args: {
+          p_data: string
+          p_nova_data?: string
+          p_nova_horario?: string
+          p_registrado_por: string
+          p_vinculo_id: string
+        }
+        Returns: Json
+      }
+      pts_registrar_presenca: {
+        Args: {
+          p_data: string
+          p_proxima_data?: string
+          p_proxima_horario?: string
+          p_proxima_numero_etapa?: number
+          p_registrado_por: string
+          p_vinculo_id: string
+        }
+        Returns: Json
+      }
       registrar_auditoria_reconciliacao: {
         Args: { p_assistido_id: string; p_dados: Json }
         Returns: string
@@ -2882,6 +2987,14 @@ export type Database = {
         | "presenca_registrada"
         | "falta_registrada"
       notif_status: "pendente" | "agendado" | "enviado" | "falha" | "cancelado"
+      status_etapa_plano:
+        | "prevista"
+        | "ativa"
+        | "realizada"
+        | "ausente"
+        | "suspensa"
+        | "cancelada"
+        | "liberada_para_comparecimento_publico"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3031,6 +3144,15 @@ export const Constants = {
         "falta_registrada",
       ],
       notif_status: ["pendente", "agendado", "enviado", "falha", "cancelado"],
+      status_etapa_plano: [
+        "prevista",
+        "ativa",
+        "realizada",
+        "ausente",
+        "suspensa",
+        "cancelada",
+        "liberada_para_comparecimento_publico",
+      ],
     },
   },
 } as const

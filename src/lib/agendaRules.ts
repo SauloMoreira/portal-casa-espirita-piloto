@@ -429,3 +429,191 @@ export function sessoesIguais(a: SessaoGerada[], b: SessaoGerada[]): boolean {
   }
   return true;
 }
+
+// ===========================================================================
+// NOVO MODELO: Plano previsto (etapas lógicas) + agenda ativa + histórico.
+//
+// `construirPlanoEtapas` é a ÚNICA fonte da estrutura do plano. Respeita SEMPRE
+// a quantidade parametrizada (quantidade_total vinda de
+// `tipos_tratamento.quantidade_padrao_sessoes`) — NUNCA hardcode. As datas das
+// etapas futuras vêm EXCLUSIVAMENTE de `projetarAgendaRestante`
+// (mesma inteligência do fluxo normal), sem cálculo paralelo.
+// ===========================================================================
+
+export type StatusEtapaPlano =
+  | "prevista"
+  | "ativa"
+  | "realizada"
+  | "ausente"
+  | "suspensa"
+  | "cancelada"
+  | "liberada_para_comparecimento_publico";
+
+export interface PlanoEtapa {
+  numero_etapa: number;
+  ordem_tratamento: number | null;
+  quantidade_total_do_tratamento: number;
+  status_etapa: StatusEtapaPlano;
+  data_prevista: string | null;
+  data_base_utilizada: string | null;
+  eh_publico_livre: boolean;
+  bloqueado_por_etapa_anterior: boolean;
+}
+
+export interface SessaoAtivaPlano {
+  numero_etapa: number;
+  data: string;
+  horario: string | null;
+}
+
+export interface PlanoConstruido {
+  etapas: PlanoEtapa[];
+  /** Sessão real a ser ativada (null para público livre ou sem próxima). */
+  sessaoAtiva: SessaoAtivaPlano | null;
+  publicoLivre: boolean;
+  liberadoDesde: string | null;
+  sugestoesAPartirDe: string | null;
+}
+
+export interface ConstruirPlanoParams {
+  status: string;
+  /** Quantidade parametrizada do tipo (quantidade_padrao_sessoes). */
+  quantidade_total: number;
+  quantidade_realizada: number;
+  ordem_tratamento: number | null;
+  modo_agendamento: string;
+  tipo: ParametrosTipoAgenda;
+  dataInicio: Date | null;
+  trabalhoPublico?: boolean;
+  permiteEntradaSemAgendamento?: boolean;
+  /** Marco para sugestões públicas / encadeamento (yyyy-MM-dd). */
+  baseStart: Date;
+  /** Estados terminais já gravados por etapa (preserva histórico). */
+  statusPorEtapa?: Record<number, StatusEtapaPlano>;
+}
+
+/**
+ * Constrói o plano completo de etapas lógicas de UM tratamento e indica qual
+ * é a etapa/sessão ativa "na vez". Não persiste nada — é regra pura,
+ * compartilhada por criação, migração, reconciliação e UI.
+ */
+export function construirPlanoEtapas(params: ConstruirPlanoParams): PlanoConstruido {
+  const {
+    status,
+    quantidade_total,
+    quantidade_realizada,
+    ordem_tratamento,
+    modo_agendamento,
+    tipo,
+    dataInicio,
+    trabalhoPublico,
+    permiteEntradaSemAgendamento,
+    baseStart,
+    statusPorEtapa = {},
+  } = params;
+
+  const total = Math.max(Math.trunc(Number(quantidade_total) || 0), 0);
+  const realizadas = Math.max(Math.trunc(Number(quantidade_realizada) || 0), 0);
+  const publicoLivre = isTratamentoPublicoLivre({
+    modo_agendamento,
+    trabalhoPublico,
+    permiteEntradaSemAgendamento,
+  });
+
+  const etapas: PlanoEtapa[] = [];
+
+  // ----- Caso público livre: etapas previstas/liberadas, SEM agenda rígida. -----
+  if (publicoLivre) {
+    const restante = quantidadeRestante(total, realizadas);
+    const liberadoDesde = dataParaStr(baseStart);
+    const sugestoes = normalizarSessoes(
+      generateSessionDates(
+        baseStart,
+        tipo.dia_semana,
+        normalizarHorario(tipo.horario),
+        tipo.frequencia_valor || 1,
+        tipo.frequencia_unidade || "semanas",
+        Math.max(restante, 0),
+      ),
+    );
+    for (let i = 1; i <= total; i++) {
+      const terminal = statusPorEtapa[i];
+      const status_etapa: StatusEtapaPlano =
+        terminal ??
+        (i <= realizadas
+          ? "realizada"
+          : "liberada_para_comparecimento_publico");
+      etapas.push({
+        numero_etapa: i,
+        ordem_tratamento,
+        quantidade_total_do_tratamento: total,
+        status_etapa,
+        data_prevista: i > realizadas ? sugestoes[i - realizadas - 1]?.data_sessao ?? null : null,
+        data_base_utilizada: liberadoDesde,
+        eh_publico_livre: true,
+        bloqueado_por_etapa_anterior: false,
+      });
+    }
+    return {
+      etapas,
+      sessaoAtiva: null,
+      publicoLivre: true,
+      liberadoDesde,
+      sugestoesAPartirDe: sugestoes[0]?.data_sessao ?? null,
+    };
+  }
+
+  // ----- Caso sequencial/livre/por-data: projeta as datas restantes. -----
+  const proj = projetarAgendaRestante({
+    status,
+    quantidade_total: total,
+    quantidade_realizada: realizadas,
+    tipo,
+    dataInicio,
+  });
+
+  const horario = normalizarHorario(tipo.horario);
+  let sessaoAtiva: SessaoAtivaPlano | null = null;
+
+  for (let i = 1; i <= total; i++) {
+    const terminal = statusPorEtapa[i];
+    const futuraIdx = i - realizadas - 1; // 0 = primeira não realizada (ativa)
+    const dataFutura = futuraIdx >= 0 ? proj.sessoes[futuraIdx]?.data_sessao ?? null : null;
+
+    let status_etapa: StatusEtapaPlano;
+    if (terminal) {
+      status_etapa = terminal;
+    } else if (i <= realizadas) {
+      status_etapa = "realizada";
+    } else if (i === realizadas + 1 && proj.geraAgenda && dataFutura) {
+      status_etapa = "ativa";
+      sessaoAtiva = { numero_etapa: i, data: dataFutura, horario };
+    } else {
+      status_etapa = "prevista";
+    }
+
+    etapas.push({
+      numero_etapa: i,
+      ordem_tratamento,
+      quantidade_total_do_tratamento: total,
+      status_etapa,
+      data_prevista: i > realizadas ? dataFutura : null,
+      data_base_utilizada: dataInicio ? dataParaStr(dataInicio) : null,
+      eh_publico_livre: false,
+      bloqueado_por_etapa_anterior:
+        modo_agendamento === MODO_SEQUENCIAL_BLOQUEANTE && i > realizadas + 1,
+    });
+  }
+
+  return {
+    etapas,
+    sessaoAtiva,
+    publicoLivre: false,
+    liberadoDesde: null,
+    sugestoesAPartirDe: null,
+  };
+}
+
+function dataParaStr(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}

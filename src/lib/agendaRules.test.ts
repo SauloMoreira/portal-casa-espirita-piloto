@@ -3,6 +3,7 @@ import {
   projetarAgendaConsolidada,
   isTratamentoPublicoLivre,
   ocorrenciaContaParaTratamentoPublico,
+  construirPlanoEtapas,
   type TratamentoProjecaoInput,
 } from "@/lib/agendaRules";
 
@@ -345,4 +346,110 @@ describe("ocorrenciaContaParaTratamentoPublico — predicado de progresso", () =
     ).toBe(false);
   });
 });
+
+// ===========================================================================
+// NOVO MODELO — construirPlanoEtapas (plano previsto + agenda ativa)
+// ===========================================================================
+describe("construirPlanoEtapas — plano previsto + agenda ativa", () => {
+  const tipoSeq = {
+    dia_semana: 6, // sábado
+    horario: "20:00",
+    frequencia_valor: 1,
+    frequencia_unidade: "semanas",
+  };
+
+  it("respeita a quantidade parametrizada (sem hardcode) e ativa só a próxima etapa", () => {
+    const plano = construirPlanoEtapas({
+      status: "em_andamento",
+      quantidade_total: 7,
+      quantidade_realizada: 2,
+      ordem_tratamento: 1,
+      modo_agendamento: "sequencial_bloqueante",
+      tipo: tipoSeq,
+      dataInicio: BASE,
+      baseStart: BASE,
+    });
+
+    expect(plano.etapas).toHaveLength(7);
+    // 2 realizadas
+    expect(plano.etapas.filter((e) => e.status_etapa === "realizada")).toHaveLength(2);
+    // exatamente 1 ativa
+    const ativas = plano.etapas.filter((e) => e.status_etapa === "ativa");
+    expect(ativas).toHaveLength(1);
+    expect(ativas[0].numero_etapa).toBe(3);
+    // restante previsto
+    expect(plano.etapas.filter((e) => e.status_etapa === "prevista")).toHaveLength(4);
+    // sessão ativa aponta para a etapa 3 com data real
+    expect(plano.sessaoAtiva?.numero_etapa).toBe(3);
+    expect(plano.sessaoAtiva?.data).toBeTruthy();
+  });
+
+  it("usa a quantidade parametrizada diferente (ex.: Reiki = 4)", () => {
+    const plano = construirPlanoEtapas({
+      status: "aguardando_inicio",
+      quantidade_total: 4,
+      quantidade_realizada: 0,
+      ordem_tratamento: 1,
+      modo_agendamento: "sequencial_bloqueante",
+      tipo: tipoSeq,
+      dataInicio: BASE,
+      baseStart: BASE,
+    });
+    expect(plano.etapas).toHaveLength(4);
+    expect(plano.sessaoAtiva?.numero_etapa).toBe(1);
+  });
+
+  it("conclui: tudo realizado não gera etapa ativa nem sessão", () => {
+    const plano = construirPlanoEtapas({
+      status: "concluido",
+      quantidade_total: 7,
+      quantidade_realizada: 7,
+      ordem_tratamento: 1,
+      modo_agendamento: "sequencial_bloqueante",
+      tipo: tipoSeq,
+      dataInicio: BASE,
+      baseStart: BASE,
+    });
+    expect(plano.etapas.every((e) => e.status_etapa === "realizada")).toBe(true);
+    expect(plano.sessaoAtiva).toBeNull();
+  });
+
+  it("preserva histórico via statusPorEtapa (etapa ausente não vira ativa)", () => {
+    const plano = construirPlanoEtapas({
+      status: "em_andamento",
+      quantidade_total: 7,
+      quantidade_realizada: 1,
+      ordem_tratamento: 1,
+      modo_agendamento: "sequencial_bloqueante",
+      tipo: tipoSeq,
+      dataInicio: BASE,
+      baseStart: BASE,
+      statusPorEtapa: { 2: "ausente" },
+    });
+    expect(plano.etapas[1].status_etapa).toBe("ausente");
+  });
+
+  it("público livre: não gera sessão rígida, etapas ficam liberadas com sugestão", () => {
+    const plano = construirPlanoEtapas({
+      status: "em_andamento",
+      quantidade_total: 7,
+      quantidade_realizada: 1,
+      ordem_tratamento: 5,
+      modo_agendamento: "livre_concomitante",
+      tipo: { ...tipoSeq, dia_semana: 4 },
+      dataInicio: BASE,
+      baseStart: BASE,
+      trabalhoPublico: true,
+      permiteEntradaSemAgendamento: true,
+    });
+    expect(plano.publicoLivre).toBe(true);
+    expect(plano.sessaoAtiva).toBeNull();
+    expect(plano.liberadoDesde).toBeTruthy();
+    expect(plano.sugestoesAPartirDe).toBeTruthy();
+    expect(
+      plano.etapas.filter((e) => e.status_etapa === "liberada_para_comparecimento_publico").length,
+    ).toBeGreaterThan(0);
+  });
+});
+
 
