@@ -224,6 +224,43 @@ export function isTratamentoPublicoLivre(t: {
 const dataParaString = (d: Date): string => d.toISOString().slice(0, 10);
 
 /**
+ * Detecção ÚNICA de tratamento holístico. Baseada exclusivamente em
+ * `tipos_tratamento.tipo === 'holistico'`. Todos os pontos do sistema devem
+ * usar este helper — sem classificação paralela / sem hardcode por nome.
+ */
+export function isTratamentoHolistico(tipo: string | null | undefined): boolean {
+  return (tipo ?? "").trim().toLowerCase() === "holistico";
+}
+
+export interface ValidacaoHorarioHolistico {
+  valido: boolean;
+  erro?: string;
+}
+
+/**
+ * Validador PURO da obrigatoriedade de horário em tratamentos holísticos.
+ *  - holístico: exige horário válido ("HH:MM"); sem horário → inválido.
+ *  - não holístico: horário é opcional, sempre válido.
+ *
+ * Não muda a regra de dia/frequência/ocorrência — apenas o fator horário.
+ */
+export function validarHorarioHolistico(params: {
+  holistico: boolean;
+  horario: string | null | undefined;
+}): ValidacaoHorarioHolistico {
+  const { holistico } = params;
+  if (!holistico) return { valido: true };
+  const h = normalizarHorario(params.horario);
+  if (!h) {
+    return {
+      valido: false,
+      erro: "Tratamentos holísticos exigem o horário da consulta.",
+    };
+  }
+  return { valido: true };
+}
+
+/**
  * Predicado explícito de elegibilidade de uma ocorrência para contar progresso
  * em tratamento público livre. Centraliza a regra de "qual presença conta":
  *  - a ocorrência pertence ao trabalho público correto do tratamento;
