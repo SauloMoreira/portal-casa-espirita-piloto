@@ -60,16 +60,27 @@ Deno.serve(async (req) => {
       ZAPI_CLIENT_TOKEN: Deno.env.get("ZAPI_CLIENT_TOKEN"),
     });
 
+    // Optional controlled targeting for safe end-to-end validation.
+    // When `fila_id` is provided, ONLY that single queue item is processed
+    // (still subject to all the same eligibility rules below). This does NOT
+    // change any business rule — it only narrows the selection for a test.
+    const body = await req.json().catch(() => ({}));
+    const filaId: string | undefined = body?.fila_id;
+    const loteMax = Math.min(Math.max(Number(body?.lote_max) || 50, 1), 50);
+
     const nowIso = new Date().toISOString();
     // Eligible queue items: pending or scheduled-in-the-past, not exhausted.
-    const { data: itens, error } = await admin
+    let filaQuery = admin
       .from("notificacoes_fila")
       .select("*")
       .in("status", ["pendente", "agendado"])
       .lte("scheduled_at", nowIso)
       .lt("retry_count", MAX_RETRY)
       .order("scheduled_at", { ascending: true })
-      .limit(50);
+      .limit(filaId ? 1 : loteMax);
+    if (filaId) filaQuery = filaQuery.eq("id", filaId);
+
+    const { data: itens, error } = await filaQuery;
 
     if (error) throw error;
 
