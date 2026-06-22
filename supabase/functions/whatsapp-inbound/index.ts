@@ -2052,13 +2052,17 @@ Deno.serve(async (req) => {
       return c.length > 120 ? c.slice(0, 119) + "…" : c;
     };
     const turnosComUser = [...turnosAnteriores,
-      { papel: "user", resumo: resumirT(texto), em: new Date().toISOString() }].slice(-4);
+      { papel: "user", resumo: resumirT(conteudoExibicaoInbound), em: new Date().toISOString() }].slice(-4);
 
     // Log inbound with full audit context (identification + intent + fallback).
+    // `conteudo_exibicao` e `tipo_mensagem` garantem que mensagens não textuais
+    // (áudio/imagem/documento/localização) sejam rastreáveis no atendimento.
     await admin.from("notificacoes_log").insert({
       fila_id: null, direcao: "entrada",
       payload_recebido: {
         telefone, texto, intencao,
+        tipo_mensagem: tipoMensagem,
+        conteudo_exibicao: conteudoExibicaoInbound,
         assistido_identificado: !!assistido,
         assistido_id: assistido?.id ?? null,
         resposta_fonte: respostaFonte,
