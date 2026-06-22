@@ -149,9 +149,14 @@ export async function submitEntrevista(
     observacoes,
     quantidades,
     datasIniciais,
+    horarios,
     tratamentoMap,
     agendaEntrevistaId,
   } = params;
+
+  /** Horário efetivo do tratamento: override do entrevistador ou padrão sugerido do tipo. */
+  const horarioEfetivo = (tratamentoId: string): string | null =>
+    horarios[tratamentoId]?.trim() || tratamentoMap[tratamentoId]?.horario || null;
 
   const validDesignacoes = buildValidDesignacoes(quantidades, tratamentoMap);
 
@@ -268,7 +273,7 @@ export async function submitEntrevista(
       const sessions = generateSessionDates(
         startDate,
         trat.dia_semana,
-        trat.horario,
+        horarioEfetivo(d.tratamento_id),
         trat.frequencia_valor || 1,
         trat.frequencia_unidade || "semanas",
         remaining
@@ -311,7 +316,7 @@ export async function submitEntrevista(
     const sessions = generateSessionDates(
       startDate,
       trat.dia_semana,
-      trat.horario,
+      horarioEfetivo(d.tratamento_id),
       trat.frequencia_valor || 1,
       trat.frequencia_unidade || "semanas",
       d.quantidade_total

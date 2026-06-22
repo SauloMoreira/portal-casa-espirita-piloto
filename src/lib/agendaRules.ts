@@ -224,6 +224,43 @@ export function isTratamentoPublicoLivre(t: {
 const dataParaString = (d: Date): string => d.toISOString().slice(0, 10);
 
 /**
+ * Detecção ÚNICA de tratamento holístico. Baseada exclusivamente em
+ * `tipos_tratamento.tipo === 'holistico'`. Todos os pontos do sistema devem
+ * usar este helper — sem classificação paralela / sem hardcode por nome.
+ */
+export function isTratamentoHolistico(tipo: string | null | undefined): boolean {
+  return (tipo ?? "").trim().toLowerCase() === "holistico";
+}
+
+export interface ValidacaoHorarioHolistico {
+  valido: boolean;
+  erro?: string;
+}
+
+/**
+ * Validador PURO da obrigatoriedade de horário em tratamentos holísticos.
+ *  - holístico: exige horário válido ("HH:MM"); sem horário → inválido.
+ *  - não holístico: horário é opcional, sempre válido.
+ *
+ * Não muda a regra de dia/frequência/ocorrência — apenas o fator horário.
+ */
+export function validarHorarioHolistico(params: {
+  holistico: boolean;
+  horario: string | null | undefined;
+}): ValidacaoHorarioHolistico {
+  const { holistico } = params;
+  if (!holistico) return { valido: true };
+  const h = normalizarHorario(params.horario);
+  if (!h) {
+    return {
+      valido: false,
+      erro: "Tratamentos holísticos exigem o horário da consulta.",
+    };
+  }
+  return { valido: true };
+}
+
+/**
  * Predicado explícito de elegibilidade de uma ocorrência para contar progresso
  * em tratamento público livre. Centraliza a regra de "qual presença conta":
  *  - a ocorrência pertence ao trabalho público correto do tratamento;
@@ -455,6 +492,8 @@ export interface PlanoEtapa {
   quantidade_total_do_tratamento: number;
   status_etapa: StatusEtapaPlano;
   data_prevista: string | null;
+  /** Horário previsto da etapa (padrão sugerido do tipo). Null no legado/não holístico. */
+  horario_previsto: string | null;
   data_base_utilizada: string | null;
   eh_publico_livre: boolean;
   bloqueado_por_etapa_anterior: boolean;
@@ -549,6 +588,7 @@ export function construirPlanoEtapas(params: ConstruirPlanoParams): PlanoConstru
         quantidade_total_do_tratamento: total,
         status_etapa,
         data_prevista: i > realizadas ? sugestoes[i - realizadas - 1]?.data_sessao ?? null : null,
+        horario_previsto: i > realizadas ? normalizarHorario(tipo.horario) : null,
         data_base_utilizada: liberadoDesde,
         eh_publico_livre: true,
         bloqueado_por_etapa_anterior: false,
@@ -598,6 +638,7 @@ export function construirPlanoEtapas(params: ConstruirPlanoParams): PlanoConstru
       quantidade_total_do_tratamento: total,
       status_etapa,
       data_prevista: i > realizadas ? dataFutura : null,
+      horario_previsto: i > realizadas ? horario : null,
       data_base_utilizada: dataInicio ? dataParaStr(dataInicio) : null,
       eh_publico_livre: false,
       bloqueado_por_etapa_anterior:

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar, Search } from "lucide-react";
 import { format, addDays } from "date-fns";
+import { isTratamentoHolistico } from "@/lib/agendaRules";
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -14,9 +15,19 @@ interface AgendaItem {
   id: string;
   assistido_nome: string;
   tratamento_nome: string;
+  tratamento_tipo: string | null;
   data_sessao: string;
   horario: string | null;
   status: string;
+}
+
+/** Ordena por data ASC, horário ASC com NULLS LAST (apenas ordenação — não mascara pendência). */
+function ordenarPorDataHorario(a: AgendaItem, b: AgendaItem): number {
+  if (a.data_sessao !== b.data_sessao) return a.data_sessao < b.data_sessao ? -1 : 1;
+  if (!a.horario && !b.horario) return 0;
+  if (!a.horario) return 1;
+  if (!b.horario) return -1;
+  return a.horario.localeCompare(b.horario);
 }
 
 export default function CoordenadorAgenda() {
@@ -29,11 +40,13 @@ export default function CoordenadorAgenda() {
     const fetch = async () => {
       const { data: meusTrat } = await supabase
         .from("tipos_tratamento")
-        .select("id, nome")
+        .select("id, nome, tipo")
         .eq("coordenador_responsavel_id", user.id);
 
       if (!meusTrat || meusTrat.length === 0) { setItems([]); return; }
-      const tratMap = Object.fromEntries(meusTrat.map((t: any) => [t.id, t.nome]));
+      const tratMap = Object.fromEntries(
+        meusTrat.map((t: any) => [t.id, { nome: t.nome, tipo: t.tipo }]),
+      );
       const tratIds = meusTrat.map((t: any) => t.id);
 
       const today = format(new Date(), "yyyy-MM-dd");
@@ -45,7 +58,8 @@ export default function CoordenadorAgenda() {
         .in("tratamento_id", tratIds)
         .gte("data_sessao", today)
         .lte("data_sessao", limit30)
-        .order("data_sessao", { ascending: true });
+        .order("data_sessao", { ascending: true })
+        .order("horario", { ascending: true, nullsFirst: false });
 
       if (!agendas || agendas.length === 0) { setItems([]); return; }
 
@@ -53,14 +67,19 @@ export default function CoordenadorAgenda() {
       const { data: assistidos } = await supabase.from("assistidos").select("id, nome").in("id", assistidoIds);
       const assistMap = Object.fromEntries((assistidos || []).map((a: any) => [a.id, a.nome]));
 
-      setItems(agendas.map((a: any) => ({
-        id: a.id,
-        assistido_nome: assistMap[a.assistido_id] || "—",
-        tratamento_nome: tratMap[a.tratamento_id] || "—",
-        data_sessao: a.data_sessao,
-        horario: a.horario,
-        status: a.status,
-      })));
+      setItems(
+        agendas
+          .map((a: any) => ({
+            id: a.id,
+            assistido_nome: assistMap[a.assistido_id] || "—",
+            tratamento_nome: tratMap[a.tratamento_id]?.nome || "—",
+            tratamento_tipo: tratMap[a.tratamento_id]?.tipo ?? null,
+            data_sessao: a.data_sessao,
+            horario: a.horario,
+            status: a.status,
+          }))
+          .sort(ordenarPorDataHorario),
+      );
     };
     fetch();
   }, [user]);
@@ -68,6 +87,7 @@ export default function CoordenadorAgenda() {
   const filtered = items.filter((i) =>
     i.assistido_nome.toLowerCase().includes(search.toLowerCase())
   );
+
 
   return (
     <div className="space-y-6">
@@ -112,7 +132,15 @@ export default function CoordenadorAgenda() {
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{format(d, "dd/MM/yyyy")}</TableCell>
                         <TableCell>{DIAS_SEMANA[d.getDay()]}</TableCell>
-                        <TableCell className="hidden md:table-cell">{item.horario || "—"}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {item.horario ? (
+                            item.horario
+                          ) : isTratamentoHolistico(item.tratamento_tipo) ? (
+                            <Badge variant="destructive" className="text-xs">Horário pendente</Badge>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
                         <TableCell>{item.assistido_nome}</TableCell>
                         <TableCell>{item.tratamento_nome}</TableCell>
                         <TableCell>

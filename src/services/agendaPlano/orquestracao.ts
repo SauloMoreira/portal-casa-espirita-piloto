@@ -141,6 +141,7 @@ function etapasParaPayload(etapas: PlanoEtapa[]) {
     quantidade_total_do_tratamento: e.quantidade_total_do_tratamento,
     status_etapa: e.status_etapa,
     data_prevista: e.data_prevista,
+    horario_previsto: e.horario_previsto,
     data_base_utilizada: e.data_base_utilizada,
     eh_publico_livre: e.eh_publico_livre,
     bloqueado_por_etapa_anterior: e.bloqueado_por_etapa_anterior,

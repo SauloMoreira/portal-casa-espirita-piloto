@@ -54,12 +54,15 @@ export default function FazerEntrevista() {
             tratamentos={e.tratamentos}
             quantidades={e.quantidades}
             datasIniciais={e.datasIniciais}
+            horarios={e.horarios}
             totalAssigned={e.totalAssigned}
             onToggle={e.toggleTratamento}
             onSetQtd={e.setQtd}
             onClearQtd={e.clearQtd}
             onSetDataInicial={e.setDataInicial}
+            onSetHorario={e.setHorario}
           />
+
 
           <EntrevistaActionsFooter
             onCancelar={e.clearSelection}

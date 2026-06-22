@@ -1,99 +1,59 @@
-# Reorganização do menu administrativo
+# Horário obrigatório para tratamentos holísticos (data + hora)
 
-Atua **somente** em `src/components/AppSidebar.tsx` (estrutura do array `navGroups` e estado de colapso). Nenhuma rota, permissão, página, service ou regra de negócio é alterada. Todas as `url` e `roles` de cada item permanecem idênticas — só mudam agrupamento, ordem, label, ícone e comportamento de abertura.
+## Princípio
+A regra de **dia/frequência/ocorrência permanece intacta**. Esta entrega apenas acrescenta o **horário** como fator operacional para tratamentos holísticos (`tipos_tratamento.tipo = 'holistico'`). Modelo: horário padrão no tipo + horário efetivo por sessão (pode variar por ocorrência). Edição real só em entrevista/agendamento, lista/agenda do coordenador e remarcação; demais telas apenas exibem. **Inegociável:** sem motor paralelo, sem hardcode, sem regressão, sem exigir horário em não holísticos, sem alterar a lógica já homologada de dias.
 
-## Nova árvore (admin)
+## 1. Schema (migração compatível e não destrutiva)
+- **Plano previsto:** adicionar `plano_tratamento_sessoes.horario_previsto TIME NULL` (horário previsto da etapa; opcional para compatibilidade com legado e não holísticos).
+- **Agenda ativa:** manter `agenda_tratamentos_assistido.horario` como horário efetivo da sessão real (já existe).
+- **Tipo:** reutilizar `tipos_tratamento.horario` (já existe) como **padrão sugerido do tipo** — não como horário final da sessão. Campo pode existir para todos os tipos, mas só é operacionalmente obrigatório para `tipo = 'holistico'`. **Não criar `horario_padrao`.**
+- **RPCs `pts_*`:** atualizar para receber/gravar `horario_previsto` na etapa do plano e `horario` na sessão ativa, e revalidar no backend a obrigatoriedade do horário em holísticos.
+- **Compatibilidade:** sem backfill, sem horário inventado; registros antigos podem permanecer nulos.
 
-```text
-1. INÍCIO
-   - Painel Inicial        (/dashboard)            [era "Dashboard"]
-   - Notificações          (/notificacoes)
-   - Ajuda                 (/ajuda)                 [era "Central de Ajuda"]
+## 2. Semântica dos horários
+- `tipos_tratamento.horario` = padrão sugerido.
+- `plano_tratamento_sessoes.horario_previsto` = horário previsto da etapa.
+- `agenda_tratamentos_assistido.horario` = horário efetivo da sessão real.
+- Normalmente previsto == efetivo; a distinção é preservada para remarcação, saneamento, auditoria e comparação plano↔agenda. Quando o horário efetivo for ajustado, o fluxo oficial mantém o `horario_previsto` consistente, evitando divergência não intencional.
 
-2. ATENDIMENTO
-   - Assistidos            (/assistidos)
-   - Visão do Assistido    (/consulta-assistido)    [era "Consulta do Assistido"]
-   - Agenda de Tratamentos (/agenda)                [era "Agenda"]
-   - Registro de Presenças (/presenca)              [era "Presença"]
-   - Agendar Entrevista    (/entrevistas)
-   - Realizar Entrevista   (/fazer-entrevista)
-   - Sessões Públicas      (/sessoes-publicas)
+## 3. Detecção única do holístico
+- Helper único `isTratamentoHolistico(tipo)` em `src/lib/agendaRules.ts`, baseado em `tipo === 'holistico'`. Todos os pontos usam este helper — sem classificação paralela.
 
-3. PESSOAS
-   - Usuários              (/usuarios)
-   - Voluntários           (/voluntarios)
-   - Funções de Voluntariado (/funcoes-voluntariado) [era "Funções Voluntariado"]
+## 4. Motor e orquestração (mínimo necessário)
+- `agendaRules.ts`: incluir `horario_previsto` em `PlanoEtapa`; propagar o padrão do tipo ao montar etapas; adicionar validador puro `validarHorarioHolistico({ holistico, horario })`. Dias/frequência/ocorrência inalterados.
+- `orquestracao.ts`: incluir `horario_previsto` da etapa e `horario` efetivo da sessão nos payloads; manter o espelhamento plano↔agenda ativa.
 
-4. ACESSO E SEGURANÇA  (fechado por padrão)
-   - Solicitações de Cadastro (/solicitacoes-cadastro)
-   - Permissões de Acesso  (/governanca-acessos)    [era "Governança de Acessos"]
-   - Segurança da Conta    (/seguranca)
+## 5. Obrigatoriedade (dois níveis: serviço/UI + backend/RPC)
+- **Holístico:** nova sessão → exige horário; remarcação → mantém ou exige; edição → permite alterar. Se `tipos_tratamento.horario` existir, usar como sugestão; gravação final exige horário efetivo válido.
+- **Não holístico:** comportamento atual, horário não exigido.
+- **Registros antigos:** não quebram produção; permanecem nulos até saneamento, mas sinalizados.
 
-5. INTELIGÊNCIA E MONITORAMENTO
-   - Central de IA         (/central-ia)
-   - Fila de Notificações  (/central-notificacoes)  [era "Central de Notificações"]
-   - Relatórios            (/relatorios)
-   - Programação Padrão    (/programacao-padrao)
-   - Exceções Operacionais (/excecoes-operacionais)
-   - Exceções do Sistema   (/excecoes)              [era "Exceções"]
-   - Auditoria             (/auditoria)
+## 6. Pontos de edição e exibição
 
-6. INSTITUCIONAL
-   - Instituição           (/instituicao)
-   - Gestão Institucional  (/painel-institucional)  [era "Painel Institucional"]
-   - Ação Social           (/acao-social)
-   - Campanhas             (/campanhas)
-   - Eventos               (/eventos)
-   - Comunicação           (/comunicacao-institucional)
+Edição real:
+- **Entrevista/agendamento** (`fazerEntrevista`, `TratamentosSection`, `FazerEntrevista`): ao adicionar holístico, campo de horário obrigatório, pré-preenchido com `tipos_tratamento.horario` quando houver, editável; bloquear confirmação sem horário.
+- **Lista/agenda do coordenador** (`CoordenadorTratamentos`, `CoordenadorAgenda`, `CoordenadorListaEspera`): indicador de horário; definir/corrigir horário das sessões holísticas; badge **"Horário pendente"** quando faltar.
+- **Remarcação:** preservar regra do dia; manter o horário anterior como sugestão; permitir ajuste; não confirmar holístico sem horário.
 
-7. CONFIGURAÇÕES E REGRAS  (fechado por padrão)
-   - Tipos de Tratamento   (/tratamentos)           [era "Tratamentos"]
-   - Regras Operacionais   (/regras)
-   - Configurações         (/configuracoes)
-   - Gestão de Cores       (/configuracoes/cores)
+Apenas exibição (data + hora): `Agenda.tsx`, `Presenca.tsx`, `consultaConsolidada.ts`, `MinhaAgenda`, `MeusTratamentos`, `AssistidoDashboard`, `CartaAgendamento`, notificações/WhatsApp. Quando houver **divergência real** entre plano e sessão, exibir claramente **Horário previsto** vs **Horário agendado**; sem divergência, não duplicar a informação.
 
-8. FERRAMENTAS ADMINISTRATIVAS  (fechado por padrão)
-   - Migrar Assistido      (/migrar-assistido)
-   - Homologação da Nova Agenda (/homologacao-agenda) [era "Homologação da Agenda"]
-```
+## 7. Registros antigos sem horário
+- UI: badge **"Horário pendente"** + ação explícita para definir; nunca tratar como sessão completa.
+- Notificações: holístico sem horário → não montar mensagem com hora vazia; fallback seguro ou omitir o trecho. Nenhum preenchimento automático.
 
-## Preservação dos perfis não-admin (sem regressão)
+## 8. Ordenação e apresentação
+- `data ASC, horario ASC, NULLS LAST`.
+- `NULLS LAST` é só ordenação e **não mascara pendência**: holístico sem horário aparece ao fim **e** fica visualmente destacado como pendente/incompleto.
 
-Os itens exclusivos de coordenador e assistido (hoje no grupo "Tratamentos") **continuam existindo com as mesmas `url` e `roles`**, agrupados por perfil para não poluir o menu admin (admin não tem essas roles, então nunca os vê):
+## 9. Notificações / WhatsApp
+- Incluir data + hora em confirmação, ausência, remarcação e próxima sessão (`notificacoesService`, `whatsappOrquestrador`, templates), com fallback seguro quando o horário estiver ausente.
 
-```text
-COORDENAÇÃO (coordenador_de_tratamento)
-   - Lista de Espera        (/lista-espera)
-   - Meus Tratamentos       (/coordenador-tratamentos)
-   - Agenda do Tratamento   (/coordenador-agenda)
+## 10. Testes
+Unitários: `isTratamentoHolistico`; `validarHorarioHolistico`; holístico exige horário e não holístico não; remarcação mantém/solicita; normalização/exibição data+hora; ordenação `NULLS LAST`.
+Integração: agenda exibe; coordenador exibe e edita; presença exibe; consolidada exibe; notificações incluem horário quando houver; registros antigos não quebram; backend rejeita criação/edição de holístico sem horário.
+Compatibilidade/legado: holístico de assistido já convertido permanece consistente entre previsto/efetivo.
+Fallback: holístico com horário → notificação envia data+hora; holístico sem horário → template não quebra e não envia hora vazia.
+Não regressão: suíte completa verde; agenda não holística intacta; regra de dias intacta; fluxos homologados intactos.
 
-MEU ESPAÇO (assistido)
-   - Meus Tratamentos       (/meus-tratamentos)
-   - Minha Agenda           (/minha-agenda)
-   - Documentos             (/meus-documentos)
-```
-
-Itens com múltiplas roles (ex.: Dashboard, Notificações, Ajuda, Relatórios, Agendar Entrevista, Programação Padrão, Central de IA) mantêm exatamente o mesmo array `roles`, então entrevistador/tarefeiro/coordenador continuam vendo os mesmos links. A filtragem por `role` e o filtro de grupos vazios (`visibleGroups`) já existentes garantem que cada perfil só vê o que tem permissão.
-
-## Comportamento de colapso
-
-- Hoje todos os grupos começam fechados e abrem automaticamente quando contêm a rota ativa (efeito `useEffect` sobre `location.pathname`). Esse mecanismo é mantido.
-- Grupos sensíveis (Acesso e Segurança, Configurações e Regras, Ferramentas Administrativas) permanecem fechados por padrão — o comportamento atual já satisfaz isso; nenhum `defaultOpen` extra é adicionado.
-- Item ativo, highlight e auto-expansão continuam funcionando pois dependem de `item.url`, que não muda.
-
-## Ícones
-
-Ajustes pontuais para coerência de grupo, sem trocas aleatórias:
-- Grupos: Início `Home`, Atendimento `HandHeart`, Pessoas `Users`, Acesso e Segurança `ShieldCheck`, Inteligência e Monitoramento `Brain`, Institucional `Landmark`, Configurações e Regras `Settings`/`SlidersHorizontal`, Ferramentas Administrativas `Wrench`, Coordenação `Stethoscope`, Meu Espaço `User`.
-- Itens reaproveitam os ícones já importados (ex.: `Bell`, `LifeBuoy`, `UserSearch`, `BookOpen`, `Heart`, `QrCode`, `KeyRound`, `Brain`, `BarChart3`, `AlertTriangle`, `CalendarX`, `CalendarClock`, `Shield`, `Building2`, `Apple`, `Megaphone`, `CalendarDays`, `Send`, `Palette`, `History`, `FlaskConical`). Ícones novos necessários (`Home`, `Wrench`, `SlidersHorizontal`) serão adicionados ao import do `lucide-react`.
-
-## Validação (sem regressão)
-
-1. Conferir que toda `url` e `roles` na nova árvore batem 1:1 com a árvore atual (nenhum link novo, nenhum removido).
-2. Rodar a suíte de testes (`bunx vitest run`) — deve continuar verde.
-3. Smoke test no preview (Playwright) como admin: expandir/colapsar os 8 grupos, navegar em um item de cada grupo e confirmar highlight do item ativo + auto-expansão.
-4. Conferir versão colapsada (modo ícone) e mobile.
-
-## Relatório final
-
-Ao concluir, apresento: árvore final, lista de labels alterados, itens reagrupados, itens movidos para Ferramentas Administrativas e confirmação explícita de que rotas, permissões e funcionalidades permanecem intactas.
+## Relatório final (ao concluir)
+Onde o horário entrou no schema; confirmação de reutilização de `tipos_tratamento.horario`; como o holístico é identificado; telas/serviços impactados; criação/edição/remarcação; tratamento dos registros antigos; testes executados; confirmação explícita de ausência de regressão.

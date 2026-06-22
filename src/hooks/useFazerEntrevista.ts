@@ -36,6 +36,7 @@ import type {
   IaTratamentoSugerido,
 } from "@/types/ia";
 import { recordDecisaoFinal } from "@/services/ia/sugestoes";
+import { isTratamentoHolistico, validarHorarioHolistico } from "@/lib/agendaRules";
 
 
 
@@ -58,6 +59,7 @@ export function useFazerEntrevista() {
   const [observacoes, setObservacoes] = useState("");
   const [quantidades, setQuantidades] = useState<Record<string, string>>({});
   const [datasIniciais, setDatasIniciais] = useState<Record<string, string>>({});
+  const [horarios, setHorarios] = useState<Record<string, string>>({});
 
   const [novoAssistidoOpen, setNovoAssistidoOpen] = useState(false);
   const [assistidoForm, setAssistidoForm] = useState<EntrevistaAssistidoForm>(EMPTY_ASSISTIDO_FORM);
@@ -162,6 +164,7 @@ export function useFazerEntrevista() {
     setSelectedAssistido(null);
     setQuantidades({});
     setDatasIniciais({});
+    setHorarios({});
     setObservacoes("");
     setTipoEntrevista("regular");
     setDataEntrevista(todayStr());
@@ -174,19 +177,38 @@ export function useFazerEntrevista() {
     setQuantidades((prev) => ({ ...prev, [tratId]: val }));
   }, []);
 
-  const toggleTratamento = useCallback((tratId: string) => {
-    setQuantidades((prev) => {
-      if (tratId in prev) {
-        const next = { ...prev };
-        delete next[tratId];
-        return next;
-      }
-      return { ...prev, [tratId]: "" };
-    });
+  const setHorario = useCallback((tratId: string, val: string) => {
+    setHorarios((prev) => ({ ...prev, [tratId]: val }));
   }, []);
+
+  const toggleTratamento = useCallback(
+    (tratId: string) => {
+      setQuantidades((prev) => {
+        if (tratId in prev) {
+          const next = { ...prev };
+          delete next[tratId];
+          return next;
+        }
+        return { ...prev, [tratId]: "" };
+      });
+      // Pré-preenche o horário do holístico com o padrão sugerido do tipo.
+      setHorarios((prev) => {
+        if (tratId in prev) return prev;
+        const padrao = tratamentoMap[tratId]?.horario;
+        if (!padrao) return prev;
+        return { ...prev, [tratId]: padrao.slice(0, 5) };
+      });
+    },
+    [tratamentoMap],
+  );
 
   const clearQtd = useCallback((tratId: string) => {
     setQuantidades((prev) => {
+      const next = { ...prev };
+      delete next[tratId];
+      return next;
+    });
+    setHorarios((prev) => {
       const next = { ...prev };
       delete next[tratId];
       return next;
@@ -196,6 +218,7 @@ export function useFazerEntrevista() {
   const setDataInicial = useCallback((tratId: string, val: string) => {
     setDatasIniciais((prev) => ({ ...prev, [tratId]: val }));
   }, []);
+
 
   const openNovoAssistido = useCallback(() => {
     setNovoAssistidoOpen(true);
@@ -287,6 +310,23 @@ export function useFazerEntrevista() {
       return;
     }
 
+    // Holístico exige horário da consulta (validação UI; backend revalida).
+    for (const tratId of Object.keys(quantidades)) {
+      const trat = tratamentoMap[tratId];
+      if (!trat) continue;
+      if (
+        isTratamentoHolistico(trat.tipo) &&
+        !validarHorarioHolistico({ holistico: true, horario: horarios[tratId] }).valido
+      ) {
+        toast({
+          title: "Horário obrigatório",
+          description: `Informe o horário da consulta para "${trat.nome}".`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const result = await submitEntrevista({
@@ -297,9 +337,11 @@ export function useFazerEntrevista() {
         observacoes,
         quantidades,
         datasIniciais,
+        horarios,
         tratamentoMap,
         agendaEntrevistaId,
       });
+
 
       toast({
         title: "Entrevista salva com sucesso!",
@@ -347,6 +389,7 @@ export function useFazerEntrevista() {
     dataEntrevista,
     quantidades,
     datasIniciais,
+    horarios,
     tratamentoMap,
     user,
     tipoEntrevista,
@@ -572,6 +615,7 @@ export function useFazerEntrevista() {
     setObservacoesManual,
     quantidades,
     datasIniciais,
+    horarios,
     novoAssistidoOpen,
     setNovoAssistidoOpen,
     assistidoForm,
@@ -598,6 +642,7 @@ export function useFazerEntrevista() {
     selectAssistido,
     clearSelection,
     setQtd,
+    setHorario,
     toggleTratamento,
     clearQtd,
     setDataInicial,

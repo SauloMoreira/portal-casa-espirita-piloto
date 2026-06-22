@@ -6,35 +6,52 @@ import { Badge } from "@/components/ui/badge";
 import { Heart, RotateCcw } from "lucide-react";
 import { getDay } from "date-fns";
 import { DIAS_SEMANA, MODO_AGENDAMENTO } from "@/constants/fazerEntrevista";
+import { isTratamentoHolistico } from "@/lib/agendaRules";
 import type { EntrevistaTipoTratamento } from "@/types/fazerEntrevista";
 
 interface Props {
   tratamentos: EntrevistaTipoTratamento[];
   quantidades: Record<string, string>;
   datasIniciais: Record<string, string>;
+  horarios: Record<string, string>;
   totalAssigned: number;
   onToggle: (id: string) => void;
   onSetQtd: (id: string, val: string) => void;
   onClearQtd: (id: string) => void;
   onSetDataInicial: (id: string, val: string) => void;
+  onSetHorario: (id: string, val: string) => void;
 }
 
 function TratamentoCard({
   t,
   quantidades,
   datasIniciais,
+  horarios,
   onToggle,
   onSetQtd,
   onClearQtd,
   onSetDataInicial,
+  onSetHorario,
 }: {
   t: EntrevistaTipoTratamento;
-} & Pick<Props, "quantidades" | "datasIniciais" | "onToggle" | "onSetQtd" | "onClearQtd" | "onSetDataInicial">) {
+} & Pick<
+  Props,
+  | "quantidades"
+  | "datasIniciais"
+  | "horarios"
+  | "onToggle"
+  | "onSetQtd"
+  | "onClearQtd"
+  | "onSetDataInicial"
+  | "onSetHorario"
+>) {
   const qtyStr = quantidades[t.id];
   const isActive = t.id in quantidades;
   const needsStartDate = t.modo_agendamento === MODO_AGENDAMENTO.agendadoPorDataInicial;
   const startDateVal = datasIniciais[t.id] || "";
   const defaultQty = t.quantidade_padrao_sessoes;
+  const isHolistico = isTratamentoHolistico(t.tipo);
+  const horarioVal = horarios[t.id] || "";
 
   return (
     <div
@@ -100,7 +117,24 @@ function TratamentoCard({
             <p className="text-xs text-muted-foreground">
               Sem data → lista de espera do coordenador
             </p>
+      )}
+      {isHolistico && isActive && (
+        <div className="space-y-1">
+          <Label className="text-xs">Horário da consulta *</Label>
+          <Input
+            type="time"
+            value={horarioVal}
+            onChange={(e) => onSetHorario(t.id, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="h-8 text-sm w-32"
+          />
+          {!horarioVal && (
+            <p className="text-xs text-destructive">
+              Tratamentos holísticos exigem o horário da consulta
+            </p>
           )}
+        </div>
+      )}
         </div>
       )}
     </div>

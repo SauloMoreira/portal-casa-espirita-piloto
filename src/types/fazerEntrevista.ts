@@ -70,6 +70,8 @@ export interface SubmitEntrevistaParams {
   observacoes: string;
   quantidades: Record<string, string>;
   datasIniciais: Record<string, string>;
+  /** Horário efetivo por tratamento (obrigatório para holísticos). Sobrepõe o padrão do tipo. */
+  horarios: Record<string, string>;
   tratamentoMap: Record<string, EntrevistaTipoTratamento>;
   agendaEntrevistaId: string | null;
 }
