@@ -204,7 +204,7 @@ export async function reverterPilotoPlano(assistidoId: string): Promise<Rollback
     p_assistido_id: assistidoId,
   });
   if (error) throw new Error(error.message);
-  const r = (data ?? {}) as RollbackResult;
+  const r = (data ?? {}) as unknown as RollbackResult;
   return {
     sessoes_removidas: r.sessoes_removidas ?? 0,
     sessoes_restauradas: r.sessoes_restauradas ?? 0,
@@ -322,7 +322,7 @@ export async function registrarPresencaPlano(
   } as never);
   if (error) throw new Error(error.message);
 
-  const r = (resp ?? {}) as PresencaResult;
+  const r = (resp ?? {}) as unknown as PresencaResult;
   // Encadeamento sequencial: se concluiu, ativa a próxima etapa necessária.
   if (r.concluido) {
     await reconciliarPlanoAssistido(vinc.assistido_id);
@@ -378,7 +378,7 @@ export async function registrarAusenciaPlano(
   } as never);
   if (error) throw new Error(error.message);
 
-  const r = (resp ?? {}) as AusenciaResult;
+  const r = (resp ?? {}) as unknown as AusenciaResult;
   return {
     suspenso: r.suspenso ?? false,
     faltas_consecutivas: r.faltas_consecutivas ?? 0,
