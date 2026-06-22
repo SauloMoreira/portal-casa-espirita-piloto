@@ -129,6 +129,18 @@ export default function CoordenadorListaEspera() {
       return;
     }
 
+    const holistico = isTratamentoHolistico(selectedItem.tratamento_tipo);
+    const horarioEfetivo = normalizarHorario(horario);
+
+    if (holistico && !horarioEfetivo) {
+      toast({
+        title: "Horário obrigatório",
+        description: "Tratamentos holísticos exigem o horário da consulta.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (selectedItem.dia_semana !== null) {
       const selectedDate = new Date(dataInicial + "T12:00:00");
       if (getDay(selectedDate) !== selectedItem.dia_semana) {
@@ -150,7 +162,7 @@ export default function CoordenadorListaEspera() {
     for (let i = 0; i < selectedItem.quantidade_total; i++) {
       sessions.push({
         data_sessao: format(cursor, "yyyy-MM-dd"),
-        horario: selectedItem.horario || null,
+        horario: horarioEfetivo || selectedItem.horario || null,
       });
       const fv = selectedItem.frequencia_valor || 1;
       const fu = selectedItem.frequencia_unidade || "semanas";
