@@ -204,7 +204,7 @@ export default function CoordenadorListaEspera() {
           <ClipboardCheck className="h-6 w-6 text-primary" />
           Lista de Espera
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Assistidos aguardando agendamento nos seus tratamentos</p>
+        <p className="text-sm text-muted-foreground mt-1">Vínculos com pendência de agendamento nos seus tratamentos</p>
       </div>
 
       {/* Summary badges */}
@@ -306,7 +306,14 @@ export default function CoordenadorListaEspera() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{item.tratamento_nome}</TableCell>
+                        <TableCell>
+                          <div>
+                            <span>{item.tratamento_nome}</span>
+                            <Badge variant="outline" className="ml-2 text-[10px] align-middle">
+                              {MOTIVO_LABEL[item.motivo]}
+                            </Badge>
+                          </div>
+                        </TableCell>
                         <TableCell className="hidden md:table-cell">
                           {item.entrevista_data ? format(new Date(item.entrevista_data), "dd/MM/yyyy") : "—"}
                         </TableCell>
