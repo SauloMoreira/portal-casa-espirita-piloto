@@ -642,6 +642,7 @@ export function useFazerEntrevista() {
     selectAssistido,
     clearSelection,
     setQtd,
+    setHorario,
     toggleTratamento,
     clearQtd,
     setDataInicial,
