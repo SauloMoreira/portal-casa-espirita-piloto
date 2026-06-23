@@ -167,6 +167,10 @@ export function FilaTab({ fila, onSelect }: FilaTabProps) {
             {resultado.map((f) => {
               const nome = filaItemNome(f);
               const tratamento = filaItemTratamento(f);
+              const porExcecao = ehEventoExcecao(f.evento_origem);
+              const p = (f.payload_json ?? {}) as Record<string, unknown>;
+              const dataImpactada = typeof p.data_impactada === "string" ? p.data_impactada : null;
+              const novaData = typeof p.nova_data === "string" ? p.nova_data : null;
               return (
                 <button
                   key={f.id}
@@ -181,6 +185,11 @@ export function FilaTab({ fila, onSelect }: FilaTabProps) {
                         <Stethoscope className="h-3 w-3" /> {tratamento}
                       </span>
                     )}
+                    {porExcecao && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 px-2 py-0.5 text-[10px]">
+                        <AlertTriangle className="h-3 w-3" /> Gerado por exceção operacional
+                      </span>
+                    )}
                     <span className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground">
                       <CalendarClock className="h-3 w-3" /> Previsão: {dt(f.scheduled_at)}
                     </span>
@@ -189,6 +198,16 @@ export function FilaTab({ fila, onSelect }: FilaTabProps) {
                     <span className="font-medium text-foreground/80">{f.evento_origem}</span>
                     {f.template_codigo && <span>{f.template_codigo}</span>}
                     <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {f.telefone_normalizado || "sem telefone"}</span>
+                    {dataImpactada && (
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarClock className="h-3 w-3" /> Impactada: {formatarDataBR(dataImpactada)}
+                      </span>
+                    )}
+                    {novaData && (
+                      <span className="inline-flex items-center gap-1 text-foreground/80">
+                        <CalendarPlus className="h-3 w-3" /> Nova data: {formatarDataBR(novaData)}
+                      </span>
+                    )}
                     {f.status === "enviado" && (
                       <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
                         <CheckCircle2 className="h-3 w-3" /> Enviado em: {dt(f.sent_at)}
