@@ -2800,6 +2800,10 @@ export type Database = {
         Args: { p_fila_id: string }
         Returns: string
       }
+      fn_monitor_excecao_notificacoes: {
+        Args: { p_desde?: string }
+        Returns: Json
+      }
       fn_normalize_phone: { Args: { p: string }; Returns: string }
       fn_notif_ping: { Args: never; Returns: string }
       fn_processar_excecao_notificacoes: {
