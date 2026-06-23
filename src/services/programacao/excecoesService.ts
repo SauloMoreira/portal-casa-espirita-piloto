@@ -100,3 +100,48 @@ export async function excluirExcecao(id: string): Promise<void> {
   const { error } = await supabase.from("excecoes_operacionais").delete().eq("id", id);
   if (error) throw error;
 }
+
+const ROLLOUT_KEY = "excecao_notificacao_ativa";
+
+export interface RolloutMonitor {
+  rollout_ativo: boolean;
+  desde: string;
+  excecoes_processadas: number;
+  cancelamentos: number;
+  remarcacoes: number;
+  fila_por_status: Record<string, number>;
+  fila_por_evento: Record<string, number>;
+  fallback_por_nome: number;
+  publico_com_alvo: number;
+  dedupe_duplicados: number;
+}
+
+/** Lê o interruptor de contenção do rollout (true = liberado). */
+export async function obterRolloutAtivo(): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("regras_operacionais")
+    .select("valor")
+    .eq("chave", ROLLOUT_KEY)
+    .maybeSingle();
+  if (error) throw error;
+  return String((data as { valor?: string } | null)?.valor ?? "true").toLowerCase() === "true";
+}
+
+/** Liga/desliga a notificação automática por exceção (contenção rápida). */
+export async function definirRolloutAtivo(ativo: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("regras_operacionais")
+    .update({ valor: ativo ? "true" : "false" } as never)
+    .eq("chave", ROLLOUT_KEY);
+  if (error) throw error;
+}
+
+/** Painel de monitoramento das primeiras ocorrências reais do rollout. */
+export async function obterRolloutMonitor(diasJanela = 14): Promise<RolloutMonitor> {
+  const desde = new Date(Date.now() - diasJanela * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase.rpc("fn_monitor_excecao_notificacoes", {
+    p_desde: desde,
+  });
+  if (error) throw error;
+  return data as unknown as RolloutMonitor;
+}

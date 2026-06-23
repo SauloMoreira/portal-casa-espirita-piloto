@@ -27,8 +27,10 @@ import {
 } from "@/constants/programacao";
 import {
   listarExcecoes, salvarExcecao, alternarAtivoExcecao, excluirExcecao,
-  type ExcecaoOperacional, type ExcecaoInput,
+  obterRolloutAtivo, definirRolloutAtivo, obterRolloutMonitor,
+  type ExcecaoOperacional, type ExcecaoInput, type RolloutMonitor,
 } from "@/services/programacao/excecoesService";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
 
 const emptyForm: ExcecaoInput = {
   tipo: "publico", atividade: "", data_excecao: "", status: "cancelado",
@@ -59,6 +61,39 @@ export default function ExcecoesOperacionais() {
   const [form, setForm] = useState<ExcecaoInput>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const [rolloutAtivo, setRolloutAtivo] = useState<boolean | null>(null);
+  const [rolloutBusy, setRolloutBusy] = useState(false);
+  const [monitor, setMonitor] = useState<RolloutMonitor | null>(null);
+
+  const loadRollout = async () => {
+    try {
+      const [ativo, mon] = await Promise.all([obterRolloutAtivo(), obterRolloutMonitor(14)]);
+      setRolloutAtivo(ativo);
+      setMonitor(mon);
+    } catch (e: any) {
+      toast.error("Erro ao carregar status do rollout", { description: e.message });
+    }
+  };
+
+  useEffect(() => { loadRollout(); }, []);
+
+  const handleRolloutToggle = async (ativo: boolean) => {
+    setRolloutBusy(true);
+    try {
+      await definirRolloutAtivo(ativo);
+      setRolloutAtivo(ativo);
+      toast.success(
+        ativo
+          ? "Notificação automática por exceção LIBERADA."
+          : "Notificação automática por exceção CONTIDA (pausada).",
+      );
+    } catch (e: any) {
+      toast.error("Erro ao alterar liberação", { description: e.message });
+    } finally {
+      setRolloutBusy(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -169,6 +204,67 @@ export default function ExcecoesOperacionais() {
           </Button>
         </div>
       </div>
+
+      <Card className={`glass-card border-2 ${rolloutAtivo === false ? "border-destructive/50" : "border-primary/30"}`}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            {rolloutAtivo === false
+              ? <ShieldAlert className="h-5 w-5 text-destructive" />
+              : <ShieldCheck className="h-5 w-5 text-primary" />}
+            Notificação automática por exceção — liberação monitorada
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">
+                {rolloutAtivo === false ? "Contida (pausada)" : "Liberada para operação real"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Ao desligar, novas exceções não geram efeito na agenda nem comunicação
+                (fluxo imediato e reconciliação automática pausados). Use para contenção rápida.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className={rolloutAtivo === false ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600"}>
+                {rolloutAtivo === false ? "CONTIDO" : "LIBERADO"}
+              </Badge>
+              <Switch
+                checked={rolloutAtivo === true}
+                disabled={rolloutAtivo === null || rolloutBusy}
+                onCheckedChange={handleRolloutToggle}
+              />
+              <Button variant="outline" size="sm" className="gap-1" onClick={loadRollout}>
+                <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+              </Button>
+            </div>
+          </div>
+
+          {monitor && (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+              {[
+                { l: "Processadas (14d)", v: monitor.excecoes_processadas },
+                { l: "Cancelamentos", v: monitor.cancelamentos },
+                { l: "Remarcações", v: monitor.remarcacoes },
+                { l: "Público c/ alvo", v: monitor.publico_com_alvo },
+                { l: "Fallback p/ nome", v: monitor.fallback_por_nome },
+                { l: "Duplicados (dedupe)", v: monitor.dedupe_duplicados, alerta: monitor.dedupe_duplicados > 0 },
+                {
+                  l: "Itens na fila",
+                  v: Object.values(monitor.fila_por_status ?? {}).reduce((a, b) => a + Number(b), 0),
+                },
+              ].map((m) => (
+                <div key={m.l} className={`rounded-xl border p-3 ${m.alerta ? "border-destructive/50 bg-destructive/5" : "bg-muted/30"}`}>
+                  <p className={`text-xl font-bold ${m.alerta ? "text-destructive" : "text-foreground"}`}>{m.v}</p>
+                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{m.l}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
 
       <Card className="glass-card">
         <CardHeader className="pb-3">
