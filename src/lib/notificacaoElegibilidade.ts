@@ -150,24 +150,20 @@ export function eventoExcecao(
   dominio: DominioExcecao,
   tipo: TipoEventoExcecao,
 ): EventoExcecao {
-  const sufixo = tipo === "remarcacao" ? "remarcad" : "cancelad";
   switch (dominio) {
-    case "tratamento":
-      return (tipo === "remarcacao"
-        ? "sessao_remarcada_por_excecao"
-        : "sessao_cancelada_por_excecao");
     case "entrevista":
-      return (tipo === "remarcacao"
+      return tipo === "remarcacao"
         ? "entrevista_remarcada_por_excecao"
-        : "entrevista_cancelada_por_excecao");
+        : "entrevista_cancelada_por_excecao";
     case "publico":
-      return (tipo === "remarcacao"
+      return tipo === "remarcacao"
         ? "publico_remarcado_por_excecao"
-        : "publico_cancelado_por_excecao");
+        : "publico_cancelado_por_excecao";
+    case "tratamento":
     default:
-      // exhaustiveness guard
-      void sufixo;
-      return "sessao_cancelada_por_excecao";
+      return tipo === "remarcacao"
+        ? "sessao_remarcada_por_excecao"
+        : "sessao_cancelada_por_excecao";
   }
 }
 
