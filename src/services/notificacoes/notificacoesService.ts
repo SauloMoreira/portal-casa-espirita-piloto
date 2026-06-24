@@ -283,6 +283,41 @@ export async function listFila(limit = 100): Promise<FilaItem[]> {
   return (data as FilaItem[]) ?? [];
 }
 
+/** Resultado estruturado do encerramento manual de um item por erro de cadastro. */
+export interface EncerramentoErroCadastroResult {
+  ok: boolean;
+  fila_id: string;
+  status: string;
+  motivo_encerramento: string;
+  motivo_anterior: string | null;
+  assistido_id: string | null;
+  encerrado_por: string | null;
+  encerrado_em: string;
+}
+
+/**
+ * Encerra SOMENTE o item atual da fila que ficou inviável por erro de cadastro.
+ *
+ * Chama a RPC oficial `fn_encerrar_item_fila_erro_cadastro` (SECURITY DEFINER),
+ * que valida permissão e elegibilidade no servidor, atualiza status/motivo,
+ * grava trilha técnica + auditoria e NÃO altera opt-out/consentimento nem
+ * bloqueia o assistido. Toda a regra de negócio fica no backend.
+ */
+export async function encerrarItemFilaErroCadastro(
+  filaId: string,
+  observacao?: string,
+): Promise<EncerramentoErroCadastroResult> {
+  const { data, error } = await supabase.rpc("fn_encerrar_item_fila_erro_cadastro", {
+    p_fila_id: filaId,
+    p_motivo: "erro_cadastro",
+    p_observacao: observacao?.trim() ? observacao.trim() : null,
+  });
+  if (error) throw error;
+  return data as unknown as EncerramentoErroCadastroResult;
+}
+
+
+
 /** Uma entrada da trilha de log (notificacoes_log) de um item da fila. */
 export interface FilaLogEntry {
   id: string;
