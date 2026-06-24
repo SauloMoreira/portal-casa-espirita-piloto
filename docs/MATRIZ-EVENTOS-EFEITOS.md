@@ -88,11 +88,11 @@ Legenda de status de aderência:
 
 ### EVT-08 — Entrevista criada / lembrete de entrevista
 - **Gatilho real:** `fn_notif_entrevista()` em `entrevistas_fraternas`.
-- **Efeito na fila (INSERT):** `entrevista_criada` imediato + `entrevista_lembrete` em `data − 24h`. Campo `data` é **date-only** (meia-noite UTC).
+- **Efeito na fila (INSERT):** `entrevista_criada` imediato **somente se** `fn_confirmacao_entrevista_ativa()` retornar `true` (flag governada `entrevista_confirmacao_agendamento_ativa`, default `true`) + `entrevista_lembrete` em `data − 24h` (sempre). Campo `data` é **date-only** (meia-noite UTC).
 - **Remarcação/cancelamento (UPDATE):** invalida lembrete antigo (epoch na dedupe), enfileira `remarcacao`/`cancelamento` e re-agenda lembrete da nova data.
 - **Efeito no dispatch:** `fn_fila_motivo_inelegivel` barra `entrevista_cancelada`, `entrevista_remarcada`, `entrevista_vencida`. Renderização **não inventa horário** para date-only.
-- **Invariantes:** INV-TEMPO-001, INV-TEMPO-002, INV-TEMPO-003, INV-AGD-003, INV-EXC-001, INV-FILA-006.
-- **Status:** 🟡 — ver L-01 (confirmação imediata `entrevista_criada` ainda é disparada no INSERT, diferente da política de tratamento que suprime confirmação antecipada).
+- **Invariantes:** INV-TEMPO-001, INV-TEMPO-002, INV-TEMPO-003, INV-AGD-003, INV-EXC-001, INV-FILA-006, INV-GOV-001, INV-GOV-002, INV-GOV-003.
+- **Status:** ✅ — confirmação imediata agora é governada (L-01) pela flag `entrevista_confirmacao_agendamento_ativa` (default `true` preserva o comportamento atual); lembrete de 24h inalterado.
 
 ### EVT-09 — Mensagem manual
 - **Gatilho real:** `fn_enfileirar_mensagem_manual(assistido, mensagem, obs)` (RPC).
@@ -144,12 +144,11 @@ Legenda de status de aderência:
 - Parâmetros governados com validação e auditoria (EVT-11).
 
 ### Parcialmente aderente (🟡)
-- **EVT-08** — entrevista ainda dispara confirmação imediata (`entrevista_criada`) no INSERT, divergindo da política de tratamento que suprime confirmação antecipada por padrão.
 - **EVT-09** — mensagem manual sujeita a janela e limite diário; pode ficar `ignorado`/atrasada sem sinal claro na UI.
 - **EVT-03/04** — notificação de presença/falta imediata; falta confirmar a classificação geral×operacional e a cobertura de auditoria da tabela de presença.
 
 ### Lacunas encontradas (🔴/🟡 — comportamento desejado a decidir)
-- **L-01** — Política de confirmação imediata de **entrevista** não está sob a mesma flag governada das sessões. *Desejado:* avaliar `entrevista_confirmacao_agendamento_ativa` análogo a `tratamento_confirmacao_agendamento_ativa`.
+- **L-01** ✅ *(concluído)* — Confirmação imediata de **entrevista** agora sob flag governada `entrevista_confirmacao_agendamento_ativa` (default `true`), lida por `fn_confirmacao_entrevista_ativa()` em `fn_notif_entrevista()`. Simétrica a `tratamento_confirmacao_agendamento_ativa`.
 - **L-02** ✅ *(concluído — ver [BACKLOG-GOVERNANCA.md](./BACKLOG-GOVERNANCA.md))* — Mensagem manual/automática sem feedback explícito quando segurada por janela/limite. *Entregue:* `fn_fila_diagnostico_pendentes` + diagnóstico visível na Central. Resta apenas decisão de negócio sobre isenção de limite para envio manual.
 - **L-03** — Confirmar se `presenca_registrada`/`falta_registrada` são `geral` (sujeitas a `comunicacao_geral_ativa`) e se `presencas_tratamentos` tem trigger de auditoria. *Desejado:* governar volume dessas mensagens (podem ser ruído).
 - **L-04** — `fn_sanear_fila_notificacoes` cobre só sessões. *Desejado:* estender saneamento proativo a entrevistas (hoje só barradas no dispatch).
@@ -161,10 +160,10 @@ Nenhuma das lacunas representa envio indevido conhecido — todas são oportunid
 ## 3. Recomendações práticas (priorizadas)
 
 > As lacunas estão formalizadas como backlog rastreável em
-> [BACKLOG-GOVERNANCA.md](./BACKLOG-GOVERNANCA.md). Ordem acordada: L-02 (✅) → L-01 → L-03 → L-04.
+> [BACKLOG-GOVERNANCA.md](./BACKLOG-GOVERNANCA.md). Ordem acordada: L-02 (✅) → L-01 (✅) → L-03 → L-04.
 
 1. **(Alta)** L-02 — ✅ Concluído: Central expõe o motivo de itens não enviados (janela/limite/bloqueio). Resta decidir política de isenção de limite para manual.
-2. **(Média)** L-01 — Introduzir flag governada para confirmação imediata de entrevista, alinhando EVT-08 a EVT-01.
+2. **(Média)** L-01 — ✅ Concluído: flag governada `entrevista_confirmacao_agendamento_ativa` alinha EVT-08 a EVT-01.
 3. **(Média)** L-03 — Documentar/ajustar classificação de presença e garantir auditoria da tabela de presença.
 4. **(Baixa)** L-04 — Estender o saneamento da fila a entrevistas para consistência simétrica com sessões.
 
