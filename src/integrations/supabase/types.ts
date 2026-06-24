@@ -2885,6 +2885,7 @@ export type Database = {
       }
       fn_normalize_phone: { Args: { p: string }; Returns: string }
       fn_notif_ping: { Args: never; Returns: string }
+      fn_presenca_classificacao: { Args: { p_status: string }; Returns: Json }
       fn_processar_excecao_notificacoes: {
         Args: { p_excecao_id: string }
         Returns: Json

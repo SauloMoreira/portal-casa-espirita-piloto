@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatCard } from "@/components/StatCard";
 import { CheckCircle, Activity, Users, Calendar, CalendarX, Trophy } from "lucide-react";
+import { classificarPresenca } from "@/lib/presencaClassificacao";
 
 interface Stats {
   concluidos: number;
@@ -52,8 +53,10 @@ export default function PainelGerencial() {
       (presencas || []).forEach((p: any) => {
         const tid = p.assistido_tratamento?.tratamento_id;
         if (tratFilter && tid && !tratFilter.includes(tid)) return;
-        if (p.status_presenca === "presente") sessoesRealizadas++;
-        else faltas++;
+        // Fonte única (L-03): justificado é só histórico, não conta presença nem falta.
+        const cls = classificarPresenca(p.status_presenca);
+        if (cls.contaPresenca) sessoesRealizadas++;
+        else if (cls.contaAusencia) faltas++;
       });
 
       // Maior carga (tarefeiro with most sessions this month)

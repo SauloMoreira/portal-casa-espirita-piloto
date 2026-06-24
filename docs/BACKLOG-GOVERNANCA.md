@@ -5,7 +5,7 @@
 > confrontado com o [Catálogo de Invariantes](./INVARIANTES.md) antes de ser
 > implementado. Status: `concluído` · `em andamento` · `planejado` · `backlog`.
 
-Ordem de execução acordada: **L-02 (feito) → L-01 → L-03 → L-04**.
+Ordem de execução acordada: **L-02 (✅) → L-01 (✅) → L-03 (✅) → L-04**.
 
 ---
 
@@ -58,16 +58,29 @@ Ordem de execução acordada: **L-02 (feito) → L-01 → L-03 → L-04**.
 
 ## L-03 — Classificação geral×operacional de presença e auditoria de `presencas_tratamentos`
 - **Prioridade:** Média
-- **Status:** 📋 Backlog
-- **Objetivo:** Confirmar/ajustar se `presenca_registrada`/`falta_registrada` são
-  tratadas como **geral** (sujeitas a `comunicacao_geral_ativa`) e garantir que a
-  tabela `presencas_tratamentos` tenha trigger de auditoria (JSON diff).
-- **Impacto:** Controle de volume dessas mensagens (potencial ruído) e cobertura
-  de auditoria simétrica às demais tabelas operacionais.
-- **Próximo passo recomendado:** auditar `classificarEvento` vs. expectativa de
-  negócio para presença/falta; verificar a existência do trigger de auditoria e
-  criá-lo se ausente; documentar a decisão na matriz (EVT-03/04).
-- **Invariantes a observar:** INV-ARQ-002 (auditoria obrigatória), INV-FILA-003.
+- **Status:** ✅ Concluído
+- **Objetivo:** Separar com clareza a classificação **geral** (histórica) da
+  classificação **operacional** (decisão do sistema) dos registros de presença,
+  com fonte única, e garantir auditoria adequada de `presencas_tratamentos`.
+- **Entregue:**
+  - Fonte única oficial `fn_presenca_classificacao` (backend, `IMMUTABLE`) +
+    espelho `src/lib/presencaClassificacao.ts` (frontend) com testes.
+  - `status_presenca` = classificação geral; operacional derivada (conta presença,
+    conta ausência, dispara remarcação, avança sessão, somente histórico).
+  - `justificado` formalizado como **somente histórico** (antes existia no constraint
+    sem efeito operacional definido — fonte de ambiguidade).
+  - `fn_notif_presenca` refatorada para consultar a fonte única (sem lista fixa);
+    comportamento de avisos preservado.
+  - Correção de bug em `PainelGerencial` (contava `justificado` como falta).
+  - `constants/status.ts` (`PRESENCA_STATUS`) realinhado ao banco (reexporta a fonte
+    única) — antes divergia com `falta`/`justificada`.
+  - Auditoria confirmada suficiente: `trg_audit_presencas`/`fn_audit_trigger`
+    (quem/quando/registro/JSON anterior+novo) + `PLANO_PRESENCA_AVANCO`.
+  - `presenca_registrada`/`falta_registrada` mantidos como comunicação **operacional**
+    (decisão explícita, não sujeita a `comunicacao_geral_ativa`).
+- **Sem alteração de schema:** a classificação operacional é totalmente derivável;
+  adicionar coluna criaria estado redundante sujeito a drift.
+- **Invariantes:** INV-ARQ-001/002/003, INV-PRES-001/002/003, INV-SEG-003.
 
 ---
 

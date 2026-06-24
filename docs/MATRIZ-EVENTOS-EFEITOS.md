@@ -50,17 +50,21 @@ Legenda de status de aderência:
 - **Status:** ✅
 
 ### EVT-03 — Presença registrada
-- **Gatilho real:** `fn_notif_presenca()` em `presencas_tratamentos` (INSERT/UPDATE), apenas quando `status_presenca` muda para `presente`.
+- **Gatilho real:** `fn_notif_presenca()` em `presencas_tratamentos` (INSERT/UPDATE), apenas quando o `status_presenca` muda e a classificação operacional tem `evento_notificacao` (presente → `presenca_registrada`).
+- **Classificação geral×operacional (L-03):** `status_presenca` é a classificação **geral** (histórica). A classificação **operacional** vem da fonte única `fn_presenca_classificacao` (backend) espelhada em `src/lib/presencaClassificacao.ts` (frontend): `presente` ⇒ conta presença, avança sessão, notifica.
 - **Efeito na fila:** `presenca_registrada` imediato (`scheduled_at = now()`), dedupe por `presenca_id:data`.
-- **Efeito no dispatch:** classificada por `classificarEvento`; respeita opt-out, janela e limite diário.
-- **Invariantes:** INV-ARQ-003, INV-SEG-003 (idempotência via dedupe).
-- **Status:** 🟡 — ver Lacuna L-03 (confirmar classificação geral×operacional e auditoria da tabela de presença).
+- **Efeito no dispatch:** classificada por `classificarEvento` como **operacional** (não sujeita a `comunicacao_geral_ativa`); respeita opt-out, janela e limite diário.
+- **Auditoria:** trigger `trg_audit_presencas` → `fn_audit_trigger` grava em `audit_logs` (quem, quando, registro, JSON anterior/novo); avanço de plano registra `PLANO_PRESENCA_AVANCO`.
+- **Invariantes:** INV-ARQ-001/002/003, INV-SEG-003 (idempotência via dedupe), INV-PRES-001/002/003.
+- **Status:** ✅ — L-03 resolvido (fonte única + auditoria confirmada).
 
 ### EVT-04 — Ausência / falta registrada
-- **Gatilho real:** `fn_notif_presenca()` quando `status_presenca = 'ausente'`.
+- **Gatilho real:** `fn_notif_presenca()` quando a classificação operacional de `status_presenca` define `evento_notificacao = falta_registrada` (`ausente`).
+- **Classificação geral×operacional (L-03):** `ausente` ⇒ conta ausência, dispara remarcação. `justificado` ⇒ **somente histórico** (não conta presença, não conta ausência, não remarca, não notifica) — antes esse status existia sem tratamento operacional definido.
 - **Efeito na fila:** `falta_registrada` imediato, dedupe por `presenca_id:data`.
-- **Invariantes:** INV-ARQ-003, INV-SEG-003.
-- **Status:** 🟡 — mesma observação de EVT-03.
+- **Auditoria:** mesma cobertura de EVT-03.
+- **Invariantes:** INV-ARQ-001/002/003, INV-SEG-003, INV-PRES-001/002/003.
+- **Status:** ✅ — L-03 resolvido.
 
 ### EVT-05 — Sessão cancelada
 - **Gatilho real:** `fn_notif_sessao()` em `UPDATE` quando `status` deixa de ser `agendado`.
@@ -145,12 +149,11 @@ Legenda de status de aderência:
 
 ### Parcialmente aderente (🟡)
 - **EVT-09** — mensagem manual sujeita a janela e limite diário; pode ficar `ignorado`/atrasada sem sinal claro na UI.
-- **EVT-03/04** — notificação de presença/falta imediata; falta confirmar a classificação geral×operacional e a cobertura de auditoria da tabela de presença.
 
 ### Lacunas encontradas (🔴/🟡 — comportamento desejado a decidir)
 - **L-01** ✅ *(concluído)* — Confirmação imediata de **entrevista** agora sob flag governada `entrevista_confirmacao_agendamento_ativa` (default `true`), lida por `fn_confirmacao_entrevista_ativa()` em `fn_notif_entrevista()`. Simétrica a `tratamento_confirmacao_agendamento_ativa`.
 - **L-02** ✅ *(concluído — ver [BACKLOG-GOVERNANCA.md](./BACKLOG-GOVERNANCA.md))* — Mensagem manual/automática sem feedback explícito quando segurada por janela/limite. *Entregue:* `fn_fila_diagnostico_pendentes` + diagnóstico visível na Central. Resta apenas decisão de negócio sobre isenção de limite para envio manual.
-- **L-03** — Confirmar se `presenca_registrada`/`falta_registrada` são `geral` (sujeitas a `comunicacao_geral_ativa`) e se `presencas_tratamentos` tem trigger de auditoria. *Desejado:* governar volume dessas mensagens (podem ser ruído).
+- **L-03** ✅ *(concluído)* — Classificação geral×operacional de presença consolidada na fonte única `fn_presenca_classificacao` (backend) + `src/lib/presencaClassificacao.ts` (frontend). `justificado` formalizado como **somente histórico**. Auditoria confirmada via `trg_audit_presencas`. `presenca_registrada`/`falta_registrada` mantidos como **operacional** (decisão explícita).
 - **L-04** — `fn_sanear_fila_notificacoes` cobre só sessões. *Desejado:* estender saneamento proativo a entrevistas (hoje só barradas no dispatch).
 
 Nenhuma das lacunas representa envio indevido conhecido — todas são oportunidades de governança/observabilidade, não defeitos de segurança.
@@ -164,7 +167,7 @@ Nenhuma das lacunas representa envio indevido conhecido — todas são oportunid
 
 1. **(Alta)** L-02 — ✅ Concluído: Central expõe o motivo de itens não enviados (janela/limite/bloqueio). Resta decidir política de isenção de limite para manual.
 2. **(Média)** L-01 — ✅ Concluído: flag governada `entrevista_confirmacao_agendamento_ativa` alinha EVT-08 a EVT-01.
-3. **(Média)** L-03 — Documentar/ajustar classificação de presença e garantir auditoria da tabela de presença.
+3. **(Média)** L-03 — ✅ Concluído: fonte única `fn_presenca_classificacao` separa classificação geral×operacional; auditoria confirmada.
 4. **(Baixa)** L-04 — Estender o saneamento da fila a entrevistas para consistência simétrica com sessões.
 
 ---

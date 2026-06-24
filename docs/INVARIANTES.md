@@ -254,6 +254,28 @@ cancelamento ou criar múltiplos itens equivalentes.
 
 ---
 
+## 7b. Invariantes de presença (classificação geral × operacional)
+
+### INV-PRES-001 — Classificação geral é separada da classificação operacional
+`presencas_tratamentos.status_presenca` é a classificação **geral** (leitura humana/
+histórica). A classificação **operacional** (conta presença, conta ausência, dispara
+remarcação, avança sessão, somente histórico) NÃO é o mesmo dado: é derivada. As duas
+leituras não podem entrar em conflito.
+
+### INV-PRES-002 — Fonte única da classificação operacional
+A semântica operacional de cada `status_presenca` vem de UMA fonte oficial:
+`fn_presenca_classificacao` (backend, fonte de verdade) espelhada em
+`src/lib/presencaClassificacao.ts` (frontend). Proibido inferir por `if` solto
+(`status === 'presente'`) em UI ou service. `justificado` é **somente histórico**:
+não conta presença, não conta ausência válida, não remarca e não notifica.
+
+### INV-PRES-003 — Toda escrita em presença é auditável
+Inserção/alteração em `presencas_tratamentos` deve deixar trilha suficiente (quem,
+quando, registro, valor anterior e novo) via `trg_audit_presencas`/`fn_audit_trigger`,
+além do registro de efeito operacional (`PLANO_PRESENCA_AVANCO`) quando aplicável.
+
+---
+
 ## 8. Invariantes de governança operacional
 
 ### INV-GOV-001 — Flags e parâmetros críticos devem ser governados
