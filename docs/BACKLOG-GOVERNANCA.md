@@ -86,15 +86,30 @@ Ordem de execução acordada: **L-02 (✅) → L-01 (✅) → L-03 (✅) → L-0
 
 ## L-04 — Estender saneamento da fila a entrevistas
 - **Prioridade:** Baixa
-- **Status:** 📋 Backlog
+- **Status:** ✅ Concluído
 - **Objetivo:** Fazer `fn_sanear_fila_notificacoes` cobrir também entrevistas
-  inelegíveis (hoje cobre apenas sessões; entrevistas são barradas só no dispatch).
+  inelegíveis (antes cobria apenas sessões; entrevistas eram barradas só no dispatch).
 - **Impacto:** Consistência simétrica entre sessões e entrevistas; itens
-  inelegíveis são saneados proativamente em vez de apenas no momento do envio.
-- **Próximo passo recomendado:** estender a função para varrer
-  `entrevista_lembrete`/`entrevista_criada` usando `fn_fila_motivo_inelegivel`
-  (já cobre entrevistas) e cancelar com log, como já faz para sessões.
-- **Invariantes a observar:** INV-FILA-001/002/006, INV-GOV-002.
+  inelegíveis de entrevista (inexistente/cancelada/remarcada/vencida) são saneados
+  proativamente em vez de apenas no momento do envio. O dispatch permanece como
+  barreira final — saneamento e trava trabalham juntos.
+- **Entregue:**
+  - `fn_sanear_fila_notificacoes` estendida para varrer também
+    `entrevista_lembrete`/`entrevista_criada`, **delegando 100% a decisão** à
+    fonte única `fn_fila_motivo_inelegivel` (que já reconhece entrevistas) — sem
+    regra paralela e sem copiar a lógica de sessões.
+  - Motivos próprios do domínio reaproveitados da fonte única:
+    `entrevista_inexistente`, `entrevista_cancelada`, `entrevista_remarcada`
+    (lembrete com versão/epoch superado), `entrevista_vencida`.
+  - Histórico preservado: só cancela itens `pendente`/`agendado`, com trilha em
+    `notificacoes_log`.
+  - Espelho de elegibilidade em TS (`motivoInelegibilidadeEntrevista` em
+    `notificacaoElegibilidade.ts`) para Central/testes, replicando a ordem do
+    banco e mantendo **date-only** (sem horário fantasma, sem shift UTC).
+  - Central já dispõe dos rótulos de entrevista em `MOTIVO_LABEL` (sem mudança
+    necessária de UI).
+- **Sem alteração de schema.**
+- **Invariantes observadas:** INV-FILA-001/002/006, INV-GOV-002, INV-TEMPO-001..003.
 
 ---
 
