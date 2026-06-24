@@ -217,7 +217,9 @@ export default function CentralNotificacoes() {
         item={filaSelecionada}
         open={filaDrawerOpen}
         onOpenChange={setFilaDrawerOpen}
+        onChanged={load}
       />
+
 
     </div>
   );
