@@ -143,6 +143,54 @@ export function FilaDetalheDrawer({ item, open, onOpenChange, onChanged }: Props
                 </div>
               </div>
             )}
+
+            {/* Detalhe de encerramento manual por erro de cadastro (auditoria visível) */}
+            {item.erro === "erro_cadastro" && item.payload_json?.encerramento && (() => {
+              const e = item.payload_json!.encerramento as Record<string, any>;
+              return (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-300/40 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
+                  <ShieldCheck className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <div className="space-y-0.5">
+                    <p className="font-medium text-amber-700 dark:text-amber-300">
+                      Item encerrado manualmente (erro de cadastro)
+                    </p>
+                    <p className="text-muted-foreground">
+                      O assistido <strong>não foi bloqueado</strong>. Futuras mensagens continuam possíveis.
+                    </p>
+                    {e.motivo_anterior && (
+                      <p className="text-muted-foreground">Motivo original: {rotuloMotivo(e.motivo_anterior)}</p>
+                    )}
+                    <p className="text-muted-foreground">Origem: central de notificações (ação manual)</p>
+                    {e.encerrado_em && <p className="text-muted-foreground">Quando: {dt(e.encerrado_em)}</p>}
+                    {e.observacao && <p className="text-muted-foreground">Observação: {e.observacao}</p>}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Ação: Encerrar item com erro de cadastro (somente admin e itens elegíveis) */}
+            {podeEncerrar && (
+              <div className="rounded-xl border border-amber-300/40 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
+                <div className="flex items-start gap-2 text-sm">
+                  <UserX className="h-4 w-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <div>
+                    <p className="font-medium">Erro de cadastro nesta notificação</p>
+                    <p className="text-muted-foreground">
+                      Motivo: {rotuloMotivo(item.erro)}. Você pode encerrar apenas esta ocorrência sem bloquear o assistido.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  <UserX className="h-4 w-4 mr-1" /> Encerrar item com erro de cadastro
+                </Button>
+              </div>
+            )}
+
             {/* Dados do envio */}
             <div className="space-y-2 rounded-xl border p-3">
               <InfoRow icon={Send} label="Evento">{item.evento_origem}</InfoRow>
