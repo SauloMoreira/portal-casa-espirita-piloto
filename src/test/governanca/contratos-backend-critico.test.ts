@@ -74,7 +74,7 @@ describe("CONTRATO fn_presenca_classificacao — semântica operacional por stat
       "eventoNotificacao",
     ];
     for (const status of Object.values(STATUS_PRESENCA)) {
-      const c = classificarPresenca(status) as Record<string, unknown>;
+      const c = classificarPresenca(status) as unknown as Record<string, unknown>;
       for (const campo of campos) expect(c).toHaveProperty(campo);
     }
   });
