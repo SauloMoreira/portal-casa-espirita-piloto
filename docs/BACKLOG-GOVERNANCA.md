@@ -5,7 +5,7 @@
 > confrontado com o [Catálogo de Invariantes](./INVARIANTES.md) antes de ser
 > implementado. Status: `concluído` · `em andamento` · `planejado` · `backlog`.
 
-Ordem de execução acordada: **L-02 (✅) → L-01 (✅) → L-03 (✅) → L-04**.
+Ordem de execução acordada: **L-02 (✅) → L-01 (✅) → L-03 (✅) → L-04 (✅)**.
 
 ---
 
