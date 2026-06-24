@@ -17,13 +17,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Phone, MessageSquare, CheckCircle2, AlertTriangle, Hash, Clock, Send, UserX, ShieldCheck,
+  Phone, MessageSquare, CheckCircle2, AlertTriangle, Hash, Clock, Send, UserX, ShieldCheck, MessagesSquare,
 } from "lucide-react";
 import {
   getFilaItemDetalhe, encerrarItemFilaErroCadastro,
   type FilaItem, type FilaItemDetalhe,
 } from "@/services/notificacoes/notificacoesService";
-import { rotuloMotivo, podeEncerrarPorErroCadastro } from "@/lib/notificacaoElegibilidade";
+import { rotuloMotivo, podeEncerrarPorErroCadastro, ehMensagemManual } from "@/lib/notificacaoElegibilidade";
+import { MensagemManualDialog } from "@/components/notificacoes/MensagemManualDialog";
 
 
 const STATUS_COLORS: Record<string, string> = {
