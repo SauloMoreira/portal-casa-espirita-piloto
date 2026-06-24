@@ -72,19 +72,28 @@ function renderTemplate(corpo: string, payload: Record<string, unknown>): string
       const raw = payload[key];
       if (raw === undefined || raw === null || raw === "") return "";
       const value = String(raw);
-      // Chaves de data renderizadas em pt-BR (DD/MM/AAAA, com hora quando presente).
-      // Mantém paridade com o renderTemplate canônico em src/lib/notificacoes.ts.
+      // Chaves de data em pt-BR. Datas puras (ex.: entrevistas armazenadas como
+      // timestamptz à meia-noite UTC) são renderizadas a partir dos componentes
+      // Y-M-D capturados, sem new Date() e sem conversão de fuso — impedindo o
+      // vazamento de UTC que transformava 23/06 00:00Z em "22/06 21:00".
       if (
         (key === "data" || key === "data_anterior" || key === "nova_data" || key === "data_impactada") &&
         /\d{4}-\d{2}-\d{2}/.test(value)
       ) {
-        const d = new Date(value);
-        if (!isNaN(d.getTime())) {
-          const hasTime = value.includes("T") && !value.endsWith("T00:00:00.000Z");
-          return d.toLocaleDateString("pt-BR", {
-            day: "2-digit", month: "2-digit", year: "numeric",
-            ...(hasTime ? { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" } : {}),
-          });
+        const m = /(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(value);
+        if (m) {
+          const [, ano, mes, dia, hh, mi] = m;
+          const temHoraReal = hh !== undefined && !(hh === "00" && mi === "00");
+          if (!temHoraReal) {
+            return `${dia}/${mes}/${ano}`;
+          }
+          const d = new Date(value);
+          if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString("pt-BR", {
+              day: "2-digit", month: "2-digit", year: "numeric",
+              hour: "2-digit", minute: "2-digit", timeZone: TIMEZONE_OFICIAL,
+            });
+          }
         }
       }
       if (key === "horario") return value.slice(0, 5);
