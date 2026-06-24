@@ -125,6 +125,29 @@ describe("renderTemplate", () => {
     expect(out).toBe("23/06/2026, 18:00");
   });
 
+  // L-01 — governança da confirmação de entrevista NÃO pode reabrir o bug de
+  // data: confirmação e lembrete de entrevista date-only devem renderizar sem
+  // inventar horário e sem deslocar o dia por UTC, independente da flag.
+  it("L-01: confirmação de entrevista date-only não inventa horário", () => {
+    const out = renderTemplate(
+      "Sua entrevista foi confirmada para {{data}}.",
+      { data: "2026-06-23T00:00:00+00:00" },
+    );
+    expect(out).toBe("Sua entrevista foi confirmada para 23/06/2026.");
+    expect(out).not.toMatch(/\d{2}:\d{2}/);
+  });
+
+  it("L-01: lembrete de entrevista date-only não desloca o dia por UTC", () => {
+    const out = renderTemplate(
+      "Lembrete: entrevista em {{data}}.",
+      { data: "2026-06-23T00:00:00.000Z" },
+    );
+    expect(out).toBe("Lembrete: entrevista em 23/06/2026.");
+    expect(out).not.toContain("22/06/2026");
+  });
+
+
+
 });
 
 describe("janela horária", () => {
