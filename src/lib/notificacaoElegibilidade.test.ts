@@ -4,6 +4,8 @@ import {
   sessaoElegivelParaLembrete,
   rotuloMotivo,
   MOTIVO_LABEL,
+  podeEncerrarPorErroCadastro,
+  MOTIVOS_ERRO_CADASTRO,
 } from "@/lib/notificacaoElegibilidade";
 
 // Avaliação fixa: "agora" = 2026-06-22 12:00 (horário de São Paulo).
