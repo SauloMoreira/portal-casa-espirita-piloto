@@ -165,12 +165,12 @@ Nenhuma das lacunas representa envio indevido conhecido — todas são oportunid
 ## 3. Recomendações práticas (priorizadas)
 
 > As lacunas estão formalizadas como backlog rastreável em
-> [BACKLOG-GOVERNANCA.md](./BACKLOG-GOVERNANCA.md). Ordem acordada: L-02 (✅) → L-01 (✅) → L-03 → L-04.
+> [BACKLOG-GOVERNANCA.md](./BACKLOG-GOVERNANCA.md). Ordem acordada: L-02 (✅) → L-01 (✅) → L-03 (✅) → L-04 (✅).
 
 1. **(Alta)** L-02 — ✅ Concluído: Central expõe o motivo de itens não enviados (janela/limite/bloqueio). Resta decidir política de isenção de limite para manual.
 2. **(Média)** L-01 — ✅ Concluído: flag governada `entrevista_confirmacao_agendamento_ativa` alinha EVT-08 a EVT-01.
 3. **(Média)** L-03 — ✅ Concluído: fonte única `fn_presenca_classificacao` separa classificação geral×operacional; auditoria confirmada.
-4. **(Baixa)** L-04 — Estender o saneamento da fila a entrevistas para consistência simétrica com sessões.
+4. **(Baixa)** L-04 — ✅ Concluído: saneamento da fila estendido a entrevistas via fonte única `fn_fila_motivo_inelegivel`, simétrico às sessões, com dispatch como barreira final e date-only intacto.
 
 ---
 
