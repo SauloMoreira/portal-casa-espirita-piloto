@@ -102,6 +102,29 @@ describe("renderTemplate", () => {
     const out = renderTemplate("dia {{data}}", { data: "2026-06-20" });
     expect(out).toContain("20/06/2026");
   });
+
+  it("não vaza UTC: entrevista à meia-noite UTC NÃO vira 21:00 do dia anterior", () => {
+    // timestamptz de entrevista date-only serializado pelo Postgres.
+    const out = renderTemplate(
+      "Sua entrevista foi agendada para {{data}}.",
+      { data: "2026-06-23T00:00:00+00:00" },
+    );
+    expect(out).toBe("Sua entrevista foi agendada para 23/06/2026.");
+    expect(out).not.toContain("21:00");
+    expect(out).not.toContain("22/06/2026");
+  });
+
+  it("trata meia-noite UTC em formato .000Z como data pura", () => {
+    const out = renderTemplate("{{data}}", { data: "2026-06-23T00:00:00.000Z" });
+    expect(out).toBe("23/06/2026");
+  });
+
+  it("mantém hora real do compromisso quando presente", () => {
+    // 18:00 SP (UTC-3) === 21:00Z → deve exibir a hora local, não a UTC.
+    const out = renderTemplate("{{data}}", { data: "2026-06-23T21:00:00+00:00" });
+    expect(out).toBe("23/06/2026 18:00");
+  });
+
 });
 
 describe("janela horária", () => {
