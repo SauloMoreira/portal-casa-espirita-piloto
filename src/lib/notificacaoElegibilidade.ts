@@ -96,6 +96,12 @@ export interface ElegibilidadeInput {
   sessaoData?: string | null;
   /** Horário da sessão (HH:MM[:SS]). */
   horario?: string | null;
+  /**
+   * Esta sessão é a PRÓXIMA sessão real agendada do vínculo?
+   * Quando `false`, o item é cadeia futura prevista e não deve gerar lembrete.
+   * `undefined` = não avaliado (mantém compatibilidade / não bloqueia).
+   */
+  ehProxima?: boolean;
   /** Instante de avaliação (default: agora). */
   agora?: Date;
 }
@@ -123,6 +129,9 @@ export function motivoInelegibilidadeLembrete(
   if (input.sessaoData && lembreteVencido(input.sessaoData, input.horario ?? "", agora)) {
     return "lembrete_vencido";
   }
+
+  // Só a PRÓXIMA sessão real do vínculo é elegível; cadeia futura prevista não.
+  if (input.ehProxima === false) return "sessao_futura_nao_proxima";
 
   return null;
 }
