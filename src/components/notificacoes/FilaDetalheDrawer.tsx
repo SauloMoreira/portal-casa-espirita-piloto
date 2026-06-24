@@ -17,7 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Phone, MessageSquare, CheckCircle2, AlertTriangle, Hash, Clock, Send, UserX, ShieldCheck, MessagesSquare,
+  Phone, MessageSquare, CheckCircle2, AlertTriangle, Hash, Clock, Send, UserX, ShieldCheck, MessagesSquare, Ban, Hourglass,
 } from "lucide-react";
 import {
   getFilaItemDetalhe, encerrarItemFilaErroCadastro,
