@@ -31,7 +31,12 @@ export type MotivoInelegivel =
   | "sessao_substituida"
   | "sessao_cancelada"
   | "sessao_nao_agendada"
-  | "lembrete_vencido";
+  | "lembrete_vencido"
+  | "sessao_futura_nao_proxima"
+  | "entrevista_inexistente"
+  | "entrevista_cancelada"
+  | "entrevista_remarcada"
+  | "entrevista_vencida";
 
 /** Rótulos amigáveis (pt-BR) para exibir ao administrador na Central. */
 export const MOTIVO_LABEL: Record<string, string> = {
@@ -41,6 +46,11 @@ export const MOTIVO_LABEL: Record<string, string> = {
   sessao_cancelada: "Sessão cancelada",
   sessao_nao_agendada: "Sessão não é mais a agenda ativa",
   lembrete_vencido: "Lembrete vencido (sessão já passou)",
+  sessao_futura_nao_proxima: "Sessão futura prevista (não é a próxima real do vínculo)",
+  entrevista_inexistente: "Entrevista não encontrada",
+  entrevista_cancelada: "Entrevista cancelada",
+  entrevista_remarcada: "Lembrete superado (entrevista remarcada)",
+  entrevista_vencida: "Entrevista vencida (já passou)",
   // Motivos pré-existentes de outras travas do dispatch:
   opt_out: "Assistido optou por não receber",
   comunicacao_geral_desativada: "Comunicações gerais desativadas",
