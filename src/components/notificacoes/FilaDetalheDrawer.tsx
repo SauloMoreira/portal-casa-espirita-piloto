@@ -43,7 +43,10 @@ interface Props {
   item: FilaItem | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Chamado após uma ação que altera o item (ex.: encerramento manual). */
+  onChanged?: () => void;
 }
+
 
 function InfoRow({ icon: Icon, label, children }: { icon: any; label: string; children: ReactNode }) {
   return (
