@@ -224,38 +224,54 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Render template
-      const { data: tpl } = await admin
-        .from("notificacoes_templates")
-        .select("corpo_template, ativo")
-        .eq("codigo_template", item.template_codigo)
-        .maybeSingle();
-      if (!tpl || !tpl.ativo) {
-        await admin.from("notificacoes_fila").update({ status: "falha", erro: "template_indisponivel" }).eq("id", item.id);
-        await logFila(admin, item.id, "saida", null, null, "falha", "template_indisponivel");
-        result.falhas++;
-        continue;
-      }
-
-      // Build the payload for rendering. Session reminders get a temporal
-      // reference computed at SEND time (timezone-aware) and a stale guard.
-      const payload: Record<string, unknown> = { ...(item.payload_json || {}) };
-      const ehLembreteSessao =
-        item.evento_origem === "sessao_lembrete" || item.template_codigo === "sessao_lembrete";
-      if (ehLembreteSessao) {
-        const sessaoData = String((item.payload_json || {}).data || "");
-        const horario = String((item.payload_json || {}).horario || "");
-        // Do not send reminders for sessions that already started/passed.
-        if (lembreteVencido(sessaoData, horario, agora)) {
-          await admin.from("notificacoes_fila").update({ status: "cancelado", erro: "lembrete_vencido" }).eq("id", item.id);
-          await logFila(admin, item.id, "saida", null, null, "cancelado", "lembrete_vencido");
-          result.ignorados++;
+      // ── Conteúdo da mensagem ─────────────────────────────────────────────
+      // Mensagem MANUAL: texto livre controlado, sem template. O conteúdo já
+      // foi validado e persistido no payload pela RPC oficial
+      // (fn_enfileirar_mensagem_manual). Aqui apenas usamos o texto cru.
+      let mensagem: string;
+      if (item.evento_origem === "mensagem_manual") {
+        const texto = String((item.payload_json || {}).mensagem || "").trim();
+        if (!texto) {
+          await admin.from("notificacoes_fila").update({ status: "falha", erro: "mensagem_vazia" }).eq("id", item.id);
+          await logFila(admin, item.id, "saida", null, null, "falha", "mensagem_vazia");
+          result.falhas++;
           continue;
         }
-        payload.quando = referenciaTemporalLembrete(sessaoData, agora);
-      }
+        mensagem = texto;
+      } else {
+        // Render template (fluxo automático com modelo cadastrado).
+        const { data: tpl } = await admin
+          .from("notificacoes_templates")
+          .select("corpo_template, ativo")
+          .eq("codigo_template", item.template_codigo)
+          .maybeSingle();
+        if (!tpl || !tpl.ativo) {
+          await admin.from("notificacoes_fila").update({ status: "falha", erro: "template_indisponivel" }).eq("id", item.id);
+          await logFila(admin, item.id, "saida", null, null, "falha", "template_indisponivel");
+          result.falhas++;
+          continue;
+        }
 
-      const mensagem = renderTemplate(tpl.corpo_template, payload);
+        // Build the payload for rendering. Session reminders get a temporal
+        // reference computed at SEND time (timezone-aware) and a stale guard.
+        const payload: Record<string, unknown> = { ...(item.payload_json || {}) };
+        const ehLembreteSessao =
+          item.evento_origem === "sessao_lembrete" || item.template_codigo === "sessao_lembrete";
+        if (ehLembreteSessao) {
+          const sessaoData = String((item.payload_json || {}).data || "");
+          const horario = String((item.payload_json || {}).horario || "");
+          // Do not send reminders for sessions that already started/passed.
+          if (lembreteVencido(sessaoData, horario, agora)) {
+            await admin.from("notificacoes_fila").update({ status: "cancelado", erro: "lembrete_vencido" }).eq("id", item.id);
+            await logFila(admin, item.id, "saida", null, null, "cancelado", "lembrete_vencido");
+            result.ignorados++;
+            continue;
+          }
+          payload.quando = referenciaTemporalLembrete(sessaoData, agora);
+        }
+
+        mensagem = renderTemplate(tpl.corpo_template, payload);
+      }
       const send = await adapter.send(item.telefone_normalizado, mensagem);
       await logFila(admin, item.id, "saida", { telefone: item.telefone_normalizado, mensagem }, send.raw ?? null, send.ok ? "enviado" : "falha", send.error);
 
