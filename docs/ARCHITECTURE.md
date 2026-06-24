@@ -67,3 +67,10 @@ adotados página a página sem big-bang. Ao tocar uma página monolítica:
 A **agenda real** (`agenda_tratamentos_assistido`) é a única fonte de verdade
 para sessões — presença, documentos e relatórios devem refletir registros
 reais, nunca parâmetros teóricos do tratamento.
+
+## Invariantes do sistema
+
+As regras estruturais invioláveis (INV-*) que toda mudança deve preservar estão
+catalogadas em [`docs/INVARIANTES.md`](./INVARIANTES.md). Confronte qualquer plano,
+entrega ou teste com esse catálogo: *"Esta implementação preserva as invariantes do
+sistema?"* — se a resposta for "não", a entrega não está pronta.
