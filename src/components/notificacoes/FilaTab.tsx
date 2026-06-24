@@ -12,7 +12,7 @@ import {
   filtrarFila, ordenarFila, filaItemNome, filaItemTratamento,
   type FilaItem, type FilaFiltros, type FilaOrdenacao,
 } from "@/services/notificacoes/notificacoesService";
-import { ehEventoExcecao } from "@/lib/notificacaoElegibilidade";
+import { ehEventoExcecao, ehMensagemManual } from "@/lib/notificacaoElegibilidade";
 import { formatarDataBR } from "@/lib/notificacoes";
 
 const STATUS_COLORS: Record<string, string> = {
