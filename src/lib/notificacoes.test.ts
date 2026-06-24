@@ -122,7 +122,7 @@ describe("renderTemplate", () => {
   it("mantém hora real do compromisso quando presente", () => {
     // 18:00 SP (UTC-3) === 21:00Z → deve exibir a hora local, não a UTC.
     const out = renderTemplate("{{data}}", { data: "2026-06-23T21:00:00+00:00" });
-    expect(out).toBe("23/06/2026 18:00");
+    expect(out).toBe("23/06/2026, 18:00");
   });
 
 });
