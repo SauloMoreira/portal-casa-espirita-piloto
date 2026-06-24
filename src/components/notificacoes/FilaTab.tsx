@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Phone, Stethoscope, CalendarClock, CheckCircle2, Filter, X, AlertTriangle, CalendarPlus } from "lucide-react";
+import { Phone, Stethoscope, CalendarClock, CheckCircle2, Filter, X, AlertTriangle, CalendarPlus, MessagesSquare } from "lucide-react";
 import {
   filtrarFila, ordenarFila, filaItemNome, filaItemTratamento,
   type FilaItem, type FilaFiltros, type FilaOrdenacao,
