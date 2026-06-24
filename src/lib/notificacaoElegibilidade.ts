@@ -236,6 +236,82 @@ export function sessaoElegivelParaLembrete(input: ElegibilidadeInput): boolean {
 }
 
 // ============================================================================
+// L-04 — Elegibilidade de ENTREVISTA na fila (espelho da fonte única).
+//
+// Contraparte em TS do ramo de entrevistas de `public.fn_fila_motivo_inelegivel`,
+// usada pelo saneamento (`fn_sanear_fila_notificacoes`) e pelo dispatch. NÃO é
+// uma regra paralela: replica EXATAMENTE a ordem de decisão do banco, para uso
+// na Central e nos testes. Entrevista é DATE-ONLY: nunca inventa horário; o
+// vencimento compara apenas datas de calendário no fuso oficial.
+// ============================================================================
+
+/** Eventos da fila atrelados a uma entrevista como referência. */
+export const EVENTOS_ENTREVISTA = ["entrevista_lembrete", "entrevista_criada"] as const;
+export type EventoEntrevista = (typeof EVENTOS_ENTREVISTA)[number];
+
+/** Status de entrevista que caracteriza cancelamento (fonte: entrevistas_fraternas). */
+export const ENTREVISTA_STATUS_CANCELADA = "cancelada" as const;
+
+export interface ElegibilidadeEntrevistaInput {
+  /** Evento de origem do item da fila. */
+  evento: string;
+  /** A entrevista correspondente ainda existe? */
+  existeEntrevista: boolean;
+  /** Status atual da entrevista (quando existe). */
+  entrevistaStatus?: string | null;
+  /** Data (date-only, YYYY-MM-DD) da entrevista válida atual. */
+  entrevistaData?: string | null;
+  /**
+   * Para `entrevista_lembrete`: o item ainda aponta para a MESMA versão (data)
+   * da entrevista? `false` indica versão superada por remarcação.
+   * `undefined`/`true` = mesma versão (não invalida por este critério).
+   */
+  mesmaVersao?: boolean;
+  /** Instante de avaliação (default: agora). */
+  agora?: Date;
+}
+
+/**
+ * Decide o motivo de inelegibilidade de um item de ENTREVISTA na fila.
+ * Retorna `null` quando a entrevista é a válida atual e ainda não venceu.
+ *
+ * Espelha exatamente a ordem de checagem do banco para entrevistas:
+ *   inexistente → cancelada → remarcada (lembrete c/ versão superada) → vencida.
+ */
+export function motivoInelegibilidadeEntrevista(
+  input: ElegibilidadeEntrevistaInput,
+): MotivoInelegivel | null {
+  // Eventos não atrelados a entrevista são governados em outro lugar.
+  if (!EVENTOS_ENTREVISTA.includes(input.evento as EventoEntrevista)) return null;
+
+  if (!input.existeEntrevista) return "entrevista_inexistente";
+  if ((input.entrevistaStatus ?? "") === ENTREVISTA_STATUS_CANCELADA) {
+    return "entrevista_cancelada";
+  }
+
+  // Apenas o lembrete carrega a versão (epoch da data) e pode ser superado.
+  if (input.evento === "entrevista_lembrete" && input.mesmaVersao === false) {
+    return "entrevista_remarcada";
+  }
+
+  // Vencida: comparação DATE-ONLY no fuso oficial — sem inventar horário, sem
+  // deslocar o dia por UTC. Vencida quando hoje (local) é posterior à data.
+  if (input.entrevistaData) {
+    const agora = input.agora ?? new Date();
+    if (diffDiasCalendario(input.entrevistaData, agora) < 0) {
+      return "entrevista_vencida";
+    }
+  }
+
+  return null;
+}
+
+/** Conveniência booleana: a entrevista pode gerar/enviar comunicação? */
+export function entrevistaElegivelParaFila(input: ElegibilidadeEntrevistaInput): boolean {
+  return motivoInelegibilidadeEntrevista(input) === null;
+}
+
+// ============================================================================
 // Regra OFICIAL (espelho) de notificação por exceção operacional.
 // Contraparte em TS de `public.fn_excecao_alvos` / `fn_processar_excecao_notificacoes`.
 // ============================================================================
