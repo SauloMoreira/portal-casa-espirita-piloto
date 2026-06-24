@@ -150,7 +150,7 @@ Legenda de status de aderência:
 
 ### Lacunas encontradas (🔴/🟡 — comportamento desejado a decidir)
 - **L-01** — Política de confirmação imediata de **entrevista** não está sob a mesma flag governada das sessões. *Desejado:* avaliar `entrevista_confirmacao_agendamento_ativa` análogo a `tratamento_confirmacao_agendamento_ativa`.
-- **L-02** — Mensagem manual não tem tratamento explícito quando bloqueada por limite diário/janela. *Desejado:* feedback de status na Central (ex.: "aguardando janela"/"limite diário atingido") e decisão sobre isenção de limite para envio manual.
+- **L-02** ✅ *(concluído — ver [BACKLOG-GOVERNANCA.md](./BACKLOG-GOVERNANCA.md))* — Mensagem manual/automática sem feedback explícito quando segurada por janela/limite. *Entregue:* `fn_fila_diagnostico_pendentes` + diagnóstico visível na Central. Resta apenas decisão de negócio sobre isenção de limite para envio manual.
 - **L-03** — Confirmar se `presenca_registrada`/`falta_registrada` são `geral` (sujeitas a `comunicacao_geral_ativa`) e se `presencas_tratamentos` tem trigger de auditoria. *Desejado:* governar volume dessas mensagens (podem ser ruído).
 - **L-04** — `fn_sanear_fila_notificacoes` cobre só sessões. *Desejado:* estender saneamento proativo a entrevistas (hoje só barradas no dispatch).
 
