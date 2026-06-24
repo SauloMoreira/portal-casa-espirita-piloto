@@ -2844,6 +2844,13 @@ export type Database = {
           usou_fallback_nome: boolean
         }[]
       }
+      fn_fila_diagnostico_pendentes: {
+        Args: never
+        Returns: {
+          id: string
+          motivo: string
+        }[]
+      }
       fn_fila_motivo_inelegivel: {
         Args: { p_fila_id: string }
         Returns: string

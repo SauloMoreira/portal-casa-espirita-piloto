@@ -101,7 +101,7 @@ Legenda de status de aderência:
 - **Efeito no dispatch:** envia o **texto cru** (sem template); passa por opt-out, janela e limite diário como qualquer item.
 - **Efeito na auditoria:** `notificacoes_log` + `audit_logs` (`enfileirar_mensagem_manual`).
 - **Invariantes:** INV-MANUAL-001, INV-MANUAL-002, INV-ARQ-001, INV-ARQ-003, INV-ARQ-004, INV-SEG-001, INV-SEG-002.
-- **Status:** 🟡 — ver L-02 (mensagem manual está sujeita ao limite diário/janela; pode atrasar sem feedback claro ao operador).
+- **Status:** ✅ — L-02 implementado: a Central agora exibe o diagnóstico de pendência (aguardando janela / aguardando limite diário / pendente normal / bloqueado) via `fn_fila_diagnostico_pendentes`. Pendência aberta apenas a decisão de negócio sobre isenção do limite diário para manual (ver backlog).
 
 ### EVT-10 — Encerramento de item por erro de cadastro
 - **Gatilho real:** `fn_encerrar_item_fila_erro_cadastro(fila_id, motivo, obs)` (RPC).
@@ -150,7 +150,7 @@ Legenda de status de aderência:
 
 ### Lacunas encontradas (🔴/🟡 — comportamento desejado a decidir)
 - **L-01** — Política de confirmação imediata de **entrevista** não está sob a mesma flag governada das sessões. *Desejado:* avaliar `entrevista_confirmacao_agendamento_ativa` análogo a `tratamento_confirmacao_agendamento_ativa`.
-- **L-02** — Mensagem manual não tem tratamento explícito quando bloqueada por limite diário/janela. *Desejado:* feedback de status na Central (ex.: "aguardando janela"/"limite diário atingido") e decisão sobre isenção de limite para envio manual.
+- **L-02** ✅ *(concluído — ver [BACKLOG-GOVERNANCA.md](./BACKLOG-GOVERNANCA.md))* — Mensagem manual/automática sem feedback explícito quando segurada por janela/limite. *Entregue:* `fn_fila_diagnostico_pendentes` + diagnóstico visível na Central. Resta apenas decisão de negócio sobre isenção de limite para envio manual.
 - **L-03** — Confirmar se `presenca_registrada`/`falta_registrada` são `geral` (sujeitas a `comunicacao_geral_ativa`) e se `presencas_tratamentos` tem trigger de auditoria. *Desejado:* governar volume dessas mensagens (podem ser ruído).
 - **L-04** — `fn_sanear_fila_notificacoes` cobre só sessões. *Desejado:* estender saneamento proativo a entrevistas (hoje só barradas no dispatch).
 
@@ -160,7 +160,10 @@ Nenhuma das lacunas representa envio indevido conhecido — todas são oportunid
 
 ## 3. Recomendações práticas (priorizadas)
 
-1. **(Alta)** L-02 — Expor na Central o motivo de itens manuais não enviados (janela/limite) e decidir política de isenção. Baixo risco, alto valor operacional.
+> As lacunas estão formalizadas como backlog rastreável em
+> [BACKLOG-GOVERNANCA.md](./BACKLOG-GOVERNANCA.md). Ordem acordada: L-02 (✅) → L-01 → L-03 → L-04.
+
+1. **(Alta)** L-02 — ✅ Concluído: Central expõe o motivo de itens não enviados (janela/limite/bloqueio). Resta decidir política de isenção de limite para manual.
 2. **(Média)** L-01 — Introduzir flag governada para confirmação imediata de entrevista, alinhando EVT-08 a EVT-01.
 3. **(Média)** L-03 — Documentar/ajustar classificação de presença e garantir auditoria da tabela de presença.
 4. **(Baixa)** L-04 — Estender o saneamento da fila a entrevistas para consistência simétrica com sessões.

@@ -328,3 +328,99 @@ export function alvoExcecaoElegivel(input: AlvoExcecaoInput): boolean {
   if (!input.alvoRastreavel) return false;
   return true;
 }
+
+// ============================================================================
+// L-02 — Diagnóstico de pendência da fila (por que um item ainda NÃO saiu).
+//
+// Contraparte em TS da RPC `public.fn_fila_diagnostico_pendentes`, que é a
+// fonte única de verdade (espelha a ordem de decisão do dispatch). Este módulo
+// só traduz o código retornado em rótulo/descrição amigáveis e dá o "tom"
+// visual para a Central. Side-effect free.
+// ============================================================================
+
+/** Códigos possíveis de diagnóstico de um item pendente/agendado da fila. */
+export type DiagnosticoPendencia =
+  | "agendado_futuro"
+  | "aguardando_janela"
+  | "aguardando_limite_diario"
+  | "opt_out"
+  | "comunicacao_geral_desativada"
+  | "sem_telefone"
+  | "pendente"
+  | string; // "bloqueado_inelegivel:<motivo>"
+
+/** Tom visual sugerido para o badge de diagnóstico. */
+export type DiagnosticoTom = "neutro" | "espera" | "atencao" | "bloqueio";
+
+export interface DiagnosticoRotulo {
+  label: string;
+  descricao: string;
+  tom: DiagnosticoTom;
+}
+
+const DIAGNOSTICO_BASE: Record<string, DiagnosticoRotulo> = {
+  pendente: {
+    label: "Pendente",
+    descricao: "Elegível — deve ser enviada no próximo processamento da fila.",
+    tom: "neutro",
+  },
+  agendado_futuro: {
+    label: "Agendada",
+    descricao: "Programada para o futuro; ainda não chegou a hora de enviar.",
+    tom: "neutro",
+  },
+  aguardando_janela: {
+    label: "Aguardando janela de envio",
+    descricao: "Fora do horário permitido de envio; sai automaticamente quando a janela abrir.",
+    tom: "espera",
+  },
+  aguardando_limite_diario: {
+    label: "Aguardando limite diário",
+    descricao: "Limite diário de mensagens deste assistido atingido; segue no próximo dia.",
+    tom: "espera",
+  },
+  opt_out: {
+    label: "Bloqueada — opt-out",
+    descricao: "O assistido optou por não receber mensagens neste canal.",
+    tom: "bloqueio",
+  },
+  comunicacao_geral_desativada: {
+    label: "Bloqueada — comunicações gerais",
+    descricao: "Comunicações gerais desativadas para este assistido.",
+    tom: "bloqueio",
+  },
+  sem_telefone: {
+    label: "Bloqueada — sem telefone",
+    descricao: "Sem telefone válido cadastrado para envio.",
+    tom: "bloqueio",
+  },
+};
+
+/**
+ * Traduz o código de diagnóstico (incl. `bloqueado_inelegivel:<motivo>`) em
+ * rótulo amigável, descrição e tom visual. Devolve `null` para itens que não
+ * precisam de destaque de pendência (ex.: já enviados/cancelados não passam
+ * por aqui). Para códigos desconhecidos, devolve um rótulo neutro seguro.
+ */
+export function rotuloDiagnosticoPendencia(
+  codigo?: string | null,
+): DiagnosticoRotulo | null {
+  if (!codigo) return null;
+
+  if (codigo.startsWith("bloqueado_inelegivel:")) {
+    const motivo = codigo.slice("bloqueado_inelegivel:".length);
+    return {
+      label: "Bloqueada — inelegível",
+      descricao: rotuloMotivo(motivo) ?? "Item não corresponde mais à agenda válida.",
+      tom: "bloqueio",
+    };
+  }
+
+  return (
+    DIAGNOSTICO_BASE[codigo] ?? {
+      label: "Pendente",
+      descricao: "Aguardando processamento.",
+      tom: "neutro",
+    }
+  );
+}

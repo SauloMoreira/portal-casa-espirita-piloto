@@ -17,13 +17,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Phone, MessageSquare, CheckCircle2, AlertTriangle, Hash, Clock, Send, UserX, ShieldCheck, MessagesSquare,
+  Phone, MessageSquare, CheckCircle2, AlertTriangle, Hash, Clock, Send, UserX, ShieldCheck, MessagesSquare, Ban, Hourglass,
 } from "lucide-react";
 import {
   getFilaItemDetalhe, encerrarItemFilaErroCadastro,
   type FilaItem, type FilaItemDetalhe,
 } from "@/services/notificacoes/notificacoesService";
-import { rotuloMotivo, podeEncerrarPorErroCadastro, ehMensagemManual } from "@/lib/notificacaoElegibilidade";
+import { rotuloMotivo, podeEncerrarPorErroCadastro, ehMensagemManual, rotuloDiagnosticoPendencia } from "@/lib/notificacaoElegibilidade";
 import { MensagemManualDialog } from "@/components/notificacoes/MensagemManualDialog";
 
 
@@ -157,6 +157,29 @@ export function FilaDetalheDrawer({ item, open, onOpenChange, onChanged }: Props
                 <MessagesSquare className="h-4 w-4 mr-1" /> Enviar mensagem manual
               </Button>
             )}
+
+            {/* L-02: diagnóstico de pendência (por que ainda NÃO foi enviada) */}
+            {(item.status === "pendente" || item.status === "agendado") && (() => {
+              const diag = rotuloDiagnosticoPendencia(item.diagnostico);
+              if (!diag) return null;
+              const bloqueio = diag.tom === "bloqueio";
+              const espera = diag.tom === "espera";
+              const cor = bloqueio
+                ? "border-red-300/40 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300"
+                : espera
+                ? "border-amber-300/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300"
+                : "border-border bg-muted/30 text-foreground";
+              const Icone = bloqueio ? Ban : espera ? Hourglass : Clock;
+              return (
+                <div className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${cor}`}>
+                  <Icone className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div className="space-y-0.5">
+                    <p className="font-medium">{diag.label}</p>
+                    <p className="text-muted-foreground">{diag.descricao}</p>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Banner de invalidação/cancelamento (transparência ao admin) */}
             {item.status === "cancelado" && item.erro && (

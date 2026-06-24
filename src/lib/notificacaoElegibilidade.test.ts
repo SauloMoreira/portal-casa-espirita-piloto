@@ -9,6 +9,7 @@ import {
   validarMensagemManual,
   ehMensagemManual,
   MENSAGEM_MANUAL_MAX,
+  rotuloDiagnosticoPendencia,
 } from "@/lib/notificacaoElegibilidade";
 
 // Avaliação fixa: "agora" = 2026-06-22 12:00 (horário de São Paulo).
@@ -248,5 +249,46 @@ describe("rótulos de mensagem manual", () => {
     expect(rotuloMotivo("mensagem_vazia")).toBe(MOTIVO_LABEL.mensagem_vazia);
     expect(rotuloMotivo("permissao_negada")).toBe(MOTIVO_LABEL.permissao_negada);
     expect(rotuloMotivo("destinatario_invalido")).toBe(MOTIVO_LABEL.destinatario_invalido);
+  });
+});
+
+describe("rotuloDiagnosticoPendencia (L-02)", () => {
+  it("retorna null sem código", () => {
+    expect(rotuloDiagnosticoPendencia(null)).toBeNull();
+    expect(rotuloDiagnosticoPendencia(undefined)).toBeNull();
+  });
+
+  it("aguardando janela = tom de espera", () => {
+    const r = rotuloDiagnosticoPendencia("aguardando_janela");
+    expect(r?.tom).toBe("espera");
+    expect(r?.label).toMatch(/janela/i);
+  });
+
+  it("aguardando limite diário = tom de espera", () => {
+    const r = rotuloDiagnosticoPendencia("aguardando_limite_diario");
+    expect(r?.tom).toBe("espera");
+    expect(r?.label).toMatch(/limite/i);
+  });
+
+  it("pendente normal = tom neutro", () => {
+    const r = rotuloDiagnosticoPendencia("pendente");
+    expect(r?.tom).toBe("neutro");
+  });
+
+  it("opt_out / sem_telefone = tom de bloqueio", () => {
+    expect(rotuloDiagnosticoPendencia("opt_out")?.tom).toBe("bloqueio");
+    expect(rotuloDiagnosticoPendencia("sem_telefone")?.tom).toBe("bloqueio");
+  });
+
+  it("bloqueado_inelegivel:<motivo> traduz o motivo interno", () => {
+    const r = rotuloDiagnosticoPendencia("bloqueado_inelegivel:sessao_cancelada");
+    expect(r?.tom).toBe("bloqueio");
+    expect(r?.descricao).toBe(rotuloMotivo("sessao_cancelada"));
+  });
+
+  it("código desconhecido cai em rótulo neutro seguro", () => {
+    const r = rotuloDiagnosticoPendencia("xpto_desconhecido");
+    expect(r?.tom).toBe("neutro");
+    expect(r?.label).toBeTruthy();
   });
 });
