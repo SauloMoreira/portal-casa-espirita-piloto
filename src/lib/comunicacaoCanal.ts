@@ -28,6 +28,9 @@ export const EVENTOS_OPERACIONAIS = [
   "cancelamento",
   "presenca_registrada",
   "falta_registrada",
+  // Ação humana administrativa pontual: respeita o opt-out de canal, mas não é
+  // bloqueada pela preferência de comunicações gerais.
+  "mensagem_manual",
 ] as const;
 
 const SET_OPERACIONAIS = new Set<string>(EVENTOS_OPERACIONAIS);
