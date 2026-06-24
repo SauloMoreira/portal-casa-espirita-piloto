@@ -13,14 +13,12 @@ export const VINCULO_STATUS = {
 } as const;
 export type VinculoStatus = (typeof VINCULO_STATUS)[keyof typeof VINCULO_STATUS];
 
-// Presença em sessões de tratamento
-export const PRESENCA_STATUS = {
-  presente: "presente",
-  falta: "falta",
-  justificada: "justificada",
-  pendente: "pendente",
-} as const;
-export type PresencaStatus = (typeof PRESENCA_STATUS)[keyof typeof PRESENCA_STATUS];
+// Presença em sessões de tratamento (classificação GERAL persistida).
+// Fonte única da semântica geral×operacional: src/lib/presencaClassificacao.ts
+// (espelho de fn_presenca_classificacao no backend). Valores alinhados ao
+// check constraint real do banco — NÃO usar "falta"/"justificada".
+export { STATUS_PRESENCA as PRESENCA_STATUS } from "@/lib/presencaClassificacao";
+export type { StatusPresenca as PresencaStatus } from "@/lib/presencaClassificacao";
 
 // Sessões públicas (palestras / check-in)
 export const SESSAO_PUBLICA_STATUS = {
