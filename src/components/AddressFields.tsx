@@ -19,10 +19,13 @@ interface AddressFieldsProps {
   data: AddressData;
   onChange: (data: AddressData) => void;
   errors?: Partial<Record<keyof AddressData, string>>;
+  /** Quando false, não exibe asteriscos de obrigatoriedade (cadastro mínimo). */
+  required?: boolean;
 }
 
-export function AddressFields({ data, onChange, errors }: AddressFieldsProps) {
+export function AddressFields({ data, onChange, errors, required = true }: AddressFieldsProps) {
   const [loading, setLoading] = useState(false);
+  const req = required ? " *" : "";
 
   const set = (field: keyof AddressData, value: string) => {
     onChange({ ...data, [field]: value });
@@ -48,7 +51,7 @@ export function AddressFields({ data, onChange, errors }: AddressFieldsProps) {
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="space-y-1">
-          <Label>CEP *</Label>
+          <Label>CEP{req}</Label>
           <div className="relative">
             <Input
               value={data.cep}
@@ -63,14 +66,14 @@ export function AddressFields({ data, onChange, errors }: AddressFieldsProps) {
           {errors?.cep && <p className="text-xs text-destructive">{errors.cep}</p>}
         </div>
         <div className="col-span-1 sm:col-span-2 space-y-1">
-          <Label>Logradouro *</Label>
+          <Label>Logradouro{req}</Label>
           <Input value={data.logradouro} onChange={(e) => set("logradouro", e.target.value)} className={errors?.logradouro ? "border-destructive" : ""} />
           {errors?.logradouro && <p className="text-xs text-destructive">{errors.logradouro}</p>}
         </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="space-y-1">
-          <Label>Número *</Label>
+          <Label>Número{req}</Label>
           <Input value={data.numero} onChange={(e) => set("numero", e.target.value)} className={errors?.numero ? "border-destructive" : ""} />
           {errors?.numero && <p className="text-xs text-destructive">{errors.numero}</p>}
         </div>
@@ -79,7 +82,7 @@ export function AddressFields({ data, onChange, errors }: AddressFieldsProps) {
           <Input value={data.complemento} onChange={(e) => set("complemento", e.target.value)} />
         </div>
         <div className="space-y-1">
-          <Label>Bairro *</Label>
+          <Label>Bairro{req}</Label>
           <Input value={data.bairro} onChange={(e) => set("bairro", e.target.value)} className={errors?.bairro ? "border-destructive" : ""} />
           {errors?.bairro && <p className="text-xs text-destructive">{errors.bairro}</p>}
         </div>
@@ -87,12 +90,12 @@ export function AddressFields({ data, onChange, errors }: AddressFieldsProps) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
-          <Label>Cidade *</Label>
+          <Label>Cidade{req}</Label>
           <Input value={data.cidade} onChange={(e) => set("cidade", e.target.value)} className={errors?.cidade ? "border-destructive" : ""} />
           {errors?.cidade && <p className="text-xs text-destructive">{errors.cidade}</p>}
         </div>
         <div className="space-y-1">
-          <Label>Estado *</Label>
+          <Label>Estado{req}</Label>
           <Input value={data.estado} onChange={(e) => set("estado", e.target.value)} maxLength={2} placeholder="UF" className={errors?.estado ? "border-destructive" : ""} />
           {errors?.estado && <p className="text-xs text-destructive">{errors.estado}</p>}
         </div>

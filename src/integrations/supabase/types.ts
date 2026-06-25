@@ -348,6 +348,7 @@ export type Database = {
       assistidos: {
         Row: {
           bairro: string | null
+          cadastro_completo: boolean
           celular: string | null
           cep: string | null
           cidade: string | null
@@ -379,6 +380,7 @@ export type Database = {
         }
         Insert: {
           bairro?: string | null
+          cadastro_completo?: boolean
           celular?: string | null
           cep?: string | null
           cidade?: string | null
@@ -410,6 +412,7 @@ export type Database = {
         }
         Update: {
           bairro?: string | null
+          cadastro_completo?: boolean
           celular?: string | null
           cep?: string | null
           cidade?: string | null
@@ -2869,6 +2872,10 @@ export type Database = {
           idade_mais_antiga_min: number
           total_pendentes: number
         }[]
+      }
+      fn_assistido_cadastro_esta_completo: {
+        Args: { a: Database["public"]["Tables"]["assistidos"]["Row"] }
+        Returns: boolean
       }
       fn_atualizar_parametro_operacional: {
         Args: { p_chave: string; p_observacao?: string; p_valor: string }

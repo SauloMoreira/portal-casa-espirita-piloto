@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { getDay } from "date-fns";
-import { isValidCPF, isValidEmail, isValidPhone } from "@/lib/validators";
+import { validarCadastroMinimo, encontrarDuplicadoPorCelular, CELULAR_DUPLICADO_MSG } from "@/lib/cadastroMinimo";
 import {
   DIAS_SEMANA,
   EMPTY_ASSISTIDO_FORM,
@@ -13,7 +13,7 @@ import {
 import {
   fetchInitialData,
   fetchEntrevistaContext,
-  isCpfCadastrado,
+  
   insertAssistido,
   submitEntrevista,
   validateDatasIniciais,
@@ -226,16 +226,8 @@ export function useFazerEntrevista() {
     setAssistidoErrors({});
   }, []);
 
-  const validateAssistidoForm = (form: EntrevistaAssistidoForm) => {
-    const e: Record<string, string> = {};
-    if (!form.nome.trim()) e.nome = "Nome obrigatório";
-    if (!form.cpf.trim()) e.cpf = "CPF obrigatório";
-    else if (!isValidCPF(form.cpf)) e.cpf = "CPF inválido";
-    if (!form.celular.trim()) e.celular = "Celular obrigatório";
-    else if (!isValidPhone(form.celular)) e.celular = "Celular inválido";
-    if (form.email && !isValidEmail(form.email)) e.email = "E-mail inválido";
-    return e;
-  };
+  const validateAssistidoForm = (form: EntrevistaAssistidoForm) =>
+    validarCadastroMinimo(form).errors;
 
   const handleSaveNovoAssistido = useCallback(async () => {
     const errs = validateAssistidoForm(assistidoForm);
@@ -244,17 +236,20 @@ export function useFazerEntrevista() {
     setSavingAssistido(true);
 
     const cpfClean = assistidoForm.cpf.replace(/\D/g, "");
-    if (await isCpfCadastrado(cpfClean)) {
-      setAssistidoErrors({ cpf: ENTREVISTA_MESSAGES.cpfJaCadastrado });
+    // Deduplicação por celular (fonte de verdade no backend; aqui é otimista).
+    const celClean = assistidoForm.celular.replace(/\D/g, "");
+    if (encontrarDuplicadoPorCelular(celClean, assistidos)) {
+      setAssistidoErrors({ celular: CELULAR_DUPLICADO_MSG });
       setSavingAssistido(false);
       return;
     }
 
+
     const payload = {
       nome: assistidoForm.nome.trim(),
-      cpf: cpfClean,
-      celular: assistidoForm.celular.replace(/\D/g, ""),
-      telefone: assistidoForm.celular.replace(/\D/g, ""),
+      cpf: cpfClean || null,
+      celular: celClean,
+      telefone: celClean,
       email: assistidoForm.email.trim() || null,
       data_nascimento: assistidoForm.data_nascimento || null,
       cep: assistidoForm.cep.replace(/\D/g, "") || null,
@@ -272,6 +267,14 @@ export function useFazerEntrevista() {
 
     const { data: newAssist, error } = await insertAssistido(payload);
     if (error) {
+      const isDupCelular =
+        error.message.includes("uq_assistidos_celular") ||
+        error.message.includes("este celular");
+      if (isDupCelular) {
+        setAssistidoErrors({ celular: CELULAR_DUPLICADO_MSG });
+        setSavingAssistido(false);
+        return;
+      }
       const msg = error.message.includes("violates")
         ? "Não foi possível cadastrar o assistido. Verifique os dados e tente novamente."
         : error.message;
@@ -284,7 +287,7 @@ export function useFazerEntrevista() {
       toast({ title: "Assistido cadastrado" });
     }
     setSavingAssistido(false);
-  }, [assistidoForm, user, toast]);
+  }, [assistidoForm, assistidos, user, toast]);
 
   const handleSalvar = useCallback(async () => {
     if (!selectedAssistido) {

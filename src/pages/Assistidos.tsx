@@ -14,7 +14,8 @@ import { Plus, Search, HandHeart, Pencil, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { AddressFields } from "@/components/AddressFields";
-import { isValidCPF, isValidEmail, isValidPhone, maskCPF, maskPhone } from "@/lib/validators";
+import { maskCPF, maskPhone } from "@/lib/validators";
+import { validarCadastroMinimo, CELULAR_DUPLICADO_MSG } from "@/lib/cadastroMinimo";
 import { GerarAcessoAssistido } from "@/components/GerarAcessoAssistido";
 import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 import { PaginationControls } from "@/components/ui/pagination-controls";
@@ -125,22 +126,11 @@ export default function Assistidos() {
   }, [page]);
 
   const validate = (): FormErrors => {
-    const e: FormErrors = {};
-    if (!form.nome.trim()) e.nome = "Nome obrigatório";
-    if (!form.cpf.trim()) e.cpf = "CPF obrigatório";
-    else if (!isValidCPF(form.cpf)) e.cpf = "CPF inválido";
-    if (!form.celular.trim()) e.celular = "Celular obrigatório";
-    else if (!isValidPhone(form.celular)) e.celular = "Celular inválido";
-    if (!form.email.trim()) e.email = "E-mail obrigatório";
-    else if (!isValidEmail(form.email)) e.email = "E-mail inválido";
-    if (!form.cep.trim()) e.cep = "CEP obrigatório";
-    if (!form.logradouro.trim()) e.logradouro = "Logradouro obrigatório";
-    if (!form.numero.trim()) e.numero = "Número obrigatório";
-    if (!form.bairro.trim()) e.bairro = "Bairro obrigatório";
-    if (!form.cidade.trim()) e.cidade = "Cidade obrigatória";
-    if (!form.estado.trim()) e.estado = "Estado obrigatório";
-    return e;
+    // Cadastro mínimo: só Nome + Celular são obrigatórios. Demais campos
+    // são validados apenas quanto ao formato, quando preenchidos.
+    return validarCadastroMinimo(form).errors as FormErrors;
   };
+
 
   const handleSave = async () => {
     const errs = validate();
@@ -149,36 +139,56 @@ export default function Assistidos() {
 
     setLoading(true);
     const cpfClean = form.cpf.replace(/\D/g, "");
+    const celClean = form.celular.replace(/\D/g, "");
     const payload = {
       nome: form.nome.trim(),
-      cpf: cpfClean,
-      celular: form.celular.replace(/\D/g, ""),
-      telefone: form.celular.replace(/\D/g, ""),
+      cpf: cpfClean || null,
+      celular: celClean,
+      telefone: celClean,
       email: form.email.trim() || null,
       data_nascimento: form.data_nascimento || null,
-      cep: form.cep.replace(/\D/g, ""),
-      logradouro: form.logradouro.trim(),
-      numero: form.numero.trim(),
+      cep: form.cep.replace(/\D/g, "") || null,
+      logradouro: form.logradouro.trim() || null,
+      numero: form.numero.trim() || null,
       complemento: form.complemento.trim() || null,
-      bairro: form.bairro.trim(),
-      cidade: form.cidade.trim(),
-      estado: form.estado.trim().toUpperCase(),
+      bairro: form.bairro.trim() || null,
+      cidade: form.cidade.trim() || null,
+      estado: form.estado.trim().toUpperCase() || null,
       foto_url: form.foto_url || null,
       observacoes: form.observacoes || null,
       status: form.status,
       quantidade_palestras: parseInt(form.quantidade_palestras) || 0,
     };
 
-    // Check CPF uniqueness
-    const cpfQuery = supabase.from("assistidos").select("id").eq("cpf", cpfClean).is("deleted_at", null);
-    if (editId) cpfQuery.neq("id", editId);
-    const { data: cpfExists } = await cpfQuery;
-    if (cpfExists && cpfExists.length > 0) {
-      setErrors({ cpf: "CPF já cadastrado" });
-      toast({ title: "CPF já cadastrado para outro assistido", variant: "destructive" });
+    // Deduplicação por celular (fonte de verdade no backend; aqui é otimista).
+    const celQuery = supabase
+      .from("assistidos")
+      .select("id")
+      .eq("celular", celClean)
+      .is("deleted_at", null)
+      .neq("status", "inativo");
+    if (editId) celQuery.neq("id", editId);
+    const { data: celExists } = await celQuery;
+    if (celExists && celExists.length > 0) {
+      setErrors({ celular: CELULAR_DUPLICADO_MSG });
+      toast({ title: CELULAR_DUPLICADO_MSG, variant: "destructive" });
       setLoading(false);
       return;
     }
+
+    // CPF continua único quando informado (opcional no cadastro mínimo).
+    if (cpfClean) {
+      const cpfQuery = supabase.from("assistidos").select("id").eq("cpf", cpfClean).is("deleted_at", null);
+      if (editId) cpfQuery.neq("id", editId);
+      const { data: cpfExists } = await cpfQuery;
+      if (cpfExists && cpfExists.length > 0) {
+        setErrors({ cpf: "CPF já cadastrado" });
+        toast({ title: "CPF já cadastrado para outro assistido", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+    }
+
 
     let error;
     if (editId) {
@@ -255,7 +265,7 @@ export default function Assistidos() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>CPF *</Label>
+                  <Label>CPF</Label>
                   <Input value={form.cpf} onChange={(e) => setForm({ ...form, cpf: maskCPF(e.target.value) })} placeholder="000.000.000-00" maxLength={14} className={errors.cpf ? "border-destructive" : ""} />
                   {errors.cpf && <p className="text-xs text-destructive">{errors.cpf}</p>}
                 </div>
@@ -265,7 +275,7 @@ export default function Assistidos() {
                   {errors.celular && <p className="text-xs text-destructive">{errors.celular}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label>E-mail *</Label>
+                  <Label>E-mail</Label>
                   <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={errors.email ? "border-destructive" : ""} />
                   {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                 </div>
@@ -283,6 +293,7 @@ export default function Assistidos() {
               </div>
 
               <AddressFields
+                required={false}
                 data={{ cep: form.cep, logradouro: form.logradouro, numero: form.numero, complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, estado: form.estado }}
                 onChange={(addr) => setForm({ ...form, ...addr })}
                 errors={errors as any}
@@ -354,7 +365,14 @@ export default function Assistidos() {
                 <TableBody>
                   {filtered.map((a) => (
                     <TableRow key={a.id}>
-                      <TableCell className="font-medium">{a.nome}</TableCell>
+                      <TableCell className="font-medium">
+                        <span>{a.nome}</span>
+                        {(a as any).cadastro_completo === false && (
+                          <Badge variant="outline" className="ml-2 text-[10px] text-amber-600 border-amber-400">
+                            Cadastro mínimo
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="hidden md:table-cell font-mono text-xs">{a.cpf ? maskCPF(a.cpf) : "—"}</TableCell>
                       <TableCell className="hidden md:table-cell">{a.celular ? maskPhone(a.celular) : a.telefone || "—"}</TableCell>
                       <TableCell>{a.quantidade_palestras}</TableCell>
