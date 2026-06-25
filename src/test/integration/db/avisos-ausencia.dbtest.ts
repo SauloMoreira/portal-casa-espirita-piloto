@@ -41,8 +41,8 @@ async function criarSessaoFutura(c: PoolClient, assistidoId: string): Promise<st
   const trat = await c.query("SELECT id FROM tipos_tratamento LIMIT 1");
   const r = await c.query(
     `INSERT INTO agenda_tratamentos_assistido
-       (assistido_id, assistido_tratamento_id, tratamento_id, data_sessao, status)
-     VALUES ($1, $2, $3, current_date + 7, 'agendado') RETURNING id`,
+       (assistido_id, assistido_tratamento_id, tratamento_id, data_sessao, horario, status)
+     VALUES ($1, $2, $3, current_date + 7, '09:00', 'agendado') RETURNING id`,
     [assistidoId, at.rows[0].id, trat.rows[0].id],
   );
   return r.rows[0].id as string;
