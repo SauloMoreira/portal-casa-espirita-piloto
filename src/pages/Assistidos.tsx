@@ -125,22 +125,11 @@ export default function Assistidos() {
   }, [page]);
 
   const validate = (): FormErrors => {
-    const e: FormErrors = {};
-    if (!form.nome.trim()) e.nome = "Nome obrigatório";
-    if (!form.cpf.trim()) e.cpf = "CPF obrigatório";
-    else if (!isValidCPF(form.cpf)) e.cpf = "CPF inválido";
-    if (!form.celular.trim()) e.celular = "Celular obrigatório";
-    else if (!isValidPhone(form.celular)) e.celular = "Celular inválido";
-    if (!form.email.trim()) e.email = "E-mail obrigatório";
-    else if (!isValidEmail(form.email)) e.email = "E-mail inválido";
-    if (!form.cep.trim()) e.cep = "CEP obrigatório";
-    if (!form.logradouro.trim()) e.logradouro = "Logradouro obrigatório";
-    if (!form.numero.trim()) e.numero = "Número obrigatório";
-    if (!form.bairro.trim()) e.bairro = "Bairro obrigatório";
-    if (!form.cidade.trim()) e.cidade = "Cidade obrigatória";
-    if (!form.estado.trim()) e.estado = "Estado obrigatório";
-    return e;
+    // Cadastro mínimo: só Nome + Celular são obrigatórios. Demais campos
+    // são validados apenas quanto ao formato, quando preenchidos.
+    return validarCadastroMinimo(form) as FormErrors;
   };
+
 
   const handleSave = async () => {
     const errs = validate();
