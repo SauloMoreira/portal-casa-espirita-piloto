@@ -1324,12 +1324,12 @@ Deno.serve(async (req) => {
   const data = body?.data ?? body;
 
   // --- Webhook origin verification ---
-  // The webhook is public (Z-API cannot send a user JWT), so we require a shared
+  // The webhook is public (Z-API cannot send a user JWT), so we REQUIRE a shared
   // secret passed by the provider either as the `?secret=` query param or the
-  // `x-webhook-secret` header. Some Z-API webhook configurations cannot attach
-  // custom headers/query params, so we also accept the provider payload when its
-  // `instanceId` matches the configured instance. That keeps the existing
-  // external entry working without opening a parallel channel.
+  // `x-webhook-secret` header. This check fails CLOSED: if the secret is not
+  // configured in `app_cron_secrets`, every request is rejected. The Z-API
+  // `instanceId` is NOT a cryptographic secret (it is visible in Z-API
+  // dashboards), so it is never sufficient on its own to authenticate a request.
   {
     const { data: secretRow } = await admin
       .from("app_cron_secrets")
@@ -1337,25 +1337,16 @@ Deno.serve(async (req) => {
       .eq("name", "whatsapp_webhook")
       .maybeSingle();
     const expected = secretRow?.secret;
-    if (expected) {
-      const url = new URL(req.url);
-      const provided = url.searchParams.get("secret") || req.headers.get("x-webhook-secret");
-      const configuredInstanceId = Deno.env.get("ZAPI_INSTANCE_ID") || "";
-      const payloadInstanceId = String(body?.instanceId || data?.instanceId || "");
-      const validZapiPayload = Boolean(
-        configuredInstanceId &&
-        payloadInstanceId &&
-        payloadInstanceId === configuredInstanceId &&
-        (body?.phone || data?.phone || data?.key?.remoteJid || data?.remoteJid)
-      );
-      if (provided !== expected && !validZapiPayload) {
-        return new Response(JSON.stringify({ error: "Não autorizado" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    const url = new URL(req.url);
+    const provided = url.searchParams.get("secret") || req.headers.get("x-webhook-secret");
+    if (!expected || provided !== expected) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
   }
+
 
   try {
     // Z-API on-message-received webhook shape. Be defensive and also accept
