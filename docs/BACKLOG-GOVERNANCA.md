@@ -191,6 +191,10 @@ Ordem de execução acordada: **L-02 (✅) → L-01 (✅) → L-03 (✅) → L-0
   presença de políticas + checagem de papel nas RPCs + security scanner; fechar de
   fato exige E2E via PostgREST com JWT real. Efeito real de exceção na agenda
   (INV-AGD-005) e confirmação de UI (INV-SEG-002) ficam como E2E futuro.
-- **Sem regressão:** suíte unitária/governança **901 verde**; suíte de banco **18 verde**.
+- **Migração corretiva aplicada (2026-06-25):** `fn_notif_presenca` recriada com
+  `v_evento::notif_evento`. Rerun pós-aplicação: **AVM-001 resolvido** (registro de
+  presença `presente`/`ausente` agora enfileira sem erro).
+- **Sem regressão (rerun pós-migração):** suíte unitária/governança **901 verde**;
+  suíte de banco **18 verde**.
 - **Invariantes observadas:** INV-ARQ-003/004, INV-SEG-001/003, INV-PRES-003,
   INV-GOV-001/002, INV-FILA-005, INV-TEMPO-001..003.
