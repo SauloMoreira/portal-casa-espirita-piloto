@@ -128,7 +128,7 @@ export default function Assistidos() {
   const validate = (): FormErrors => {
     // Cadastro mínimo: só Nome + Celular são obrigatórios. Demais campos
     // são validados apenas quanto ao formato, quando preenchidos.
-    return validarCadastroMinimo(form) as FormErrors;
+    return validarCadastroMinimo(form).errors as FormErrors;
   };
 
 
