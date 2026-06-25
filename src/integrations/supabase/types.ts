@@ -2830,6 +2830,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      fn_entrevistas_operacional: {
+        Args: { _end?: string; _id?: string; _start?: string }
+        Returns: {
+          assistido_id: string
+          data: string
+          entrevistador_id: string
+          id: string
+          status: string
+          tipo_entrevista: string
+        }[]
+      }
       fn_excecao_alvos: {
         Args: { p_excecao_id: string }
         Returns: {

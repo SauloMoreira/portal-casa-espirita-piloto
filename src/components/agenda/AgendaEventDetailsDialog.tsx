@@ -56,12 +56,9 @@ export function AgendaEventDetailsDialog({ entrevista, onClose, canRealizar, onR
               </Badge>
             </div>
           </div>
-          {entrevista.observacoes && (
-            <div>
-              <p className="text-muted-foreground text-xs mb-1">Observações</p>
-              <p className="text-sm bg-muted/50 rounded-md p-2">{entrevista.observacoes}</p>
-            </div>
-          )}
+          {/* BUG-03: o conteúdo da entrevista fraterna (observações/relato) é
+              confidencial e não é exibido na agenda — a agenda é estritamente
+              operacional (assistido, data, horário, tipo, status). */}
           {canRealizar && entrevista.status === "agendada" && (
             <Button className="w-full gap-2" onClick={() => onRealizar(entrevista)}>
               <BookOpen className="h-4 w-4" />

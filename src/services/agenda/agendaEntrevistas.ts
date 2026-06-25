@@ -18,12 +18,14 @@ export async function fetchEntrevistasNoRange(
   const startStr = format(range.start, "yyyy-MM-dd");
   const endStr = format(range.end, "yyyy-MM-dd");
 
+  // BUG-03: leitura via RPC operacional SECURITY DEFINER. Nunca retorna
+  // observacoes/decisoes — conteúdo sigiloso da entrevista fraterna não trafega
+  // para a agenda, independentemente do perfil (inclusive tarefeiro).
   const { data: rawEntrevistas, error } = await supabase
-    .from("entrevistas_fraternas")
-    .select("id, assistido_id, entrevistador_id, data, tipo_entrevista, status, observacoes")
-    .gte("data", `${startStr}T00:00:00`)
-    .lte("data", `${endStr}T23:59:59`)
-    .order("data", { ascending: true });
+    .rpc("fn_entrevistas_operacional", {
+      _start: `${startStr}T00:00:00`,
+      _end: `${endStr}T23:59:59`,
+    });
 
   if (error) throw error;
   if (!rawEntrevistas || rawEntrevistas.length === 0) {

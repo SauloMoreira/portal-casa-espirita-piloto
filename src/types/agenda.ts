@@ -17,7 +17,6 @@ export interface EntrevistaAgendaItem {
   data: string;
   tipo_entrevista: string;
   status: string;
-  observacoes: string | null;
   assistido_nome: string;
   entrevistador_nome: string;
 }

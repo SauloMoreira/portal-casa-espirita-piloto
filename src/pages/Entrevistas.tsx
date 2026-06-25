@@ -131,15 +131,19 @@ export default function Entrevistas() {
   const [cartaEntrevistaId, setCartaEntrevistaId] = useState("");
 
   const fetchAll = async () => {
+    // BUG-03: a listagem usa a RPC operacional, que NUNCA retorna observacoes/
+    // decisoes. O conteúdo sigiloso só é carregado sob demanda (openRealizar),
+    // e apenas para perfis autorizados (admin/entrevistador).
     const [{ data: ent }, { data: assist }, { data: trat }, { data: config }] = await Promise.all([
-      supabase.from("entrevistas_fraternas").select("*").order("data", { ascending: false }),
+      supabase.rpc("fn_entrevistas_operacional"),
       supabase.from("assistidos").select("id, nome, quantidade_palestras, status").is("deleted_at", null).order("nome"),
       supabase.from("tipos_tratamento").select("id, nome, tipo, status, dia_semana, horario, frequencia_valor, frequencia_unidade, ordem_tratamento, tratamento_livre, bloqueia_proximo_tratamento, modo_agendamento").eq("status", "ativo"),
       supabase.from("configuracoes_gerais").select("chave, valor"),
     ]);
     if (assist) {
       const assistMap = Object.fromEntries(assist.map((a) => [a.id, a.nome]));
-      setEntrevistas((ent || []).map((e: any) => ({ ...e, assistido_nome: assistMap[e.assistido_id] || "—" })));
+      const ordered = [...(ent || [])].sort((a: any, b: any) => (a.data < b.data ? 1 : -1));
+      setEntrevistas(ordered.map((e: any) => ({ ...e, observacoes: null, decisoes: null, assistido_nome: assistMap[e.assistido_id] || "—" })));
       setAssistidos(assist as any);
     }
     if (trat) setTratamentos(trat as any);
@@ -184,11 +188,22 @@ export default function Entrevistas() {
     setLoading(false);
   };
 
-  const openRealizar = (e: Entrevista) => {
+  const openRealizar = async (e: Entrevista) => {
+    // BUG-03: o conteúdo sigiloso (observacoes/decisoes) só é buscado aqui, sob
+    // demanda, e a RLS da tabela só permite essa leitura para admin/entrevistador.
+    // Tarefeiro nunca chega neste ponto (botões "Ver"/"Realizar" são gated).
+    if (!canRealizar) return;
     setSelectedEntrevista(e);
-    setObservacoes(e.observacoes || "");
-    setDecisoes(e.decisoes || "");
     setDesignacoes([]);
+    setObservacoes("");
+    setDecisoes("");
+    const { data } = await supabase
+      .from("entrevistas_fraternas")
+      .select("observacoes, decisoes")
+      .eq("id", e.id)
+      .single();
+    setObservacoes(data?.observacoes || "");
+    setDecisoes(data?.decisoes || "");
     setRealizarOpen(true);
   };
 
@@ -531,9 +546,13 @@ export default function Entrevistas() {
                           )}
                           {e.status === "realizada" && (
                             <>
-                              <Button variant="ghost" size="icon" title="Ver" onClick={() => openRealizar(e)}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
+                              {/* BUG-03: "Ver" abre o conteúdo sigiloso da entrevista
+                                  (observações/decisões) — restrito a admin/entrevistador. */}
+                              {canRealizar && (
+                                <Button variant="ghost" size="icon" title="Ver" onClick={() => openRealizar(e)}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button variant="ghost" size="icon" title="Imprimir Carta" onClick={() => {
                                 setCartaAssistidoId(e.assistido_id);
                                 setCartaEntrevistaId(e.id);

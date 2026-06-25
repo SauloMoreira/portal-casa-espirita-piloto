@@ -72,8 +72,10 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
 
       let entData: any = null;
       if (entrevistaId) {
-        const { data } = await supabase.from("entrevistas_fraternas").select("data").eq("id", entrevistaId).single();
-        entData = data;
+        // BUG-03: leitura via RPC operacional (sem conteúdo sigiloso); funciona
+        // para tarefeiro, que não tem mais acesso direto à tabela de entrevistas.
+        const { data } = await supabase.rpc("fn_entrevistas_operacional", { _id: entrevistaId });
+        entData = Array.isArray(data) ? data[0] : data;
       }
 
       if (instData) setInstituicao(instData);

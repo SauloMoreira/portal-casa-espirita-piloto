@@ -252,6 +252,18 @@ Nada de ação humana crítica acontecer por clique acidental.
 Processamentos repetidos não podem: duplicar envio, duplicar remarcação, duplicar
 cancelamento ou criar múltiplos itens equivalentes.
 
+### INV-SEG-004 — Conteúdo sigiloso da entrevista fraterna é confidencial por perfil
+O conteúdo da entrevista fraterna (`observacoes`, `decisoes`, relato/escuta) é
+sigiloso e **não pode** ser exposto ao perfil `tarefeiro` em nenhuma superfície.
+- O tarefeiro só enxerga o **mínimo operacional** (assistido, data, horário, tipo,
+  status), e somente pela RPC `fn_entrevistas_operacional`, que **nunca** retorna
+  `observacoes`/`decisoes`.
+- O tarefeiro **não possui** política de SELECT direto em `entrevistas_fraternas`.
+- Perfis autorizados ao conteúdo: `admin`, `entrevistador`, `coordenador_de_tratamento`
+  (no escopo dele) e o próprio `assistido` (sobre si).
+- A proteção é de **backend** (RLS + projeção sem campos sigilosos); a UI apenas
+  reflete a regra, nunca a substitui (menor privilégio).
+
 ---
 
 ## 7b. Invariantes de presença (classificação geral × operacional)
