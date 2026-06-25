@@ -95,7 +95,26 @@ runner `npm run test:db`). Total do projeto (unit): **901 testes**.
 | `fn_confirmacao_entrevista_ativa` | ✅🗄️ | `triggers-entrevista.dbtest.ts` (flag ON/OFF muda enfileiramento real) |
 | `fn_enfileirar_mensagem_manual` (validação) | ✅ | `invariantes-acao-manual.test.ts` |
 
+## Camada de integração real de banco (L-07)
+Suíte `src/test/integration/db/*.dbtest.ts` (runner próprio `npm run test:db`,
+fora do CI/unit). Cada teste roda dentro de uma transação **sempre revertida**
+(`ROLLBACK`), simula o usuário via `request.jwt.claims` (igual ao Supabase) e
+exercita o trigger/função reais — sem espelho TS. Cobre:
+- **Permissão real (RPC SECURITY DEFINER):** parâmetro governado, mensagem manual
+  e encerramento de item por erro de cadastro barram papéis não autorizados e anon.
+- **Trigger governado de entrevista:** flag ON enfileira `entrevista_criada`; flag
+  OFF não; lembrete sempre; date-only sem horário fantasma.
+- **Auditoria real:** alteração de parâmetro, presença e entrevista gravam trilha.
+- **Idempotência real:** barreira `dedupe_key`/`ON CONFLICT DO NOTHING`.
+- **Contrato de classificação:** banco × espelho concordam; justificado só histórico.
+
 ## Pendências de cobertura (próxima sequência)
-Os itens ⬜ acima dependem de execução real no banco (triggers, RLS, auditoria,
-idempotência de RPC). A sequência natural é cobri-los com testes de integração de
-banco/edge functions, registrados como item no backlog de governança.
+Itens que ainda **não** têm prova de execução real (limites do ambiente):
+- **RLS *por linha* (enforcement):** o papel do sandbox tem `BYPASSRLS` e não pode
+  `SET ROLE authenticated`, então a negação por política de linha não é executável
+  aqui. Mitigado por: verificação de RLS habilitada + políticas presentes
+  (`rls-permissoes.dbtest.ts`), checagem de papel real nas RPCs, e o security scanner.
+  Fechar de fato exige E2E via PostgREST com JWT de usuário real.
+- **INV-AGD-005 / INV-EXC efeito real na agenda:** dependem de `UPDATE` governado
+  em tabelas operacionais (sem grant direto no sandbox) — manter como E2E futuro.
+- **INV-SEG-002 (confirmação explícita na UI):** cobertura E2E de interface.
