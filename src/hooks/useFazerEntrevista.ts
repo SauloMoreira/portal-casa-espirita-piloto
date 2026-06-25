@@ -287,7 +287,7 @@ export function useFazerEntrevista() {
       toast({ title: "Assistido cadastrado" });
     }
     setSavingAssistido(false);
-  }, [assistidoForm, user, toast]);
+  }, [assistidoForm, assistidos, user, toast]);
 
   const handleSalvar = useCallback(async () => {
     if (!selectedAssistido) {
