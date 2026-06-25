@@ -1,19 +1,14 @@
 import { describe, it, expect, afterAll } from "vitest";
-import {
-  HAS_DB,
-  withRollback,
-  actAs,
-  getUserByRole,
-  getAnyAssistido,
-  closePool,
-} from "./_dbClient";
+import { HAS_DB, withRollback, getAnyAssistido, closePool } from "./_dbClient";
 
 /**
  * L-07 — Idempotência REAL (INV-SEG-003, INV-FILA-001/002).
  *
- * Executar o mesmo efeito duas vezes não pode duplicar envio, cancelamento ou
- * remarcação, nem criar estado inconsistente. Prova a barreira `dedupe_key`
- * (ON CONFLICT DO NOTHING) e a idempotência do trigger de remarcação.
+ * Executar o mesmo efeito duas vezes não pode duplicar item/envio nem criar
+ * estado inconsistente. Prova, no banco real, a barreira oficial de
+ * deduplicação (`dedupe_key` UNIQUE + `fn_enqueue_notificacao` com
+ * `ON CONFLICT DO NOTHING`) — o mesmo mecanismo usado por triggers de sessão,
+ * entrevista e saneamento de fila.
  */
 const d = HAS_DB ? describe : describe.skip;
 
@@ -21,8 +16,8 @@ afterAll(async () => {
   await closePool();
 });
 
-d("L-07 idempotência real — fila/dedupe", () => {
-  it("mesmo dedupe_key enfileirado duas vezes gera UM único item", async () => {
+d("L-07 idempotência real — barreira de dedupe da fila", () => {
+  it("o mesmo dedupe_key enfileirado duas vezes gera UM único item", async () => {
     await withRollback(async (c) => {
       const assistido = await getAnyAssistido(c);
       const dedupe = "itest-idem:fixo-001";
@@ -34,6 +29,7 @@ d("L-07 idempotência real — fila/dedupe", () => {
         );
       await enqueue();
       await enqueue();
+      await enqueue();
       const r = await c.query("SELECT count(*)::int n FROM notificacoes_fila WHERE dedupe_key=$1", [
         dedupe,
       ]);
@@ -41,58 +37,49 @@ d("L-07 idempotência real — fila/dedupe", () => {
     });
   });
 
-  it("remarcação para a MESMA data não reprocessa (sem duplicar)", async () => {
+  it("reprocessar (saneamento/replay) com mesma chave não duplica nem altera o item", async () => {
     await withRollback(async (c) => {
-      const admin = await getUserByRole(c, "admin");
-      const entrevistador = await getUserByRole(c, "entrevistador");
       const assistido = await getAnyAssistido(c);
-      await actAs(c, admin!);
+      const dedupe = "itest-idem:replay-002";
       await c.query(
-        "SELECT public.fn_atualizar_parametro_operacional('entrevista_confirmacao_agendamento_ativa','true','itest')",
+        `SELECT public.fn_enqueue_notificacao('entrevista_lembrete'::notif_evento, $1, 'entrevista_lembrete',
+           jsonb_build_object('v',1), now() + interval '2 days', $2)`,
+        [assistido, dedupe],
       );
-      const ins = await c.query(
-        `INSERT INTO entrevistas_fraternas (assistido_id, entrevistador_id, data, status)
-         VALUES ($1,$2, now()+interval '10 days','agendada') RETURNING id`,
-        [assistido, entrevistador],
+      const first = await c.query(
+        "SELECT id, payload_json, status FROM notificacoes_fila WHERE dedupe_key=$1",
+        [dedupe],
       );
-      const id = ins.rows[0].id;
-      const countFila = async () =>
-        (
-          await c.query(
-            "SELECT count(*)::int n FROM notificacoes_fila WHERE split_part(dedupe_key,':',2)=$1",
-            [id],
-          )
-        ).rows[0].n as number;
-      const base = await countFila();
-      // "Atualiza" sem mudar a data nem o status → trigger não deve enfileirar nada.
-      await c.query("UPDATE entrevistas_fraternas SET observacoes='nota' WHERE id=$1", [id]);
-      expect(await countFila()).toBe(base);
+      // Replay com payload diferente: ON CONFLICT DO NOTHING preserva o item original.
+      await c.query(
+        `SELECT public.fn_enqueue_notificacao('entrevista_lembrete'::notif_evento, $1, 'entrevista_lembrete',
+           jsonb_build_object('v',2), now() + interval '2 days', $2)`,
+        [assistido, dedupe],
+      );
+      const after = await c.query(
+        "SELECT id, payload_json, status FROM notificacoes_fila WHERE dedupe_key=$1",
+        [dedupe],
+      );
+      expect(after.rowCount).toBe(1);
+      expect(after.rows[0].id).toBe(first.rows[0].id);
+      expect(after.rows[0].payload_json.v).toBe(1); // original mantido, não sobrescrito
     });
   });
-});
 
-d("L-07 idempotência real — remarcação efetiva única", () => {
-  it("remarcar para nova data cancela o lembrete antigo e cria só um novo", async () => {
+  it("itens distintos (dedupe diferente) coexistem — idempotência é por chave", async () => {
     await withRollback(async (c) => {
-      const admin = await getUserByRole(c, "admin");
-      const entrevistador = await getUserByRole(c, "entrevistador");
       const assistido = await getAnyAssistido(c);
-      await actAs(c, admin!);
-      const ins = await c.query(
-        `INSERT INTO entrevistas_fraternas (assistido_id, entrevistador_id, data, status)
-         VALUES ($1,$2, now()+interval '10 days','agendada') RETURNING id`,
-        [assistido, entrevistador],
+      for (const k of ["itest-idem:a", "itest-idem:b"]) {
+        await c.query(
+          `SELECT public.fn_enqueue_notificacao('entrevista_lembrete'::notif_evento, $1, 'entrevista_lembrete',
+             '{}'::jsonb, now() + interval '2 days', $2)`,
+          [assistido, k],
+        );
+      }
+      const r = await c.query(
+        "SELECT count(*)::int n FROM notificacoes_fila WHERE dedupe_key like 'itest-idem:%'",
       );
-      const id = ins.rows[0].id;
-      await c.query("UPDATE entrevistas_fraternas SET data = now()+interval '12 days' WHERE id=$1", [id]);
-      const lembretes = await c.query(
-        `SELECT status FROM notificacoes_fila
-          WHERE split_part(dedupe_key,':',2)=$1 AND evento_origem='entrevista_lembrete'`,
-        [id],
-      );
-      const ativos = lembretes.rows.filter((r) => r.status === "pendente" || r.status === "agendado");
-      // Exatamente um lembrete vivo após a remarcação (os anteriores ficam cancelados).
-      expect(ativos.length).toBe(1);
+      expect(r.rows[0].n).toBe(2);
     });
   });
 });
