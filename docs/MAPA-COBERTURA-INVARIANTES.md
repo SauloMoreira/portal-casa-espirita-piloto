@@ -108,6 +108,10 @@ exercita o trigger/função reais — sem espelho TS. Cobre:
 - **Idempotência real:** barreira `dedupe_key`/`ON CONFLICT DO NOTHING`.
 - **Contrato de classificação:** banco × espelho concordam; justificado só histórico.
 
+> **AVM-001 (resolvido 2026-06-25):** migração corretiva de `fn_notif_presenca`
+> (`v_evento::notif_evento`) aplicada; rerun da suíte de banco confirma o registro de
+> presença `presente`/`ausente` funcionando — **18/18 verde**, unidade **901 verde**.
+
 ## Pendências de cobertura (próxima sequência)
 Itens que ainda **não** têm prova de execução real (limites do ambiente):
 - **RLS *por linha* (enforcement):** o papel do sandbox tem `BYPASSRLS` e não pode
