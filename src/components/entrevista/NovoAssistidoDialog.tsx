@@ -83,6 +83,7 @@ export function NovoAssistidoDialog({
             </div>
           </div>
           <AddressFields
+            required={false}
             data={{
               cep: form.cep,
               logradouro: form.logradouro,
