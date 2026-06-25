@@ -365,7 +365,14 @@ export default function Assistidos() {
                 <TableBody>
                   {filtered.map((a) => (
                     <TableRow key={a.id}>
-                      <TableCell className="font-medium">{a.nome}</TableCell>
+                      <TableCell className="font-medium">
+                        <span>{a.nome}</span>
+                        {a.cadastro_completo === false && (
+                          <Badge variant="outline" className="ml-2 text-[10px] text-amber-600 border-amber-400">
+                            Cadastro mínimo
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="hidden md:table-cell font-mono text-xs">{a.cpf ? maskCPF(a.cpf) : "—"}</TableCell>
                       <TableCell className="hidden md:table-cell">{a.celular ? maskPhone(a.celular) : a.telefone || "—"}</TableCell>
                       <TableCell>{a.quantidade_palestras}</TableCell>
