@@ -199,7 +199,11 @@ Ordem de execução acordada: **L-02 (✅) → L-01 (✅) → L-03 (✅) → L-0
 - **Invariantes observadas:** INV-ARQ-003/004, INV-SEG-001/003, INV-PRES-003,
   INV-GOV-001/002, INV-FILA-005, INV-TEMPO-001..003.
 
-## P1.1 — E2E real de RLS por linha (JWT + PostgREST) — ✅ CONCLUÍDO
+## P1.1 — E2E real de RLS por linha (JWT + PostgREST) — ✅ CONCLUÍDO E APROVADO
+- **Aprovação formal:** frente fechada e aprovada pelo responsável (2026-06-25).
+  Validado: RLS por linha (JWT/PostgREST real), payload por perfil, bloqueio de
+  acesso indevido, entrevistas/avisos/parâmetros/RPCs sensíveis protegidos,
+  cleanup namespaced sem resíduos e zero side effects operacionais.
 - **Objetivo:** fechar a principal lacuna remanescente de segurança real — provar,
   com JWT e PostgREST reais, que cada perfil recebe exatamente o que pode ver.
 - **Entrega:** suíte dedicada `src/test/e2e-rls/*.e2etest.ts` (`npm run test:e2e:rls`),
