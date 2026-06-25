@@ -5,7 +5,7 @@ import { Calendar as CalendarIcon, BookOpen } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getAgendaStatusColor, getAgendaStatusLabel } from "@/constants/agenda";
-import { formatEntrevistaTime } from "@/lib/agenda";
+import { rotuloHorarioEntrevista } from "@/lib/agenda";
 import type { EntrevistaAgendaItem } from "@/types/agenda";
 
 interface Props {
@@ -43,7 +43,7 @@ export function AgendaEventDetailsDialog({ entrevista, onClose, canRealizar, onR
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Horário</p>
-              <p className="font-medium">{formatEntrevistaTime(entrevista.data) || "Não definido"}</p>
+              <p className="font-medium">{rotuloHorarioEntrevista(entrevista.data, entrevista.status)}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Tipo</p>
