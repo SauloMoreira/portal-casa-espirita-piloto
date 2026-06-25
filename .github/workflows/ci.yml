@@ -11,7 +11,73 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # Scope detection (path filters). Drives which heavy gates are triggered.
+  # Aditivo: um PR pode acionar vários ao mesmo tempo.
+  # ---------------------------------------------------------------------------
+  changes:
+    name: Detect change scope
+    runs-on: ubuntu-latest
+    outputs:
+      migrations: ${{ steps.filter.outputs.migrations }}
+      security: ${{ steps.filter.outputs.security }}
+      fila: ${{ steps.filter.outputs.fila }}
+      banco: ${{ steps.filter.outputs.banco }}
+      observabilidade: ${{ steps.filter.outputs.observabilidade }}
+      ui_critica: ${{ steps.filter.outputs.ui_critica }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            # REGRA INEGOCIÁVEL: qualquer migração dispara test:db.
+            migrations:
+              - 'supabase/migrations/**'
+            banco:
+              - 'supabase/migrations/**'
+              - 'supabase/config.toml'
+            security:
+              - 'supabase/migrations/**'
+              - 'src/test/e2e-rls/**'
+              - 'src/constants/roles.ts'
+              - 'supabase/functions/_shared/auth.ts'
+            fila:
+              - 'src/services/notificacoes/**'
+              - 'src/lib/notificac*'
+              - 'src/lib/notificacaoElegibilidade*'
+              - 'src/lib/excecaoNotificacao*'
+              - 'supabase/functions/*dispatch*/**'
+              - 'supabase/functions/*alerta*/**'
+              - 'supabase/functions/*fila*/**'
+            observabilidade:
+              - 'src/pages/Observabilidade.tsx'
+              - 'src/services/observabilidade/**'
+              - 'src/lib/observabilidade.ts'
+              - 'docs/INVARIANTES.md'
+              - 'docs/MATRIZ-EVENTOS-EFEITOS.md'
+            # Fase 1: Playwright restrito a auth / rotas protegidas / UI crítica de segurança.
+            ui_critica:
+              - 'src/pages/Login.tsx'
+              - 'src/pages/MfaVerify.tsx'
+              - 'src/pages/ResetPassword.tsx'
+              - 'src/pages/ForgotPassword.tsx'
+              - 'src/contexts/AuthContext.tsx'
+              - 'src/App.tsx'
+              - 'src/constants/routes.ts'
+              - 'e2e/auth-routes.spec.ts'
+
+  # ---------------------------------------------------------------------------
+  # SEMPRE: leve e obrigatório em todo PR.
+  # ---------------------------------------------------------------------------
   quality:
     name: Lint, Typecheck, Tests & Build
     runs-on: ubuntu-latest
@@ -33,16 +99,100 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
-      - name: Unit & integration tests
+      - name: Unit, governance & integration tests
         run: bun run test
 
       - name: Build
         run: bun run build
 
-  e2e:
-    name: End-to-end (Playwright)
+  # ---------------------------------------------------------------------------
+  # CONDICIONAL: integração de banco real.
+  # Fase 1 = OBSERVACIONAL (continue-on-error). NÃO bloqueia.
+  # Dispara para migração/banco/segurança/fila.
+  # ---------------------------------------------------------------------------
+  test-db:
+    name: Integração de banco real (test:db)
     runs-on: ubuntu-latest
-    needs: quality
+    needs: changes
+    if: >-
+      needs.changes.outputs.migrations == 'true' ||
+      needs.changes.outputs.banco == 'true' ||
+      needs.changes.outputs.security == 'true' ||
+      needs.changes.outputs.fila == 'true'
+    # FASE 1: observacional — coletar tempo/estabilidade sem bloquear merge.
+    continue-on-error: true
+    env:
+      PGHOST: ${{ secrets.TEST_PGHOST }}
+      PGPORT: ${{ secrets.TEST_PGPORT }}
+      PGUSER: ${{ secrets.TEST_PGUSER }}
+      PGPASSWORD: ${{ secrets.TEST_PGPASSWORD }}
+      PGDATABASE: ${{ secrets.TEST_PGDATABASE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies (reproducible)
+        run: bun install --frozen-lockfile
+
+      - name: Guard — dedicated test DB only
+        run: |
+          if [ -z "$PGHOST" ]; then
+            echo "::warning::TEST_PG* secrets ausentes — suíte test:db se auto-pula (HAS_DB=false). Observacional na Fase 1."
+          fi
+      - name: Run real DB integration tests
+        run: bun run test:db
+
+  # ---------------------------------------------------------------------------
+  # CONDICIONAL: RLS real via JWT/PostgREST.
+  # Fase 1 = OBSERVACIONAL (continue-on-error). NÃO bloqueia.
+  # Dispara apenas para segurança/permissão/RLS.
+  # ---------------------------------------------------------------------------
+  test-e2e-rls:
+    name: RLS real (test:e2e:rls)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.security == 'true'
+    continue-on-error: true
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+      E2E_RLS_PASSWORD: ${{ secrets.TEST_E2E_RLS_PASSWORD }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies (reproducible)
+        run: bun install --frozen-lockfile
+
+      - name: Guard — test environment only
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ]; then
+            echo "::warning::TEST_SUPABASE_* secrets ausentes — suíte test:e2e:rls se auto-pula (HAS_E2E=false). Observacional na Fase 1."
+          fi
+      - name: Run real RLS E2E tests
+        run: bun run test:e2e:rls
+
+  # ---------------------------------------------------------------------------
+  # CONDICIONAL: Playwright. Fase 1 restrito a UI crítica de segurança.
+  # Fase 1 = OBSERVACIONAL (continue-on-error). NÃO bloqueia.
+  # ---------------------------------------------------------------------------
+  test-e2e:
+    name: End-to-end (Playwright — UI crítica)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.ui_critica == 'true'
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,3 +210,59 @@ jobs:
 
       - name: Run E2E tests
         run: bun run test:e2e
+
+  # ---------------------------------------------------------------------------
+  # GATE-SUMMARY: ÚNICO check destinado a virar required (a partir da Fase 2).
+  #
+  # FASE 1 (atual): NÃO bloqueia merge por gates pesados (todos observacionais).
+  # O resumo apenas reporta. Mantém apenas `quality` como falha dura, que já
+  # era o comportamento anterior do CI — nada novo foi tornado bloqueante.
+  #
+  # Semântica fail-closed (ativada na Fase 2):
+  #   - success  -> ok
+  #   - failure  -> bloqueia
+  #   - cancelled-> bloqueia (skip por erro/cancelamento != skip por filtro)
+  #   - skipped  -> ok APENAS quando o filtro de path não acionou o job
+  # ---------------------------------------------------------------------------
+  gate-summary:
+    name: gate-summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [changes, quality, test-db, test-e2e-rls, test-e2e]
+    steps:
+      - name: Evaluate gates (Phase 1 = observational)
+        env:
+          R_QUALITY: ${{ needs.quality.result }}
+          R_TEST_DB: ${{ needs.test-db.result }}
+          R_TEST_RLS: ${{ needs.test-e2e-rls.result }}
+          R_TEST_E2E: ${{ needs.test-e2e.result }}
+          OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'ci-override-aprovado') }}
+        run: |
+          echo "## Gate summary (Fase 1 — observacional)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Gate | Resultado | Tipo |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|-----------|------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| quality (lint/typecheck/test/build) | $R_QUALITY | SEMPRE — bloqueante |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| test:db | $R_TEST_DB | condicional — observacional |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| test:e2e:rls | $R_TEST_RLS | condicional — observacional |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| test:e2e (UI crítica) | $R_TEST_E2E | condicional — observacional |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$OVERRIDE" = "true" ]; then
+            echo "::warning::Label 'ci-override-aprovado' presente. Override AUDITADO — proibido para falha de segurança conhecida ou asserção reproduzível; uso restrito a incidente de infra / urgência operacional crítica, com justificativa visível e autor rastreado no PR."
+            echo "> ⚠️ Override auditado acionado neste PR." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # FASE 1: apenas `quality` é bloqueante (comportamento legado preservado).
+          if [ "$R_QUALITY" = "failure" ] || [ "$R_QUALITY" = "cancelled" ]; then
+            echo "::error::Gate obrigatório 'quality' falhou."
+            exit 1
+          fi
+
+          # Pesados são observacionais: apenas reportam, não bloqueiam.
+          for v in "$R_TEST_DB" "$R_TEST_RLS" "$R_TEST_E2E"; do
+            if [ "$v" = "failure" ] || [ "$v" = "cancelled" ]; then
+              echo "::warning::Gate pesado com '$v' (não bloqueante na Fase 1). Será bloqueante a partir da Fase 2."
+            fi
+          done
+          echo "Fase 1 concluída: nada além de 'quality' é bloqueante."
