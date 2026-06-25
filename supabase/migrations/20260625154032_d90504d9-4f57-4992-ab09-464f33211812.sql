@@ -1,0 +1,1 @@
+ALTER TYPE public.notif_evento ADD VALUE IF NOT EXISTS 'aviso_ausencia_recebido';
