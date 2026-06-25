@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { AddressFields } from "@/components/AddressFields";
 import { maskCPF, maskPhone } from "@/lib/validators";
-import { validarCadastroMinimo, encontrarDuplicadoPorCelular, CELULAR_DUPLICADO_MSG } from "@/lib/cadastroMinimo";
+import { validarCadastroMinimo, CELULAR_DUPLICADO_MSG } from "@/lib/cadastroMinimo";
 import { GerarAcessoAssistido } from "@/components/GerarAcessoAssistido";
 import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 import { PaginationControls } from "@/components/ui/pagination-controls";
