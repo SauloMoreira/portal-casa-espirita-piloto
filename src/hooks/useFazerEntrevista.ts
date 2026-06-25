@@ -226,16 +226,8 @@ export function useFazerEntrevista() {
     setAssistidoErrors({});
   }, []);
 
-  const validateAssistidoForm = (form: EntrevistaAssistidoForm) => {
-    const e: Record<string, string> = {};
-    if (!form.nome.trim()) e.nome = "Nome obrigatório";
-    if (!form.cpf.trim()) e.cpf = "CPF obrigatório";
-    else if (!isValidCPF(form.cpf)) e.cpf = "CPF inválido";
-    if (!form.celular.trim()) e.celular = "Celular obrigatório";
-    else if (!isValidPhone(form.celular)) e.celular = "Celular inválido";
-    if (form.email && !isValidEmail(form.email)) e.email = "E-mail inválido";
-    return e;
-  };
+  const validateAssistidoForm = (form: EntrevistaAssistidoForm) =>
+    validarCadastroMinimo(form).errors;
 
   const handleSaveNovoAssistido = useCallback(async () => {
     const errs = validateAssistidoForm(assistidoForm);
@@ -244,11 +236,14 @@ export function useFazerEntrevista() {
     setSavingAssistido(true);
 
     const cpfClean = assistidoForm.cpf.replace(/\D/g, "");
-    if (await isCpfCadastrado(cpfClean)) {
-      setAssistidoErrors({ cpf: ENTREVISTA_MESSAGES.cpfJaCadastrado });
+    // Deduplicação por celular (fonte de verdade no backend; aqui é otimista).
+    const celClean = assistidoForm.celular.replace(/\D/g, "");
+    if (encontrarDuplicadoPorCelular(celClean, assistidos)) {
+      setAssistidoErrors({ celular: CELULAR_DUPLICADO_MSG });
       setSavingAssistido(false);
       return;
     }
+
 
     const payload = {
       nome: assistidoForm.nome.trim(),
