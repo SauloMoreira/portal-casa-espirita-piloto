@@ -267,6 +267,14 @@ export function useFazerEntrevista() {
 
     const { data: newAssist, error } = await insertAssistido(payload);
     if (error) {
+      const isDupCelular =
+        error.message.includes("uq_assistidos_celular") ||
+        error.message.includes("este celular");
+      if (isDupCelular) {
+        setAssistidoErrors({ celular: CELULAR_DUPLICADO_MSG });
+        setSavingAssistido(false);
+        return;
+      }
       const msg = error.message.includes("violates")
         ? "Não foi possível cadastrar o assistido. Verifique os dados e tente novamente."
         : error.message;
