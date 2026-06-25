@@ -7,7 +7,7 @@ import {
   CalendarX,
   CalendarClock,
   ClipboardCheck,
-  BookOpen,
+  
   Settings,
   Shield,
   ShieldCheck,
@@ -78,7 +78,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const navGroups: NavGroup[] = [
+export const navGroups: NavGroup[] = [
   {
     label: "Início",
     icon: Home,
@@ -94,7 +94,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: "Assistidos", url: "/assistidos", icon: HandHeart, roles: ["admin", "entrevistador"] },
       { title: "Visão do Assistido", url: "/consulta-assistido", icon: UserSearch, roles: ["admin"] },
-      { title: "Agenda de Tratamentos", url: "/agenda", icon: BookOpen, roles: ["admin", "entrevistador", "tarefeiro"] },
+      { title: "Agenda de Entrevistas", url: "/agenda", icon: CalendarDays, roles: ["admin", "entrevistador", "tarefeiro"] },
       { title: "Registro de Presenças", url: "/presenca", icon: ClipboardCheck, roles: ["admin", "tarefeiro"] },
       { title: "Agendar Entrevista", url: "/entrevistas", icon: Calendar, roles: ["admin", "entrevistador", "tarefeiro"] },
       { title: "Realizar Entrevista", url: "/fazer-entrevista", icon: Stethoscope, roles: ["admin", "entrevistador"] },
