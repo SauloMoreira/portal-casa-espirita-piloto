@@ -226,7 +226,43 @@ Ordem de execução acordada: **L-02 (✅) → L-01 (✅) → L-03 (✅) → L-0
 - **Fora de escopo:** efeito real de exceção na agenda (INV-AGD-005) e confirmação
   de UI (INV-SEG-002) seguem como E2E de interface futuro.
 
+## P1.2 — Observabilidade operacional consolidada — ✅ IMPLEMENTADO
+- **Objetivo:** visão única e confiável da saúde do pipeline (fila, notificações,
+  avisos, agenda) para reduzir reação tardia — painel operacional, não decorativo.
+- **Backend como fonte de verdade:** RPC única de leitura
+  `fn_observabilidade_operacional(p_janela)` — `SECURITY DEFINER`, `STABLE`,
+  `search_path=public`, **somente leitura** (INV-OBS-001). Reaproveita as fontes
+  canônicas `fn_fila_diagnostico_pendentes`, `fn_fila_motivo_inelegivel` e o log
+  temporal `notificacoes_log`; sem trigger, sem cron, sem escrita, sem VIEW nova.
+- **Snapshot atual × histórico separados (sem ambiguidade):**
+  - **Snapshot (estado "agora"):** pendências por status, aguardando janela/limite,
+    avisos de ausência abertos/em tratamento, anomalias de lembrete por vínculo
+    (INV-FILA-002) e inconsistências agenda × fila.
+  - **Histórico (o que aconteceu na janela, por evento temporal):** falhas por motivo
+    (log `status=falha`), saneados por motivo (log `status=cancelado`) e distribuição
+    por origem (itens **criados** no período: automático/manual/exceção).
+- **Janela temporal:** default `7d`; seletor `24h / 7d / 30d`; snapshot sempre "agora".
+- **Contrato de vazio:** blocos históricos podem retornar lista vazia; snapshot sempre
+  com shape completo; UI trata vazio como "sem ocorrência", nunca como erro.
+- **Payload autoexplicativo:** `schema_version`, `generated_at`,
+  `snapshot_reference_time`, `historical_window {code,from,to}`, `snapshot`, `historico`.
+- **Acesso V1 (nomes reais de role):** `admin`, `administrador_master`,
+  `coordenador_de_tratamento`. Tarefeiro **sem acesso** (futuro: visão reduzida própria).
+- **Navegação:** rota própria `/observabilidade` (não aba de Relatórios), guardada
+  pelos 3 perfis, item de sidebar com identidade operacional.
+- **Drill-down leve e seguro:** mostra apenas identificadores (assistido/fila) para
+  investigação; não enriquece payload, não expõe conteúdo sensível, respeita superfícies
+  já governadas.
+- **Frontend sem lógica paralela:** `services/observabilidade/observabilidadeService.ts`
+  (só chama a RPC), `lib/observabilidade.ts` (código→rótulo/tom), `hooks/useObservabilidade.ts`
+  (React Query + seletor), `pages/Observabilidade.tsx`.
+- **Testes:** governança `src/test/governanca/observabilidade-operacional.test.ts` (8) +
+  integração real `src/test/integration/db/observabilidade.dbtest.ts` (7: autorização por
+  perfil, anon barrado, validação de janela, shape/metadados, somente leitura).
+- **Sem regressão:** unit/governança **929 verde**; banco real inclui +7; tsgo limpo.
+
 ## INV-SEG-005 (nova invariante)
+
 > Em superfícies sensíveis, o **payload final sob JWT real** deve respeitar o menor
 > privilégio: campos sensíveis ausentes/nulos para perfis restritos, flags como
 > `pode_ver_conteudo` coerentes, listas reduzidas por perfil e zero vazamento
