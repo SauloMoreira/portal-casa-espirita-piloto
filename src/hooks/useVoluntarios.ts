@@ -410,6 +410,23 @@ export function useVoluntarios() {
     }));
   }, []);
 
+  const buscarPessoas = useCallback(async () => {
+    const termo = buscaTermo.trim();
+    if (termo.replace(/\D/g, "").length < 3 && termo.length < 3) {
+      setBuscaResultados([]);
+      return;
+    }
+    setBuscaLoading(true);
+    try {
+      setBuscaResultados(await buscarPessoaParaVoluntario(termo));
+    } catch (error) {
+      toast({ title: "Erro na busca", description: (error as Error).message, variant: "destructive" });
+    } finally {
+      setBuscaLoading(false);
+    }
+  }, [buscaTermo, toast]);
+
+
   return {
     // data
     allFuncoes,
