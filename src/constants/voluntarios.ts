@@ -88,4 +88,7 @@ export const emptyVoluntarioForm: VoluntarioFormState = {
   status: "ativo",
   data_desligamento: "",
   observacoes: "",
+  origem_cadastro: null,
+  origem_assistido_id: null,
+  origem_user_id: null,
 };
