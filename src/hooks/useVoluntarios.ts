@@ -125,35 +125,42 @@ export function useVoluntarios() {
     const cpfClean = form.cpf.replace(/\D/g, "");
 
     try {
-      if (await isCpfDuplicado(cpfClean, editId)) {
+      if (cpfClean && (await isCpfDuplicado(cpfClean, editId))) {
         setErrors({ cpf: VOLUNTARIO_MESSAGES.cpfDuplicado });
         setLoading(false);
         return;
       }
 
+      // Mínimo persiste só o essencial; complementares ficam null até completar.
+      const orNull = (v: string) => (v.trim() ? v.trim() : null);
       const payload = {
         nome_completo: form.nome_completo.trim(),
         celular: form.celular.replace(/\D/g, ""),
-        cpf: cpfClean,
-        email: form.email.trim().toLowerCase(),
-        rg: form.rg.trim() || null,
-        data_nascimento: form.data_nascimento,
-        cep: form.cep.replace(/\D/g, ""),
-        logradouro: form.logradouro.trim(),
-        numero: form.numero.trim(),
-        complemento: form.complemento.trim() || null,
-        bairro: form.bairro.trim(),
-        cidade: form.cidade.trim(),
-        estado: form.estado.trim().toUpperCase(),
+        cpf: cpfClean || null,
+        email: form.email.trim() ? form.email.trim().toLowerCase() : null,
+        rg: orNull(form.rg),
+        data_nascimento: form.data_nascimento || null,
+        cep: form.cep.replace(/\D/g, "") || null,
+        logradouro: orNull(form.logradouro),
+        numero: orNull(form.numero),
+        complemento: orNull(form.complemento),
+        bairro: orNull(form.bairro),
+        cidade: orNull(form.cidade),
+        estado: form.estado.trim() ? form.estado.trim().toUpperCase() : null,
         foto_url: form.foto_url,
         data_ingresso_sistema: form.data_ingresso_sistema,
         data_adesao_voluntariado: form.data_adesao_voluntariado || null,
         tipos_voluntario: form.tipos_voluntario,
-        atuacao_detalhada: form.atuacao_detalhada.trim() || null,
+        atuacao_detalhada: orNull(form.atuacao_detalhada),
         status: form.status,
         data_desligamento: form.data_desligamento || null,
-        observacoes: form.observacoes.trim() || null,
+        observacoes: orNull(form.observacoes),
+        origem_cadastro: form.origem_cadastro,
+        origem_assistido_id: form.origem_assistido_id,
+        origem_user_id: form.origem_user_id,
       };
+
+
 
       const savedId = await saveVoluntario(payload, editId, user.id);
       await replaceVoluntarioFuncoes(savedId, form.funcoes_ids);
