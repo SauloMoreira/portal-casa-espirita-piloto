@@ -37,6 +37,7 @@ export function TermoVoluntarioDialog({ open, onOpenChange, voluntario, onOpenPr
   const signed = hasSignedTermo(voluntario);
   const review = canReviewTermo(voluntario);
   const canSend = canSendSigned(voluntario);
+  const gating = podeGerarTermo(voluntario);
 
   const handleUpload = async (file: File) => {
     const v = validateTermoFile(file);
