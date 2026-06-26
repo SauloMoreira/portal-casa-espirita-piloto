@@ -58,7 +58,16 @@ export default function Voluntarios() {
         onToggleTipo={v.toggleTipo}
         onToggleFuncao={v.toggleFuncao}
         onSave={v.handleSave}
+        buscaAtiva={v.buscaAtiva}
+        buscaTermo={v.buscaTermo}
+        buscaResultados={v.buscaResultados}
+        buscaLoading={v.buscaLoading}
+        onBuscaTermoChange={v.setBuscaTermo}
+        onBuscar={v.buscarPessoas}
+        onSelecionarPessoa={v.aplicarPessoa}
+        onCadastrarDoZero={v.cadastrarDoZero}
       />
+
 
       {v.selectedVoluntario && (
         <TermoAdesao

@@ -2597,26 +2597,30 @@ export type Database = {
       voluntarios: {
         Row: {
           atuacao_detalhada: string | null
-          bairro: string
+          bairro: string | null
+          cadastro_completo: boolean
           celular: string
-          cep: string
-          cidade: string
+          cep: string | null
+          cidade: string | null
           complemento: string | null
-          cpf: string
+          cpf: string | null
           created_at: string
           created_by: string
           data_adesao_voluntariado: string | null
           data_desligamento: string | null
           data_ingresso_sistema: string
-          data_nascimento: string
-          email: string
-          estado: string
+          data_nascimento: string | null
+          email: string | null
+          estado: string | null
           foto_url: string | null
           id: string
-          logradouro: string
+          logradouro: string | null
           nome_completo: string
-          numero: string
+          numero: string | null
           observacoes: string | null
+          origem_assistido_id: string | null
+          origem_cadastro: string | null
+          origem_user_id: string | null
           rg: string | null
           status: string
           termo_assinado_em: string | null
@@ -2633,26 +2637,30 @@ export type Database = {
         }
         Insert: {
           atuacao_detalhada?: string | null
-          bairro: string
+          bairro?: string | null
+          cadastro_completo?: boolean
           celular: string
-          cep: string
-          cidade: string
+          cep?: string | null
+          cidade?: string | null
           complemento?: string | null
-          cpf: string
+          cpf?: string | null
           created_at?: string
           created_by: string
           data_adesao_voluntariado?: string | null
           data_desligamento?: string | null
           data_ingresso_sistema?: string
-          data_nascimento: string
-          email: string
-          estado: string
+          data_nascimento?: string | null
+          email?: string | null
+          estado?: string | null
           foto_url?: string | null
           id?: string
-          logradouro: string
+          logradouro?: string | null
           nome_completo: string
-          numero: string
+          numero?: string | null
           observacoes?: string | null
+          origem_assistido_id?: string | null
+          origem_cadastro?: string | null
+          origem_user_id?: string | null
           rg?: string | null
           status?: string
           termo_assinado_em?: string | null
@@ -2669,26 +2677,30 @@ export type Database = {
         }
         Update: {
           atuacao_detalhada?: string | null
-          bairro?: string
+          bairro?: string | null
+          cadastro_completo?: boolean
           celular?: string
-          cep?: string
-          cidade?: string
+          cep?: string | null
+          cidade?: string | null
           complemento?: string | null
-          cpf?: string
+          cpf?: string | null
           created_at?: string
           created_by?: string
           data_adesao_voluntariado?: string | null
           data_desligamento?: string | null
           data_ingresso_sistema?: string
-          data_nascimento?: string
-          email?: string
-          estado?: string
+          data_nascimento?: string | null
+          email?: string | null
+          estado?: string | null
           foto_url?: string | null
           id?: string
-          logradouro?: string
+          logradouro?: string | null
           nome_completo?: string
-          numero?: string
+          numero?: string | null
           observacoes?: string | null
+          origem_assistido_id?: string | null
+          origem_cadastro?: string | null
+          origem_user_id?: string | null
           rg?: string | null
           status?: string
           termo_assinado_em?: string | null
@@ -2703,7 +2715,15 @@ export type Database = {
           tipos_voluntario?: string[]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "voluntarios_origem_assistido_id_fkey"
+            columns: ["origem_assistido_id"]
+            isOneToOne: false
+            referencedRelation: "assistidos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_conversas: {
         Row: {
@@ -2898,6 +2918,28 @@ export type Database = {
           tratado_por: string
         }[]
       }
+      fn_buscar_pessoa_para_voluntario: {
+        Args: { p_termo: string }
+        Returns: {
+          bairro: string
+          celular: string
+          cep: string
+          cidade: string
+          complemento: string
+          cpf: string
+          data_nascimento: string
+          email: string
+          estado: string
+          foto_url: string
+          ja_voluntario: boolean
+          logradouro: string
+          nome: string
+          numero: string
+          origem: string
+          origem_id: string
+          user_id: string
+        }[]
+      }
       fn_confirmacao_agendamento_ativa: { Args: never; Returns: boolean }
       fn_confirmacao_entrevista_ativa: { Args: never; Returns: boolean }
       fn_eh_proxima_sessao: { Args: { p_agenda_id: string }; Returns: boolean }
@@ -3030,6 +3072,26 @@ export type Database = {
           p_resolucao?: string
         }
         Returns: Json
+      }
+      fn_voluntario_cadastro_completo: {
+        Args: {
+          p_bairro: string
+          p_celular: string
+          p_cep: string
+          p_cidade: string
+          p_cpf: string
+          p_data_nascimento: string
+          p_email: string
+          p_estado: string
+          p_logradouro: string
+          p_nome: string
+          p_numero: string
+        }
+        Returns: boolean
+      }
+      fn_voluntario_pendencias_cadastro: {
+        Args: { p_voluntario_id: string }
+        Returns: string[]
       }
       gerenciar_termo_voluntario: {
         Args: {

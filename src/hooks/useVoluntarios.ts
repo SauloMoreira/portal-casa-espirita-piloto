@@ -30,7 +30,12 @@ import {
   inactivateVoluntario,
   reactivateVoluntario,
   marcarTermoGerado,
+  buscarPessoaParaVoluntario,
 } from "@/services/voluntarios/voluntariosService";
+import {
+  mapearPessoaParaPrefill,
+  type PessoaCandidata,
+} from "@/lib/voluntarioCadastro";
 import type {
   FuncaoVoluntariado,
   VoluntarioFilterState,
@@ -62,6 +67,12 @@ export function useVoluntarios() {
   const [errors, setErrors] = useState<VoluntarioFormErrors>({});
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Busca de pessoa existente (passo inicial do novo cadastro).
+  const [buscaAtiva, setBuscaAtiva] = useState(false);
+  const [buscaTermo, setBuscaTermo] = useState("");
+  const [buscaResultados, setBuscaResultados] = useState<PessoaCandidata[]>([]);
+  const [buscaLoading, setBuscaLoading] = useState(false);
 
   const [termoOpen, setTermoOpen] = useState(false);
   const [fichaOpen, setFichaOpen] = useState(false);
@@ -101,28 +112,23 @@ export function useVoluntarios() {
     );
   }, [voluntarios]);
 
+  // Cadastro MÍNIMO: só Nome, Celular válido e ao menos um tipo são exigidos.
+  // Demais campos validam formato apenas quando preenchidos (completar depois).
   const validate = useCallback((): boolean => {
     const e: VoluntarioFormErrors = {};
     const m = VOLUNTARIO_MESSAGES;
     if (!form.nome_completo.trim()) e.nome_completo = m.required;
     if (!form.celular.trim()) e.celular = m.required;
     else if (!isValidPhone(form.celular)) e.celular = m.invalidPhone;
-    if (!form.cpf.trim()) e.cpf = m.required;
-    else if (!isValidCPF(form.cpf)) e.cpf = m.invalidCpf;
-    if (!form.email.trim()) e.email = m.required;
-    else if (!isValidEmail(form.email)) e.email = m.invalidEmail;
-    if (!form.data_nascimento) e.data_nascimento = m.required;
-    if (!form.data_ingresso_sistema) e.data_ingresso_sistema = m.required;
-    if (!form.cep.trim()) e.cep = m.required;
-    if (!form.logradouro.trim()) e.logradouro = m.required;
-    if (!form.numero.trim()) e.numero = m.required;
-    if (!form.bairro.trim()) e.bairro = m.required;
-    if (!form.cidade.trim()) e.cidade = m.required;
-    if (!form.estado.trim()) e.estado = m.required;
     if (form.tipos_voluntario.length === 0) e.tipos_voluntario = m.selectTipo;
+    if (!form.data_ingresso_sistema) e.data_ingresso_sistema = m.required;
+    // Opcionais: validam formato só quando informados.
+    if (form.cpf.trim() && !isValidCPF(form.cpf)) e.cpf = m.invalidCpf;
+    if (form.email.trim() && !isValidEmail(form.email)) e.email = m.invalidEmail;
     setErrors(e);
     return Object.keys(e).length === 0;
   }, [form]);
+
 
   const handleSave = useCallback(async () => {
     if (!validate() || !user) return;
@@ -130,35 +136,42 @@ export function useVoluntarios() {
     const cpfClean = form.cpf.replace(/\D/g, "");
 
     try {
-      if (await isCpfDuplicado(cpfClean, editId)) {
+      if (cpfClean && (await isCpfDuplicado(cpfClean, editId))) {
         setErrors({ cpf: VOLUNTARIO_MESSAGES.cpfDuplicado });
         setLoading(false);
         return;
       }
 
+      // Mínimo persiste só o essencial; complementares ficam null até completar.
+      const orNull = (v: string) => (v.trim() ? v.trim() : null);
       const payload = {
         nome_completo: form.nome_completo.trim(),
         celular: form.celular.replace(/\D/g, ""),
-        cpf: cpfClean,
-        email: form.email.trim().toLowerCase(),
-        rg: form.rg.trim() || null,
-        data_nascimento: form.data_nascimento,
-        cep: form.cep.replace(/\D/g, ""),
-        logradouro: form.logradouro.trim(),
-        numero: form.numero.trim(),
-        complemento: form.complemento.trim() || null,
-        bairro: form.bairro.trim(),
-        cidade: form.cidade.trim(),
-        estado: form.estado.trim().toUpperCase(),
+        cpf: cpfClean || null,
+        email: form.email.trim() ? form.email.trim().toLowerCase() : null,
+        rg: orNull(form.rg),
+        data_nascimento: form.data_nascimento || null,
+        cep: form.cep.replace(/\D/g, "") || null,
+        logradouro: orNull(form.logradouro),
+        numero: orNull(form.numero),
+        complemento: orNull(form.complemento),
+        bairro: orNull(form.bairro),
+        cidade: orNull(form.cidade),
+        estado: form.estado.trim() ? form.estado.trim().toUpperCase() : null,
         foto_url: form.foto_url,
         data_ingresso_sistema: form.data_ingresso_sistema,
         data_adesao_voluntariado: form.data_adesao_voluntariado || null,
         tipos_voluntario: form.tipos_voluntario,
-        atuacao_detalhada: form.atuacao_detalhada.trim() || null,
+        atuacao_detalhada: orNull(form.atuacao_detalhada),
         status: form.status,
         data_desligamento: form.data_desligamento || null,
-        observacoes: form.observacoes.trim() || null,
+        observacoes: orNull(form.observacoes),
+        origem_cadastro: form.origem_cadastro,
+        origem_assistido_id: form.origem_assistido_id,
+        origem_user_id: form.origem_user_id,
       };
+
+
 
       const savedId = await saveVoluntario(payload, editId, user.id);
       await replaceVoluntarioFuncoes(savedId, form.funcoes_ids);
@@ -185,18 +198,18 @@ export function useVoluntarios() {
     const funcIds = await fetchFuncoesIdsByVoluntario(v.id);
     setForm({
       nome_completo: v.nome_completo,
-      celular: maskPhone(v.celular),
-      cpf: maskCPF(v.cpf),
-      email: v.email,
+      celular: maskPhone(v.celular || ""),
+      cpf: maskCPF(v.cpf || ""),
+      email: v.email || "",
       rg: v.rg || "",
-      data_nascimento: v.data_nascimento,
-      cep: v.cep,
-      logradouro: v.logradouro,
-      numero: v.numero,
+      data_nascimento: v.data_nascimento || "",
+      cep: v.cep || "",
+      logradouro: v.logradouro || "",
+      numero: v.numero || "",
       complemento: v.complemento || "",
-      bairro: v.bairro,
-      cidade: v.cidade,
-      estado: v.estado,
+      bairro: v.bairro || "",
+      cidade: v.cidade || "",
+      estado: v.estado || "",
       foto_url: v.foto_url,
       data_ingresso_sistema: v.data_ingresso_sistema,
       data_adesao_voluntariado: v.data_adesao_voluntariado || "",
@@ -206,8 +219,12 @@ export function useVoluntarios() {
       status: v.status,
       data_desligamento: v.data_desligamento || "",
       observacoes: v.observacoes || "",
+      origem_cadastro: v.origem_cadastro ?? null,
+      origem_assistido_id: v.origem_assistido_id ?? null,
+      origem_user_id: v.origem_user_id ?? null,
     });
     setErrors({});
+    setBuscaAtiva(false);
     setOpen(true);
   }, []);
 
@@ -215,8 +232,43 @@ export function useVoluntarios() {
     setEditId(null);
     setForm(emptyVoluntarioForm);
     setErrors({});
+    setBuscaAtiva(true); // novo cadastro começa pela busca de pessoa existente
     setOpen(true);
   }, []);
+
+  // Aplica os DADOS-BASE de uma pessoa existente ao formulário (reaproveitamento).
+  const aplicarPessoa = useCallback((pessoa: PessoaCandidata) => {
+    const pre = mapearPessoaParaPrefill(pessoa);
+    setEditId(null);
+    setForm({
+      ...emptyVoluntarioForm,
+      nome_completo: pre.nome_completo,
+      celular: maskPhone(pre.celular),
+      cpf: maskCPF(pre.cpf),
+      email: pre.email,
+      data_nascimento: pre.data_nascimento,
+      cep: pre.cep,
+      logradouro: pre.logradouro,
+      numero: pre.numero,
+      complemento: pre.complemento,
+      bairro: pre.bairro,
+      cidade: pre.cidade,
+      estado: pre.estado,
+      foto_url: pre.foto_url,
+      origem_cadastro: pre.origem_cadastro,
+      origem_assistido_id: pre.origem_assistido_id,
+      origem_user_id: pre.origem_user_id,
+    });
+    setErrors({});
+    setBuscaAtiva(false);
+  }, []);
+
+  // Segue para cadastro do zero (ignora a busca).
+  const cadastrarDoZero = useCallback(() => {
+    setForm(emptyVoluntarioForm);
+    setBuscaAtiva(false);
+  }, []);
+
 
   const openFicha = useCallback((v: VoluntarioListItem) => {
     setSelectedVoluntario(v);
@@ -309,9 +361,9 @@ export function useVoluntarios() {
       const matchesSearch =
         !filters.search ||
         v.nome_completo.toLowerCase().includes(searchLower) ||
-        v.cpf.includes(digits) ||
-        v.celular.includes(digits) ||
-        v.email.toLowerCase().includes(searchLower);
+        (v.cpf || "").includes(digits) ||
+        (v.celular || "").includes(digits) ||
+        (v.email || "").toLowerCase().includes(searchLower);
       const matchesStatus = filters.status === FILTER_TODOS || v.status === filters.status;
       const matchesTipo =
         filters.tipo === FILTER_TODOS ||
@@ -358,6 +410,23 @@ export function useVoluntarios() {
     }));
   }, []);
 
+  const buscarPessoas = useCallback(async () => {
+    const termo = buscaTermo.trim();
+    if (termo.replace(/\D/g, "").length < 3 && termo.length < 3) {
+      setBuscaResultados([]);
+      return;
+    }
+    setBuscaLoading(true);
+    try {
+      setBuscaResultados(await buscarPessoaParaVoluntario(termo));
+    } catch (error) {
+      toast({ title: "Erro na busca", description: (error as Error).message, variant: "destructive" });
+    } finally {
+      setBuscaLoading(false);
+    }
+  }, [buscaTermo, toast]);
+
+
   return {
     // data
     allFuncoes,
@@ -387,6 +456,17 @@ export function useVoluntarios() {
     openNew,
     toggleTipo,
     toggleFuncao,
+    // busca / reaproveitamento
+    buscaAtiva,
+    setBuscaAtiva,
+    buscaTermo,
+    setBuscaTermo,
+    buscaResultados,
+    buscaLoading,
+    buscarPessoas,
+    aplicarPessoa,
+    cadastrarDoZero,
+
     // termo / ficha
     termoOpen,
     setTermoOpen,

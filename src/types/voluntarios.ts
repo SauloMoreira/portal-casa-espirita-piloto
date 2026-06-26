@@ -39,6 +39,10 @@ export interface VoluntarioFormState {
   status: string;
   data_desligamento: string;
   observacoes: string;
+  // Rastreabilidade de reaproveitamento (persistida, não editável no form).
+  origem_cadastro: string | null;
+  origem_assistido_id: string | null;
+  origem_user_id: string | null;
 }
 
 export type VoluntarioFormErrors = Partial<Record<string, string>>;
