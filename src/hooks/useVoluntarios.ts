@@ -30,7 +30,12 @@ import {
   inactivateVoluntario,
   reactivateVoluntario,
   marcarTermoGerado,
+  buscarPessoaParaVoluntario,
 } from "@/services/voluntarios/voluntariosService";
+import {
+  mapearPessoaParaPrefill,
+  type PessoaCandidata,
+} from "@/lib/voluntarioCadastro";
 import type {
   FuncaoVoluntariado,
   VoluntarioFilterState,
