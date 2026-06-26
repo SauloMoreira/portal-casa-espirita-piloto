@@ -366,7 +366,7 @@ de escopo operacional separada do cadastro do tipo de tratamento e do acesso pur
 
 ---
 
-
+## 9. Como usar este catálogo
 
 **Em revisão de plano** — Sempre verificar:
 - o plano respeita as invariantes?
