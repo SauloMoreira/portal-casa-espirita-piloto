@@ -138,12 +138,31 @@ export function TermoVoluntarioDialog({ open, onOpenChange, voluntario, onOpenPr
             </p>
           )}
 
+          {!gating.permitido && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 space-y-1.5">
+              <p className="flex items-center gap-1.5 font-medium">
+                <AlertTriangle className="h-4 w-4" /> Complete o cadastro para gerar o termo
+              </p>
+              <p>Campos pendentes:</p>
+              <ul className="list-disc list-inside">
+                {gating.pendencias.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid gap-2">
-            <Button variant="outline" className="justify-start gap-2" onClick={onOpenPrint}>
+            <Button
+              variant="outline"
+              className="justify-start gap-2"
+              onClick={onOpenPrint}
+              disabled={!gating.permitido}
+            >
               <FileText className="h-4 w-4" /> Gerar / baixar termo preenchido
             </Button>
 
-            {canSend && (
+            {canSend && gating.permitido && (
               <label className="w-full">
                 <input
                   type="file"
