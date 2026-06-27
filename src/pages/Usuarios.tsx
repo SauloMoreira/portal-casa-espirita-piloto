@@ -385,15 +385,7 @@ export default function Usuarios() {
                     const currentRoles = editUserId
                       ? (users.find((u) => u.user_id === editUserId)?.roles ?? ["assistido"])
                       : ["assistido"];
-                    return (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {currentRoles.map((r) => (
-                          <Badge key={r} variant={r === "assistido" ? "outline" : "secondary"}>
-                            {ROLE_LABELS[r] ?? r}
-                          </Badge>
-                        ))}
-                      </div>
-                    );
+                    return <UserRolesBadges roles={currentRoles} showGroupLabels className="pt-1" />;
                   })()}
                   <p className="text-xs text-muted-foreground">
                     Acessos elevados (operacionais e administrativos) são geridos
