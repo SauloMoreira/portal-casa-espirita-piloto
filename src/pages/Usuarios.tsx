@@ -247,8 +247,8 @@ export default function Usuarios() {
       return;
     }
 
-    // Update role
-    await supabase.from("user_roles").update({ role: form.role as any }).eq("user_id", editUserId);
+    // Roles are NOT edited here — elevated access is managed only in Gestão de Acesso.
+
 
     // Upsert profile
     const profileData = {
