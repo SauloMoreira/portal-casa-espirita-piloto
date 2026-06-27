@@ -60,7 +60,7 @@ export default function Tratamentos() {
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tarefeiros, setTarefeiros] = useState<{ id: string; email: string }[]>([]);
-  const [coordenadores, setCoordenadores] = useState<{ id: string; nome: string }[]>([]);
+  
   const { user } = useAuth();
   const { toast } = useToast();
 
