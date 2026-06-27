@@ -199,7 +199,7 @@ export default function Usuarios() {
         body: {
           email: form.email.trim(),
           password: form.password,
-          role: form.role,
+          role: "assistido",
           profile: {
             nome_completo: form.nome_completo.trim(),
             celular: form.celular.replace(/\D/g, ""),
