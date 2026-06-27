@@ -76,16 +76,8 @@ export default function Tratamentos() {
     }
   };
 
-  useEffect(() => { fetchTratamentos(); fetchTarefeiros(); fetchCoordenadores(); }, []);
+  useEffect(() => { fetchTratamentos(); fetchTarefeiros(); }, []);
 
-  const fetchCoordenadores = async () => {
-    const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "coordenador_de_tratamento");
-    if (roles && roles.length > 0) {
-      const userIds = roles.map((r: any) => r.user_id);
-      const { data: profiles } = await supabase.rpc("staff_names", { _ids: userIds });
-      setCoordenadores((profiles || []).map((p: any) => ({ id: p.user_id, nome: p.nome_completo || p.user_id })));
-    }
-  };
 
   const handleSave = async () => {
     if (!form.nome.trim()) { toast({ title: "Nome obrigatório", variant: "destructive" }); return; }
