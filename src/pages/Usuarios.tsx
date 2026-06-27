@@ -35,16 +35,20 @@ const ROLE_LABELS: Record<string, string> = {
   coordenador_de_tratamento: "Coordenador de Tratamento",
 };
 
-// Roles that can be assigned directly here. Administrative roles are granted
-// ONLY through the approval-gated workflow in Governança de Acessos.
-const ASSIGNABLE_ROLE_LABELS: Record<string, string> = {
-  entrevistador: "Entrevistador",
-  tarefeiro: "Tarefeiro",
-  assistido: "Assistido",
-  coordenador_de_tratamento: "Coordenador de Tratamento",
+// Roles are no longer editable here. Every person is born "assistido" (base role),
+// and all elevated roles (operational + administrative) are managed exclusively in
+// Gestão de Acesso. The order below is only used for display.
+const ROLE_ORDER: Record<string, number> = {
+  administrador_master: 0,
+  admin: 1,
+  coordenador_de_tratamento: 2,
+  entrevistador: 3,
+  tarefeiro: 4,
+  assistido: 5,
 };
 
-const isAdminRole = (r?: string | null) => r === "admin" || r === "administrador_master";
+const sortRoles = (rs: string[]) =>
+  [...rs].sort((a, b) => (ROLE_ORDER[a] ?? 99) - (ROLE_ORDER[b] ?? 99));
 
 interface UserRow {
   user_id: string;
