@@ -379,7 +379,25 @@ exclusiva da Gestão de Acesso. (Especialização de INV-ACC-NOCROSS-001 para a 
 A atuação não relaxa o gating documental do voluntariado: o termo de adesão continua
 liberado **apenas** com cadastro completo (ver regras de `voluntarioCadastro`).
 
+### INV-ESC-FONTE-001 — Escopo operacional tem fonte única N:N
+O escopo operacional de coordenação vive **exclusivamente** na relação N:N
+`public.coordenacao_tratamento` (lida pelas RPCs `fn_tratamentos_do_coordenador`,
+`fn_coordena_tratamento`, `fn_listar_coordenacao_tratamentos`). O antigo campo único
+`tipos_tratamento.coordenador_responsavel_id` foi **migrado e removido**; nenhum
+consumidor (RLS, relatórios, dashboards, edge functions) pode voltar a lê-lo.
+
+**Não pode acontecer**
+- reintroduzir coluna/campo único de coordenador no cadastro do tipo de tratamento
+- consumidor inferir escopo por caminho paralelo ao da relação N:N
+
+### INV-ESC-NOCROSS-001 — Escopo nunca altera acesso
+Designar ou remover coordenação (`fn_designar_coordenador`/`fn_remover_coordenador`)
+**nunca** cria, altera ou remove linhas em `user_roles`. Divergência entre escopo e
+acesso gera **alerta de coerência consultivo** (`coerenciaEscopoAcesso`), jamais
+concessão silenciosa. (Especialização de INV-ACC-NOCROSS-001 para a camada de escopo.)
+
 ---
+
 
 ## 9. Como usar este catálogo
 

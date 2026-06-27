@@ -165,3 +165,33 @@ assistido) e limpeza idempotente por namespace ao final.
 **Fora do escopo desta frente:** efeito real de exceção na agenda (INV-AGD-005) e
 confirmação explícita de UI (INV-SEG-002) seguem como E2E de interface futuro;
 provisionamento dos usuários de teste é one-shot (admin API), não recorrente.
+
+## Reorganização de Gestão — Acesso / Atuação / Escopo (Etapas 0–6)
+
+Frente concluída de ponta a ponta. Modelo de 4 camadas independentes (Pessoa,
+Acesso, Atuação, Escopo) com **nenhuma mutação cruzada** — exceto a concessão
+automática do papel base `assistido`.
+
+| Invariante | Camada | Prova | Status |
+| --- | --- | --- | --- |
+| INV-ACC-BASE-001/002/003 | Acesso (base) | `acesso-base-assistido.dbtest.ts` (trigger idempotente + backfill) | ✅🗄️ |
+| INV-ACC-GOV-001 | Acesso (elevado) | `etapa3-classificacao-acesso.test.ts`, `etapa6-fechamento-reorganizacao.test.ts` | ✅ |
+| INV-ATU-CATALOGO-001 / NOCROSS-001 / GATING-001 | Atuação | `etapa4-atuacao-catalogo.test.ts`, `etapa6-fechamento-reorganizacao.test.ts` | ✅ |
+| INV-ESC-FONTE-001 | Escopo (N:N) | campo único removido na migração; nenhum consumidor lê o legado | ✅ |
+| INV-ESC-NOCROSS-001 | Escopo | `etapa5-escopo-operacional.test.ts`, `etapa6-fechamento-reorganizacao.test.ts` | ✅ |
+| INV-ACC-COORD-NN-001 | Escopo | relação N:N `coordenacao_tratamento` + RPCs de leitura/designação | ✅ |
+
+**Limpeza de legado consolidada (Etapa 6):**
+- `tipos_tratamento.coordenador_responsavel_id` removido (migração) e **não há**
+  mais nenhum consumidor lendo o campo em `src/` ou nas edge functions.
+- `supabase/functions/manage-user/index.ts`: bloqueio de exclusão atualizado para
+  ler o escopo pela relação N:N (`coordenacao_tratamento.coordenador_id`), em vez
+  do campo único removido — preservando a proteção de integridade referencial.
+
+**Coerência consultiva (apenas alertas, jamais mutação):**
+- `verificarCoerenciaAtuacaoAcesso` (atuação × acesso)
+- `coerenciaEscopoAcesso` (escopo × acesso)
+
+> **Débito residual:** nenhum bloqueante para esta frente. Itens de E2E de UI
+> (INV-SEG-002 / INV-AGD-005) seguem fora deste escopo, como já registrado na
+> seção da camada E2E.
