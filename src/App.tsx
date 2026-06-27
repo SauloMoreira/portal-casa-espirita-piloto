@@ -106,6 +106,7 @@ const App = () => (
                   <Route path={ROUTES.usuarios} element={<ProtectedRoute allowedRoles={["admin"]}><Usuarios /></ProtectedRoute>} />
                   <Route path={ROUTES.solicitacoesCadastro} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<SolicitacoesCadastro />, "Solicitações de Cadastro")}</ProtectedRoute>} />
                   <Route path={ROUTES.governancaAcessos} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<GovernancaAcessos />, "Governança de Acessos")}</ProtectedRoute>} />
+                  <Route path={ROUTES.escopoOperacional} element={<ProtectedRoute allowedRoles={["admin", "administrador_master"]}>{guard(<EscopoOperacional />, "Escopo Operacional")}</ProtectedRoute>} />
                   <Route path={ROUTES.segurancaConta} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<SegurancaConta />, "Segurança da Conta")}</ProtectedRoute>} />
 
                   <Route path={ROUTES.tratamentos} element={<ProtectedRoute allowedRoles={["admin"]}><Tratamentos /></ProtectedRoute>} />
