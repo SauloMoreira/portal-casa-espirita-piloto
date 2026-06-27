@@ -136,6 +136,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { title: "Solicitações de Cadastro", url: "/solicitacoes-cadastro", icon: UserPlus, roles: ["admin"] },
       { title: "Permissões de Acesso", url: "/governanca-acessos", icon: ShieldCheck, roles: ["admin"] },
+      { title: "Escopo Operacional", url: "/escopo-operacional", icon: Users, roles: ["admin", "administrador_master"] },
       { title: "Segurança da Conta", url: "/seguranca", icon: KeyRound, roles: ["admin"] },
     ],
   },
