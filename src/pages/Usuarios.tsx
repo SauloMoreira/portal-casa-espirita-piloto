@@ -73,7 +73,7 @@ interface Profile {
 
 interface MergedUser {
   user_id: string;
-  role: string;
+  roles: string[];
   profile: Profile | null;
   email: string | null;
 }
@@ -82,7 +82,7 @@ const emptyForm = {
   nome_completo: "", celular: "", cpf: "", email: "", password: "",
   cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
   foto_url: null as string | null,
-  role: "assistido", status: "ativo",
+  status: "ativo",
 };
 
 type FormErrors = Partial<Record<string, string>>;
