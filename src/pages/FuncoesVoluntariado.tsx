@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Pencil, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const TIPOS_VOLUNTARIO = ["Médium", "Tarefeiro"];
+import { TIPOS_VOLUNTARIO } from "@/constants/voluntarios";
 
 interface FuncaoVoluntariado {
   id: string;
