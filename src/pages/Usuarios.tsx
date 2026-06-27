@@ -135,12 +135,22 @@ export default function Usuarios() {
     if (roles) {
       const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
       const emailMap = new Map((emails || []).map((e: any) => [e.user_id, e.email]));
-      setUsers(roles.map((r: any) => ({
-        ...r,
-        profile: profileMap.get(r.user_id) || null,
-        email: emailMap.get(r.user_id) || null,
+      // Roles are cumulative (one row per role) — group them per user so each
+      // person appears once with all their roles.
+      const rolesByUser = new Map<string, string[]>();
+      for (const r of roles as any[]) {
+        const arr = rolesByUser.get(r.user_id) || [];
+        arr.push(r.role);
+        rolesByUser.set(r.user_id, arr);
+      }
+      setUsers(Array.from(rolesByUser.entries()).map(([user_id, rs]) => ({
+        user_id,
+        roles: sortRoles(rs),
+        profile: profileMap.get(user_id) || null,
+        email: emailMap.get(user_id) || null,
       })));
     }
+
   };
 
   useEffect(() => { fetchUsers(); }, []);
