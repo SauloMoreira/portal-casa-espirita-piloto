@@ -44,7 +44,7 @@ const emptyForm = {
   nome: "", tipo: "espiritual", descricao: "", dia_semana: "", horario: "",
   frequencia_valor: "1", frequencia_unidade: "semanas", status: "ativo", observacoes: "", tarefeiro_id: "",
   ordem_tratamento: "", tratamento_livre: false, bloqueia_proximo_tratamento: false,
-  modo_agendamento: "sequencial_bloqueante", coordenador_responsavel_id: "",
+  modo_agendamento: "sequencial_bloqueante",
   quantidade_padrao_sessoes: "1",
   trabalho_publico: false, permite_entrada_sem_agendamento: false,
   exige_controle_presenca: true, modo_checkin: "qr_do_dia",
