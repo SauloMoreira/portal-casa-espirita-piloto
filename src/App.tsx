@@ -23,6 +23,7 @@ const CheckinPublico = lazy(() => import("./pages/CheckinPublico"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Usuarios = lazy(() => import("./pages/Usuarios"));
 const GovernancaAcessos = lazy(() => import("./pages/GovernancaAcessos"));
+const EscopoOperacional = lazy(() => import("./pages/EscopoOperacional"));
 const SolicitacoesCadastro = lazy(() => import("./pages/SolicitacoesCadastro"));
 const SegurancaConta = lazy(() => import("./pages/SegurancaConta"));
 const Tratamentos = lazy(() => import("./pages/Tratamentos"));
@@ -105,6 +106,7 @@ const App = () => (
                   <Route path={ROUTES.usuarios} element={<ProtectedRoute allowedRoles={["admin"]}><Usuarios /></ProtectedRoute>} />
                   <Route path={ROUTES.solicitacoesCadastro} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<SolicitacoesCadastro />, "Solicitações de Cadastro")}</ProtectedRoute>} />
                   <Route path={ROUTES.governancaAcessos} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<GovernancaAcessos />, "Governança de Acessos")}</ProtectedRoute>} />
+                  <Route path={ROUTES.escopoOperacional} element={<ProtectedRoute allowedRoles={["admin", "administrador_master"]}>{guard(<EscopoOperacional />, "Escopo Operacional")}</ProtectedRoute>} />
                   <Route path={ROUTES.segurancaConta} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<SegurancaConta />, "Segurança da Conta")}</ProtectedRoute>} />
 
                   <Route path={ROUTES.tratamentos} element={<ProtectedRoute allowedRoles={["admin"]}><Tratamentos /></ProtectedRoute>} />

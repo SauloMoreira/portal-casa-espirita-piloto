@@ -1047,6 +1047,38 @@ export type Database = {
           },
         ]
       }
+      coordenacao_tratamento: {
+        Row: {
+          coordenador_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          tratamento_id: string
+        }
+        Insert: {
+          coordenador_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          tratamento_id: string
+        }
+        Update: {
+          coordenador_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          tratamento_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coordenacao_tratamento_tratamento_id_fkey"
+            columns: ["tratamento_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_tratamento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entrevistas_fraternas: {
         Row: {
           assistido_id: string
@@ -2450,7 +2482,6 @@ export type Database = {
       tipos_tratamento: {
         Row: {
           bloqueia_proximo_tratamento: boolean
-          coordenador_responsavel_id: string | null
           created_at: string
           created_by: string | null
           descricao: string | null
@@ -2478,7 +2509,6 @@ export type Database = {
         }
         Insert: {
           bloqueia_proximo_tratamento?: boolean
-          coordenador_responsavel_id?: string | null
           created_at?: string
           created_by?: string | null
           descricao?: string | null
@@ -2506,7 +2536,6 @@ export type Database = {
         }
         Update: {
           bloqueia_proximo_tratamento?: boolean
-          coordenador_responsavel_id?: string | null
           created_at?: string
           created_by?: string | null
           descricao?: string | null
@@ -2950,6 +2979,14 @@ export type Database = {
       }
       fn_confirmacao_agendamento_ativa: { Args: never; Returns: boolean }
       fn_confirmacao_entrevista_ativa: { Args: never; Returns: boolean }
+      fn_coordena_tratamento: {
+        Args: { _tratamento_id: string; _user_id: string }
+        Returns: boolean
+      }
+      fn_designar_coordenador: {
+        Args: { p_coordenador_id: string; p_tratamento_id: string }
+        Returns: undefined
+      }
       fn_eh_proxima_sessao: { Args: { p_agenda_id: string }; Returns: boolean }
       fn_encerrar_item_fila_erro_cadastro: {
         Args: { p_fila_id: string; p_motivo?: string; p_observacao?: string }
@@ -3012,6 +3049,7 @@ export type Database = {
         Returns: string
       }
       fn_lembrete_antecedencia_horas: { Args: never; Returns: number }
+      fn_listar_coordenacao_tratamentos: { Args: never; Returns: Json }
       fn_listar_parametros_operacionais: {
         Args: never
         Returns: {
@@ -3066,6 +3104,10 @@ export type Database = {
         }
         Returns: Json
       }
+      fn_remover_coordenador: {
+        Args: { p_coordenador_id: string; p_tratamento_id: string }
+        Returns: undefined
+      }
       fn_revogar_acesso_operacional: {
         Args: {
           p_motivo?: string
@@ -3080,6 +3122,10 @@ export type Database = {
           r_fila_id: string
           r_motivo: string
         }[]
+      }
+      fn_tratamentos_do_coordenador: {
+        Args: { _user_id?: string }
+        Returns: string[]
       }
       fn_tratar_aviso_ausencia: {
         Args: {

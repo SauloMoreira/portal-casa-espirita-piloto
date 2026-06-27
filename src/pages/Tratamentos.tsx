@@ -44,7 +44,7 @@ const emptyForm = {
   nome: "", tipo: "espiritual", descricao: "", dia_semana: "", horario: "",
   frequencia_valor: "1", frequencia_unidade: "semanas", status: "ativo", observacoes: "", tarefeiro_id: "",
   ordem_tratamento: "", tratamento_livre: false, bloqueia_proximo_tratamento: false,
-  modo_agendamento: "sequencial_bloqueante", coordenador_responsavel_id: "",
+  modo_agendamento: "sequencial_bloqueante",
   quantidade_padrao_sessoes: "1",
   trabalho_publico: false, permite_entrada_sem_agendamento: false,
   exige_controle_presenca: true, modo_checkin: "qr_do_dia",
@@ -60,7 +60,7 @@ export default function Tratamentos() {
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tarefeiros, setTarefeiros] = useState<{ id: string; email: string }[]>([]);
-  const [coordenadores, setCoordenadores] = useState<{ id: string; nome: string }[]>([]);
+  
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -76,16 +76,8 @@ export default function Tratamentos() {
     }
   };
 
-  useEffect(() => { fetchTratamentos(); fetchTarefeiros(); fetchCoordenadores(); }, []);
+  useEffect(() => { fetchTratamentos(); fetchTarefeiros(); }, []);
 
-  const fetchCoordenadores = async () => {
-    const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "coordenador_de_tratamento");
-    if (roles && roles.length > 0) {
-      const userIds = roles.map((r: any) => r.user_id);
-      const { data: profiles } = await supabase.rpc("staff_names", { _ids: userIds });
-      setCoordenadores((profiles || []).map((p: any) => ({ id: p.user_id, nome: p.nome_completo || p.user_id })));
-    }
-  };
 
   const handleSave = async () => {
     if (!form.nome.trim()) { toast({ title: "Nome obrigatório", variant: "destructive" }); return; }
@@ -107,7 +99,7 @@ export default function Tratamentos() {
       tratamento_livre: form.modo_agendamento === "livre_concomitante",
       bloqueia_proximo_tratamento: form.modo_agendamento === "sequencial_bloqueante",
       modo_agendamento: form.modo_agendamento,
-      coordenador_responsavel_id: form.coordenador_responsavel_id || null,
+      
       quantidade_padrao_sessoes: qtdPadrao,
       trabalho_publico: form.trabalho_publico,
       permite_entrada_sem_agendamento: form.permite_entrada_sem_agendamento,
@@ -147,7 +139,7 @@ export default function Tratamentos() {
       tratamento_livre: t.tratamento_livre,
       bloqueia_proximo_tratamento: t.bloqueia_proximo_tratamento,
       modo_agendamento: (t as any).modo_agendamento || "sequencial_bloqueante",
-      coordenador_responsavel_id: (t as any).coordenador_responsavel_id || "",
+      
       quantidade_padrao_sessoes: (t as any).quantidade_padrao_sessoes?.toString() || "1",
       trabalho_publico: t.trabalho_publico ?? false,
       permite_entrada_sem_agendamento: t.permite_entrada_sem_agendamento ?? false,
@@ -277,19 +269,13 @@ export default function Tratamentos() {
                 <p className="text-xs text-muted-foreground">Número de sessões usado quando o entrevistador não informar a quantidade na entrevista</p>
               </div>
               <div className="space-y-2">
-                <Label>Coordenador Responsável</Label>
-                {coordenadores.length > 0 ? (
-                  <Select value={form.coordenador_responsavel_id || "none"} onValueChange={(v) => setForm({ ...form, coordenador_responsavel_id: v === "none" ? "" : v })}>
-                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {coordenadores.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="text-sm text-muted-foreground border rounded-md px-3 py-2">Nenhum coordenador cadastrado. Crie um usuário com perfil "Coordenador de Tratamento" primeiro.</p>
-                )}
+                <Label>Coordenação (Escopo Operacional)</Label>
+                <p className="text-sm text-muted-foreground border rounded-md px-3 py-2">
+                  A designação de coordenadores agora é feita na área <strong>Escopo Operacional</strong>,
+                  permitindo múltiplos coordenadores por tratamento. A coordenação não concede acesso automaticamente.
+                </p>
               </div>
+
 
               {/* Seção Trabalho Público */}
               <div className="border rounded-lg p-4 space-y-4 bg-muted/30">

@@ -84,8 +84,8 @@ export default function ReportFilters({ values, onChange, show = [] }: Props) {
       }
       if (show.includes("coordenadorId")) {
         promises.push(
-          supabase.from("tipos_tratamento").select("coordenador_responsavel_id").not("coordenador_responsavel_id", "is", null).then(async ({ data }) => {
-            const ids = [...new Set((data || []).map((t) => t.coordenador_responsavel_id).filter(Boolean))] as string[];
+          supabase.from("coordenacao_tratamento").select("coordenador_id").then(async ({ data }) => {
+            const ids = [...new Set((data || []).map((t) => t.coordenador_id).filter(Boolean))] as string[];
             if (ids.length > 0) {
               const { data: profiles } = await supabase.rpc("staff_names", { _ids: ids });
               setCoordenadores((profiles || []).map((p) => ({ id: p.user_id, nome: p.nome_completo || "Sem nome" })));

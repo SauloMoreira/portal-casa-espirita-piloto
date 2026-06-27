@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { getTratamentosCoordenados } from "@/services/coordenacao/escopo";
 import ReportFilters, { FilterValues, defaultFilters } from "./ReportFilters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -27,9 +28,23 @@ export default function AssistidosPorTratamento() {
 
   useEffect(() => {
     const fetch = async () => {
+      // Escopo N:N: ids de tratamentos sob coordenação (do próprio usuário e/ou do filtro)
+      const meusTratIds =
+        role === "coordenador_de_tratamento" && user?.id
+          ? new Set(await getTratamentosCoordenados(user.id))
+          : null;
+      let filtroCoordIds: Set<string> | null = null;
+      if (filters.coordenadorId !== "todos") {
+        const { data: ct } = await supabase
+          .from("coordenacao_tratamento")
+          .select("tratamento_id")
+          .eq("coordenador_id", filters.coordenadorId);
+        filtroCoordIds = new Set((ct || []).map((r) => r.tratamento_id));
+      }
+
       let q = supabase
         .from("assistido_tratamentos")
-        .select("tratamento_id, status, tratamento:tipos_tratamento(nome, tipo, tarefeiro_id, coordenador_responsavel_id)")
+        .select("tratamento_id, status, tratamento:tipos_tratamento(nome, tipo, tarefeiro_id)")
         .gte("created_at", filters.dataInicio)
         .lte("created_at", filters.dataFim + "T23:59:59")
         .limit(5000);
@@ -44,9 +59,9 @@ export default function AssistidosPorTratamento() {
         const t = d.tratamento as any;
         if (!t) return false;
         if (filters.tarefeiroId !== "todos" && t.tarefeiro_id !== filters.tarefeiroId) return false;
-        if (filters.coordenadorId !== "todos" && t.coordenador_responsavel_id !== filters.coordenadorId) return false;
+        if (filtroCoordIds && !filtroCoordIds.has(d.tratamento_id)) return false;
         if (filters.tipoTratamento !== "todos" && t.tipo !== filters.tipoTratamento) return false;
-        if (role === "coordenador_de_tratamento" && t.coordenador_responsavel_id !== user?.id) return false;
+        if (meusTratIds && !meusTratIds.has(d.tratamento_id)) return false;
         if (role === "tarefeiro" && t.tarefeiro_id && t.tarefeiro_id !== user?.id) return false;
         return true;
       });

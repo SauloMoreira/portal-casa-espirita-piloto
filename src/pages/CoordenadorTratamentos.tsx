@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Heart } from "lucide-react";
 import { format } from "date-fns";
+import { getTratamentosCoordenados } from "@/services/coordenacao/escopo";
 
 const STATUS_LABELS: Record<string, string> = {
   aguardando_inicio: "Aguardando Início",
@@ -36,14 +37,16 @@ export default function CoordenadorTratamentos() {
   useEffect(() => {
     if (!user) return;
     const fetch = async () => {
+      const tratIds = await getTratamentosCoordenados(user.id);
+      if (tratIds.length === 0) { setItems([]); return; }
+
       const { data: meusTrat } = await supabase
         .from("tipos_tratamento")
         .select("id, nome")
-        .eq("coordenador_responsavel_id", user.id);
+        .in("id", tratIds);
 
       if (!meusTrat || meusTrat.length === 0) { setItems([]); return; }
       const tratMap = Object.fromEntries(meusTrat.map((t: any) => [t.id, t.nome]));
-      const tratIds = meusTrat.map((t: any) => t.id);
 
       const { data: vinculos } = await supabase
         .from("assistido_tratamentos")

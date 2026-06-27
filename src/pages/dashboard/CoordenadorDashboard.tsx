@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/StatCard";
 import { ClipboardCheck, Heart, Calendar, Users } from "lucide-react";
 import { contarListaEspera } from "@/services/coordenacao/listaEspera";
+import { getTratamentosCoordenados } from "@/services/coordenacao/escopo";
 
 export default function CoordenadorDashboard() {
   const { user } = useAuth();
@@ -13,18 +14,13 @@ export default function CoordenadorDashboard() {
   useEffect(() => {
     if (!user) return;
     const fetch = async () => {
-      // Get treatments coordinated by this user
-      const { data: meusTrat } = await supabase
-        .from("tipos_tratamento")
-        .select("id")
-        .eq("coordenador_responsavel_id", user.id);
+      // Get treatments coordinated by this user (coordenação N:N)
+      const tratIds = await getTratamentosCoordenados(user.id);
 
-      if (!meusTrat || meusTrat.length === 0) {
+      if (tratIds.length === 0) {
         setStats({ espera: 0, andamento: 0, agendados: 0 });
         return;
       }
-
-      const tratIds = meusTrat.map((t: any) => t.id);
 
       // Lista de Espera usa a MESMA regra/serviço da página (sem divergência).
       const espera = await contarListaEspera(user.id);
