@@ -80,8 +80,21 @@
 }
 
 @layer utilities {
+  /*
+   * glass-card: fundo opaco por padrão (estável em qualquer dispositivo).
+   * O efeito "vidro" (backdrop-blur + transparência) só é ativado em
+   * dispositivos com ponteiro fino/hover (desktop). Em telas touch
+   * (Android/iOS) usamos fundo sólido, pois múltiplas camadas de
+   * backdrop-filter empilhadas causam tremor e linhas horizontais
+   * durante o scroll no Chrome/WebView Android.
+   */
   .glass-card {
-    @apply bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm;
+    @apply bg-card border border-border/50 shadow-sm;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .glass-card {
+      @apply bg-card/80 backdrop-blur-sm;
+    }
   }
   .gradient-primary {
     background: linear-gradient(135deg, hsl(174 42% 35%), hsl(174 35% 45%));
