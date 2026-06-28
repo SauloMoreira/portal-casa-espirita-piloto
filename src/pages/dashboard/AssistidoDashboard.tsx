@@ -88,7 +88,7 @@ export default function AssistidoDashboard() {
     : "—";
 
   return (
-    <div className="space-y-6 max-w-screen-xl mx-auto w-full">
+    <div className="space-y-6 max-w-screen-xl mx-auto w-full pb-24 md:pb-6">
       <div>
         <h1 className="text-2xl font-display font-bold text-foreground">Meu Painel</h1>
         <p className="text-sm text-muted-foreground mt-1">Seus tratamentos e agenda</p>
@@ -144,7 +144,7 @@ export default function AssistidoDashboard() {
       )}
 
       {/* Atalhos rápidos */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
           { label: "Minha Agenda", icon: Calendar, url: ROUTES.minhaAgenda },
           { label: "Meus Tratamentos", icon: Heart, url: ROUTES.meusTratamentos },
@@ -154,12 +154,12 @@ export default function AssistidoDashboard() {
           <button
             key={a.url}
             onClick={() => navigate(a.url)}
-            className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-3.5 text-left active:scale-[0.98] hover:bg-secondary/30 transition-all"
+            className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-[18px] text-left active:scale-[0.98] hover:bg-secondary/30 transition-all"
           >
-            <span className="rounded-lg bg-primary/10 p-2 shrink-0">
-              <a.icon className="h-4 w-4 text-primary" />
+            <span className="rounded-lg bg-primary/10 p-2.5 shrink-0">
+              <a.icon className="h-5 w-5 text-primary" />
             </span>
-            <span className="text-sm font-medium flex-1 min-w-0 truncate">{a.label}</span>
+            <span className="text-sm font-medium flex-1">{a.label}</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           </button>
         ))}
