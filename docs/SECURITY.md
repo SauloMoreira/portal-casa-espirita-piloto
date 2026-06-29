@@ -118,10 +118,43 @@ foi **eliminada**. Para todas as funções `public` antes executáveis por `anon
 - **Funções de gatilho** tiveram `anon`/`PUBLIC` revogados por consistência
   (triggers não precisam de `EXECUTE` para disparar).
 
-Resultado: `0028` (anon) = **0**. O lint `0029` (SECURITY DEFINER executável por
-usuário autenticado) permanece como risco residual aceito — essas funções já
-fazem checagem interna de papel via `has_role`/`auth.uid()` e/ou são usadas em
-policies/triggers; consolidação documental prevista para o Lote 3 (ver §5).
+Resultado: `0028` (anon) = **0**.
+
+### Endurecimento S1 / Lote 3 (2026-06-29) — consolidação do `0029`
+
+Revisão nominal das funções `SECURITY DEFINER` ainda executáveis por `authenticated`
+(80 ocorrências do lint `0029` antes do Lote 3 = 67 RPCs + 13 funções de gatilho):
+
+- **Risco residual real corrigido (sem checagem interna + dado sensível):**
+  - `lista_usuarios_email` — retornava o e-mail de **todos** os usuários sem checagem.
+    Agora exige internamente `admin`/`administrador_master`.
+  - `staff_names` — retornava o diretório de nomes de perfis sem checagem.
+    Agora exige papel de equipe (`admin`/`master`/`entrevistador`/`coordenador_de_tratamento`/`tarefeiro`),
+    bloqueando `assistido`.
+- **Funções 100% internas (só chamadas por edge function via `service_role`):**
+  `comunicadores_elegiveis` e `fila_humana_pendente` tiveram `authenticated` revogado
+  (mantido `service_role`). Saíram da superfície do `0029`.
+- **Funções de gatilho (13):** `authenticated`/`anon`/`PUBLIC` revogados — disparam como
+  owner e não precisam de `EXECUTE` de usuário. Saíram da superfície do `0029`.
+
+Resultado: lint `0029` reduzido de **80 → 65**. As **65** remanescentes são
+**arquitetura intencional** (ver padrão abaixo e §5/R3): RPCs de negócio que exigem
+login e fazem checagem interna de papel, helpers booleanos/escopados que sustentam
+RLS/policies (`has_role`, `is_active_*`, `*_belongs_to_coordinator`, `fn_coordena_tratamento`),
+ou funções que só leem/operam sobre o próprio `auth.uid()`.
+
+### Padrão formal: `SECURITY DEFINER` como fronteira de autorização
+
+1. **Sem `anon`.** Nenhuma função `public` é executável anonimamente (`0028` = 0).
+2. **Toda RPC de negócio executável por `authenticated` faz checagem interna de papel**
+   (`has_role(auth.uid(), ...)`) ou opera apenas sobre o próprio `auth.uid()`.
+3. **Funções 100% internas** não têm `authenticated`/`anon` — só `service_role`/owner.
+4. **Funções de gatilho** não têm `EXECUTE` de usuário (disparam como owner).
+5. **Helpers de RLS** (booleanos) **precisam** ser executáveis por `authenticated` para
+   as policies funcionarem — `0029` neles é esperado e aceitável.
+
+Sob esse padrão, o `0029` deixa de ser "porta aberta": é apenas o registro de que a
+autorização vive **dentro** da função (fronteira `SECURITY DEFINER`), não no GRANT.
 
 ---
 
