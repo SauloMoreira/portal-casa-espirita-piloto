@@ -118,10 +118,43 @@ foi **eliminada**. Para todas as funções `public` antes executáveis por `anon
 - **Funções de gatilho** tiveram `anon`/`PUBLIC` revogados por consistência
   (triggers não precisam de `EXECUTE` para disparar).
 
-Resultado: `0028` (anon) = **0**. O lint `0029` (SECURITY DEFINER executável por
-usuário autenticado) permanece como risco residual aceito — essas funções já
-fazem checagem interna de papel via `has_role`/`auth.uid()` e/ou são usadas em
-policies/triggers; consolidação documental prevista para o Lote 3 (ver §5).
+Resultado: `0028` (anon) = **0**.
+
+### Endurecimento S1 / Lote 3 (2026-06-29) — consolidação do `0029`
+
+Revisão nominal das funções `SECURITY DEFINER` ainda executáveis por `authenticated`
+(80 ocorrências do lint `0029` antes do Lote 3 = 67 RPCs + 13 funções de gatilho):
+
+- **Risco residual real corrigido (sem checagem interna + dado sensível):**
+  - `lista_usuarios_email` — retornava o e-mail de **todos** os usuários sem checagem.
+    Agora exige internamente `admin`/`administrador_master`.
+  - `staff_names` — retornava o diretório de nomes de perfis sem checagem.
+    Agora exige papel de equipe (`admin`/`master`/`entrevistador`/`coordenador_de_tratamento`/`tarefeiro`),
+    bloqueando `assistido`.
+- **Funções 100% internas (só chamadas por edge function via `service_role`):**
+  `comunicadores_elegiveis` e `fila_humana_pendente` tiveram `authenticated` revogado
+  (mantido `service_role`). Saíram da superfície do `0029`.
+- **Funções de gatilho (13):** `authenticated`/`anon`/`PUBLIC` revogados — disparam como
+  owner e não precisam de `EXECUTE` de usuário. Saíram da superfície do `0029`.
+
+Resultado: lint `0029` reduzido de **80 → 65**. As **65** remanescentes são
+**arquitetura intencional** (ver padrão abaixo e §5/R3): RPCs de negócio que exigem
+login e fazem checagem interna de papel, helpers booleanos/escopados que sustentam
+RLS/policies (`has_role`, `is_active_*`, `*_belongs_to_coordinator`, `fn_coordena_tratamento`),
+ou funções que só leem/operam sobre o próprio `auth.uid()`.
+
+### Padrão formal: `SECURITY DEFINER` como fronteira de autorização
+
+1. **Sem `anon`.** Nenhuma função `public` é executável anonimamente (`0028` = 0).
+2. **Toda RPC de negócio executável por `authenticated` faz checagem interna de papel**
+   (`has_role(auth.uid(), ...)`) ou opera apenas sobre o próprio `auth.uid()`.
+3. **Funções 100% internas** não têm `authenticated`/`anon` — só `service_role`/owner.
+4. **Funções de gatilho** não têm `EXECUTE` de usuário (disparam como owner).
+5. **Helpers de RLS** (booleanos) **precisam** ser executáveis por `authenticated` para
+   as policies funcionarem — `0029` neles é esperado e aceitável.
+
+Sob esse padrão, o `0029` deixa de ser "porta aberta": é apenas o registro de que a
+autorização vive **dentro** da função (fronteira `SECURITY DEFINER`), não no GRANT.
 
 ---
 
@@ -161,22 +194,25 @@ policies/triggers; consolidação documental prevista para o Lote 3 (ver §5).
 - **Mitigação:** sem PII de pessoas; gestão restrita a `admin`.
 - **Impacto:** baixo. **Responsável:** Admin. **Revisão:** 2026-12-11.
 
-### R2 — Bucket público de avatar (leitura/listagem)
-- **Descrição:** leitura pública das fotos e possibilidade de listar objetos.
-- **Motivo:** exibição de fotos na UI via URL pública.
-- **Mitigação:** nomes com UUID; escrita isolada por usuário; só fotos.
+### R2 — Bucket público de avatar (exibição direta) — RESOLVIDO (Lote 2)
+- **Descrição:** leitura pública das imagens via URL direta. **Listagem pública removida.**
+- **Motivo:** exibição de fotos/imagens na UI via URL pública (`getPublicUrl`).
+- **Mitigação:** policy SELECT ampla para `public` removida; SELECT restrito ao dono;
+  escrita isolada por usuário. Sem capacidade de enumeração anônima (lint `0025` = 0).
 - **Impacto:** baixo. **Responsável:** Admin. **Revisão:** 2026-12-11.
 
-### R3 — Funções SECURITY DEFINER executáveis por autenticado (lint 0029)
-- **Descrição:** após o Lote 1, **nenhuma** função `public` é executável por `anon`
-  (lint `0028` = 0). Permanecem funções `SECURITY DEFINER` chamáveis por usuário
-  **autenticado** (lint `0029`).
-- **Motivo:** necessárias dentro de policies/triggers (ex.: `has_role`) e como RPCs
-  de negócio que já exigem login.
-- **Mitigação:** cada uma faz checagem interna de papel via `has_role`/`auth.uid()`
-  ou retorna apenas booleano/nome; funções 100% internas só rodam via `service_role`.
-- **Plano:** consolidação documental "SECURITY DEFINER como fronteira de auth" no Lote 3.
-- **Impacto:** baixo. **Responsável:** Equipe técnica. **Revisão:** 2026-12-11.
+### R3 — Funções SECURITY DEFINER executáveis por autenticado (lint 0029) — CONSOLIDADO (Lote 3)
+- **Descrição:** nenhuma função `public` é executável por `anon` (`0028` = 0). Permanecem
+  **65** funções `SECURITY DEFINER` chamáveis por `authenticated` (`0029`).
+- **Motivo:** são (a) RPCs de negócio que exigem login e validam papel internamente,
+  (b) helpers booleanos/escopados que sustentam RLS/policies (`has_role`, `is_active_*`,
+  `*_belongs_to_coordinator`), ou (c) funções que só operam sobre o próprio `auth.uid()`.
+- **Mitigação:** padrão formal "SECURITY DEFINER como fronteira de autorização" (§3):
+  autorização vive dentro da função. Lote 3 corrigiu os 2 casos reais sem checagem
+  (`lista_usuarios_email`, `staff_names`), removeu `authenticated` de 2 funções internas
+  (`comunicadores_elegiveis`, `fila_humana_pendente`) e dos 13 gatilhos.
+- **Impacto residual:** baixo e **aceito por arquitetura**. **Responsável:** Equipe técnica.
+  **Revisão:** 2026-12-11.
 
 ### R4 — Realtime baseado em Postgres Changes
 - **Descrição:** entrega de eventos em tempo real.
