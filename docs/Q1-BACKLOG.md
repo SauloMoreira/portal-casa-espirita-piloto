@@ -75,6 +75,16 @@
   - Nenhuma alteração de runtime, RLS, grants/revokes ou `SECURITY DEFINER`.
     `0028=0`, `0025=0`, `0029=56` mantidos.
 
+### Q1-B3 — Status operacionais remanescentes
+- **Status:** 🟡 desenho operacional (inventário em `docs/Q1-B3-INVENTARIO.md`,
+  SEM implementação corretiva)
+- **Escopo:** `notif_status`, `notif_evento`, `notif_canal`, diagnóstico de
+  pendência de fila (`fn_fila_diagnostico_pendentes`) e `avisos_ausencia.status`.
+- **Fora de escopo:** termo/status de voluntário, labels amplos, fluxo de agenda,
+  payloads RPC (Q1-C) e qualquer alteração de segurança.
+
+
+
 ## Q1-C — Payloads RPC e espelhos TS
 - **Status:** planejado
 - **Escopo:** RPCs sensíveis chamadas pelo frontend; tipos de input/output;
