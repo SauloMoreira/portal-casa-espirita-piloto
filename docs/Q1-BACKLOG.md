@@ -48,10 +48,26 @@
     alterada. `0028=0`, `0025=0`, `0029=56` mantidos.
 
 ## Q1-B — Status e estados operacionais
-- **Status:** 🟢 em andamento (Q1-B1 ✅ / Q1-B2 ✅ / Q1-B3 ✅)
+- **Status:** ✅ concluída (Q1-B1 ✅ / Q1-B2 ✅ / Q1-B3 ✅)
 - **Escopo:** presença, fila, diagnóstico, entrevista, aviso de ausência, termo,
   voluntário e vínculo. Tornar contratos `Record<string,string>` tipados quando
   seguro; travar conjuntos contra check constraints reais (testes de integração).
+- **Fechamento:**
+  - Todos os achados críticos tratados (`ENTREVISTA_STATUS` + `remarcada`;
+    `VINCULO_STATUS` redefinido para 8 valores reais do CHECK, removendo
+    `ativo`/`pausado` inventados).
+  - Todos os achados “precisa correção” tratados (`notif_status`, `notif_evento`,
+    `notif_canal` centralizados em `src/constants/notificacoes.ts`; `aviso_ausencia`
+    e diagnóstico de fila reforçados por teste).
+  - Contratos aceitáveis por arquitetura (`presenca`, `voluntarios.termo_status`,
+    `voluntarios.status`, `fn_fila_motivo_inelegivel`) permanecem documentados
+    nos respectivos módulos sem alteração.
+  - Testes puros: `q1b2-status-canonicos.test.ts`, `q1b3-status-notificacoes.test.ts`.
+  - Testes reais (`npm run test:db`): `q1b2-status-paridade.dbtest.ts`,
+    `q1b3-status-paridade.dbtest.ts`, `presenca-coerencia.dbtest.ts`.
+  - Segurança: nenhuma alteração de runtime, dispatch, fila, inserts, elegibilidade,
+    RLS, grants/revokes ou `SECURITY DEFINER`. Guardas S1/P1/Q1-A2 inalteradas.
+  - Métricas mantidas: **0028=0, 0025=0, 0029=56**.
 
 ### Q1-B1 — Diagnóstico dos contratos críticos de status
 - **Status:** ✅ concluído (relatório em `docs/Q1-B1-DIAGNOSTICO-CRITICOS.md`)
