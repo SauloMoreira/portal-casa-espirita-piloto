@@ -97,3 +97,27 @@ Documento sensível (`termos-voluntarios`) confirmado privado, sem URL pública 
 6. Warnings aceitos registrados como arquitetura intencional (baldes B/C) → **este documento + `docs/SECURITY.md`**.
 7. `0028`=0 / `0025`=0 mantidos → **OK**.
 8. Suíte de governança verde (130/130) → **OK**.
+
+## 6. Lote C — Reconciliação final do `0029` (2026-06-30) — P1 ENCERRADA
+
+**`0029`: 66 → 56.** Distribuição final: **A=44 · B=10 · C=10 · Pilotos=2**.
+Detalhamento completo (tabela das 10 revogadas, guardas do Balde A, helpers do Balde B,
+contrato do pipeline de exceção) em `docs/SECURITY.md` §10.
+
+- **Saíram de `authenticated` (Balde C, 10):** `count_active_masters`, `count_apt_admins`,
+  `fn_sanear_fila_notificacoes`, `fn_fila_motivo_inelegivel`,
+  `fn_reconciliar_excecoes_notificacoes`, `fn_confirmacao_agendamento_ativa`,
+  `fn_confirmacao_entrevista_ativa`, `fn_lembrete_antecedencia_horas`,
+  `fn_proxima_sessao_vinculo`, `fn_eh_proxima_sessao`.
+- **Permaneceram por arquitetura intencional:** Balde A (44 RPCs de negócio com guarda
+  interna de papel) + Balde B (10 helpers de RLS executáveis por `authenticated`) +
+  Pilotos (2, com débito de expiração).
+- **Contrato preservado:** `fn_processar_excecao_notificacoes` /
+  `fn_monitor_excecao_notificacoes` → autenticado sem papel negado; interno/service_role
+  permitido.
+- **Verificação:** `lote-c-residual-0029.dbtest.ts` (17) + governança 130/130 + `0029`=56
+  confirmado em consulta direta. `0028`=0 / `0025`=0 mantidos.
+
+> Critério de pronto da P1 atendido: 100% das funções privilegiadas com decisão registrada;
+> nenhuma superfície pública sem justificativa; warnings aceitos documentados como arquitetura
+> intencional. **P1 encerrada formalmente.**
