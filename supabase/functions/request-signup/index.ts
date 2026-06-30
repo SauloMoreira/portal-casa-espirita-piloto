@@ -119,6 +119,6 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     log.error("request_signup_failed", { message: (err as Error).message });
-    return json({ error: (err as Error).message }, 500);
+    return json({ error: "Erro interno. Tente novamente." }, 500);
   }
 });

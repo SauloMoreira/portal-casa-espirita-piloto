@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     log.error("checkin_failed", { message: (err as Error).message });
     return new Response(
-      JSON.stringify({ error: (err as Error).message || "Erro interno" }),
+      JSON.stringify({ error: "Erro interno. Tente novamente." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
