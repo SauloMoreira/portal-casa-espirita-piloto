@@ -12,6 +12,27 @@ export const APP_ROLES = [
   "coordenador_de_tratamento",
 ] as const;
 
+/**
+ * Canonical single-role identifiers. These are presentation/consumer-level
+ * constants that mirror the `app_role` enum values exactly. Using them instead
+ * of bare string literals removes drift risk in route/menu/view logic.
+ *
+ * IMPORTANT: these are NOT authorization boundaries. The effective security
+ * guards remain in the backend (RLS / SECURITY DEFINER / RPC). Substituting a
+ * literal for one of these constants is a behavior-identical refactor only.
+ */
+export const ROLE = {
+  ADMIN: "admin",
+  ADMINISTRADOR_MASTER: "administrador_master",
+  ENTREVISTADOR: "entrevistador",
+  TAREFEIRO: "tarefeiro",
+  ASSISTIDO: "assistido",
+  COORDENADOR_DE_TRATAMENTO: "coordenador_de_tratamento",
+} as const satisfies Record<string, AppRole>;
+
+/** Managerial view roles (admin + coordenador) — presentation-only grouping. */
+export const GERENCIAL_ROLES: AppRole[] = ["admin", "coordenador_de_tratamento"];
+
 /** Human-readable labels for each role. */
 export const ROLE_LABELS: Record<AppRole, string> = {
   admin: "Administrador",
