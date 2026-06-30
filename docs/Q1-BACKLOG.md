@@ -27,7 +27,7 @@
   proposta de correção + proposta de testes bloqueantes.
 
 ## Q1-A2 — Consolidação segura de roles/enums
-- **Status:** ✅ implementado / em validação
+- **Status:** ✅ concluído (validado por `npm run test:db` — 63/63 verdes; paridade `pg_enum` em `q1a2-enums-paridade.dbtest.ts` 2/2)
 - **Tipo:** qualidade técnica / contratos canônicos
 - **Escopo:** substituir strings soltas por constantes canônicas onde o A1
   classificou como "precisa correção"/"crítico"; criar testes bloqueantes com
