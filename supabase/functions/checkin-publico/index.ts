@@ -49,9 +49,12 @@ Deno.serve(async (req) => {
 
   const reject = async (status: number, error: string, token: string | null, extra: Record<string, unknown> = {}) => {
     await logAttempt(token, false, error);
+    // Never expose technical details (DB errors, internals) in HTTP responses.
+    // Full detail stays in server logs; the client gets a generic 500 message.
+    const clientError = status >= 500 ? "Erro interno. Tente novamente." : error;
     if (status >= 500) log.error("checkin_rejected", { status, error });
     else log.warn("checkin_rejected", { status, error });
-    return new Response(JSON.stringify({ error, ...extra }), {
+    return new Response(JSON.stringify({ error: clientError, ...extra }), {
       status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
