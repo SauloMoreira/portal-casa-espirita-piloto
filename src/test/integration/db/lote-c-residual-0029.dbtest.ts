@@ -80,12 +80,11 @@ d("Lote C — Balde A (governança) mantém guarda interna", () => {
       const assistido = await getUserByRole(c, "assistido");
       expect(assistido).toBeTruthy();
       await actAs(c, assistido!);
-      await expect(
-        c.query(
-          "SELECT public.fn_conceder_acesso_operacional($1,$2)",
-          [assistido, "coordenador_de_tratamento"],
-        ),
-      ).rejects.toThrow(/negad|permiss|gest|admin/i);
+      const r = await c.query(
+        "SELECT public.fn_conceder_acesso_operacional($1,$2) AS res",
+        [assistido, "coordenador_de_tratamento"],
+      );
+      expect(r.rows[0].res.error).toMatch(/administrador|negad|permiss|gest|admin/i);
     });
   });
 });
