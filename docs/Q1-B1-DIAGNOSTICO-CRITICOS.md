@@ -1,8 +1,8 @@
 # Q1-B1 — Diagnóstico final dos contratos críticos de status
 
 > **Frente:** qualidade técnica / contratos canônicos.
-> **Status:** 🟡 diagnóstico (SEM implementação, SEM alteração de runtime).
-> **Diretrizes invioláveis (mantidas):** não alterar RLS, grants/revokes,
+> **Status:** ✅ correção aplicada em **Q1-B2** (ver §6). Diagnóstico original
+> mantido para auditoria.
 > `SECURITY DEFINER`, guardas S1/P1/Q1-A2.
 > Documento somente leitura/auditoria.
 

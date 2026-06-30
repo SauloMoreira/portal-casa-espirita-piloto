@@ -48,10 +48,27 @@
     alterada. `0028=0`, `0025=0`, `0029=56` mantidos.
 
 ## Q1-B — Status e estados operacionais
-- **Status:** planejado
+- **Status:** 🟢 em andamento (Q1-B1 diagnóstico ✅ / Q1-B2 correção crítica ✅)
 - **Escopo:** presença, fila, diagnóstico, entrevista, aviso de ausência, termo,
   voluntário e vínculo. Tornar contratos `Record<string,string>` tipados quando
   seguro; travar conjuntos contra check constraints reais (testes de integração).
+
+### Q1-B2 — Correção cirúrgica dos contratos críticos de status
+- **Status:** ✅ concluído (sem schema change, sem tocar RLS/grants/SECURITY DEFINER)
+- **Entregue:**
+  - `ENTREVISTA_STATUS` em `src/constants/status.ts` agora inclui `remarcada`
+    (alinhado ao CHECK `entrevistas_fraternas_status_check`).
+  - `VINCULO_STATUS` redefinido para os **8 valores reais** do CHECK
+    `assistido_tratamentos_status_check` (`aguardando_inicio`,
+    `aguardando_liberacao`, `aguardando_agendamento`, `liberado`, `em_andamento`,
+    `concluido`, `suspenso`, `cancelado`). Removidos os inventados `ativo`/`pausado`.
+  - Teste puro `src/test/governanca/q1b2-status-canonicos.test.ts` (paridade de
+    conjunto + subconjunto `VINCULO_STATUS_RESETAVEL`).
+  - Teste de banco real `src/test/integration/db/q1b2-status-paridade.dbtest.ts`
+    (paridade contra CHECK constraints reais via `pg_get_constraintdef`).
+  - `npm run test:db` 65/65 verdes; governança pura verde.
+  - Nenhuma alteração de runtime, RLS, grants/revokes ou `SECURITY DEFINER`.
+    `0028=0`, `0025=0`, `0029=56` mantidos.
 
 ## Q1-C — Payloads RPC e espelhos TS
 - **Status:** planejado
