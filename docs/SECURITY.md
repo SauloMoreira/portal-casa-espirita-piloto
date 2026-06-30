@@ -334,3 +334,61 @@ Procedimento operacional: gerar novo segredo, atualizar a linha `name='default'`
 `app_cron_secrets` (acesso service_role) e atualizar o header `x-cron-secret` usado pelos
 jobs pg_cron. A função compartilhada `_shared/auth.ts::guardCronOrStaff` valida o segredo
 contra a tabela; trocar a tabela e o agendador na mesma janela evita downtime.
+
+## 10. P1 — Lote C · Classificação final do residual `0029` (2026-06-30)
+
+Fechamento da P1. As 66 funções `SECURITY DEFINER` executáveis por `authenticated`
+foram reconciliadas em baldes definitivos. Resultado: **`0029` 66 → 56**.
+
+### 10.1 Reconciliação numérica
+- Total inicial `0029`: **66**
+- Revogadas de `authenticated` (Balde C): **10**
+- **Total final `0029`: 56**
+- Distribuição: **A=44 · B=10 · C=10 · Pilotos=2** (44+10+10+2 = 66).
+- `0028`=0 e `0025`=0 mantidos.
+
+### 10.2 Balde C — revogadas (`REVOKE EXECUTE` de `authenticated`/`anon`/`PUBLIC`)
+Funções internas (cron/service_role/owner) ou órfãs, sem caller autenticado:
+
+| Função | Razão | Caller real preservado |
+|---|---|---|
+| `count_active_masters()` | órfã (sem caller) | — |
+| `count_apt_admins()` | órfã (sem caller) | — |
+| `fn_sanear_fila_notificacoes()` | saneamento interno da fila | cron / service_role |
+| `fn_fila_motivo_inelegivel(uuid)` | helper de elegibilidade | edge `notificacoes-dispatch` (service_role) + chamadas internas |
+| `fn_reconciliar_excecoes_notificacoes()` | reconciliação interna | cron / service_role |
+| `fn_confirmacao_agendamento_ativa()` | leitor de parâmetro interno | funções `SECURITY DEFINER` internas |
+| `fn_confirmacao_entrevista_ativa()` | leitor de parâmetro interno | funções `SECURITY DEFINER` internas |
+| `fn_lembrete_antecedencia_horas()` | leitor de parâmetro interno | funções `SECURITY DEFINER` internas |
+| `fn_proxima_sessao_vinculo(uuid)` | helper de vínculo | funções internas / policies |
+| `fn_eh_proxima_sessao(uuid)` | helper de próxima sessão | funções internas / policies |
+
+### 10.3 Balde A — aceito por arquitetura (44, RPCs de negócio com guarda interna)
+Mantêm `EXECUTE` para `authenticated` **com checagem interna de papel** (caller real
+declarado em `docs/P1-AUDITORIA-SUPERFICIES.md`). Nenhuma guarda foi afrouxada.
+Inclui PII/privilégio (`lista_usuarios_email`, `staff_names`, `fn_entrevistas_operacional`,
+`dashboard_admin`, `preparar_envio_institucional`, …), escrita/governança
+(`fn_conceder_acesso_operacional`, `registrar_presenca`, `pts_*`,
+`migrar_assistido_legado_tratamento`, `registrar_auditoria_reconciliacao`, …).
+
+#### Pipeline de exceção — contrato preservado
+`fn_processar_excecao_notificacoes`, `fn_monitor_excecao_notificacoes`,
+`fn_reconciliar_…` (interna) seguem a regra:
+- usuário **autenticado sem papel de gestor → negado** (`fn_eh_gestor(auth.uid())`);
+- **caminho interno (`auth.uid()` nulo, cron/service_role) → permitido**.
+`fn_processar_excecao_notificacoes` e `fn_monitor_excecao_notificacoes` permanecem em
+Balde A (têm caller autenticado de gestor); `fn_reconciliar_excecoes_notificacoes` foi
+para Balde C (apenas caller interno).
+
+### 10.4 Balde B — helpers de RLS (10) e Pilotos (2)
+Balde B: `has_role`, `is_active_admin`, `is_active_master`, `fn_eh_staff`, `fn_eh_gestor`,
+`fn_coordena_tratamento`, `assistido_belongs_to_coordinator`,
+`entrevista_assistido_belongs_to_coordinator`, `fn_listar_parametros_operacionais`,
+`fn_tratamentos_do_coordenador`. **Precisam** ser executáveis por `authenticated` para as
+policies funcionarem. Pilotos: `pts_homologacao_auditar`, `pts_rollback_piloto` (débito de
+expiração já registrado em §9.3).
+
+### 10.5 Verificação
+- Integração real de banco: `src/test/integration/db/lote-c-residual-0029.dbtest.ts` (17 testes).
+- Governança: 130/130 verdes (sem regressão).
+- `0029` final confirmado por consulta direta = **56**.
