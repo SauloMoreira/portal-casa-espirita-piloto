@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, ArrowLeft, Users, CalendarCheck, ClipboardList, CheckCircle, CalendarX, Briefcase, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { ROLE, GERENCIAL_ROLES } from "@/constants/roles";
 import AssistidosPorTratamento from "@/components/relatorios/AssistidosPorTratamento";
 import FrequenciaPresenca from "@/components/relatorios/FrequenciaPresenca";
 import EntrevistasRealizadas from "@/components/relatorios/EntrevistasRealizadas";
