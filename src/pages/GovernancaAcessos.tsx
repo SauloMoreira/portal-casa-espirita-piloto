@@ -163,14 +163,11 @@ export default function GovernancaAcessos() {
   const handleDecidir = async (req: RequestRow, decision: "aprovar" | "rejeitar", motivo?: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("decidir_promocao_admin", {
-        p_request_id: req.id,
-        p_decision: decision,
-        p_motivo: motivo || null,
+      const { status } = await decidirPromocaoAdmin({
+        requestId: req.id,
+        decision,
+        motivo: motivo || null,
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
-      const status = (data as any)?.status as PromotionStatus;
       toast({
         title: decision === "rejeitar" ? "Solicitação rejeitada" : status === "aprovado" ? "Acesso concedido" : "Aprovação registrada",
         description: status === "aprovado_parcialmente" ? "Aguardando a segunda aprovação." : undefined,
