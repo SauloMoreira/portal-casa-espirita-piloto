@@ -12,6 +12,17 @@ import {
   type ParametrosTipoAgenda,
 } from "@/lib/agendaRules";
 import { resolverDataBaseProjecao } from "@/lib/migracaoLegado";
+import {
+  registrarPresencaRpc,
+  registrarAusenciaRpc,
+  rollbackPilotoRpc,
+  homologacaoAuditarRpc,
+  type RollbackResult,
+  type PresencaResult,
+  type AusenciaResult,
+} from "@/services/agendaPlano/planoRpcService";
+
+export type { RollbackResult, PresencaResult, AusenciaResult };
 
 /**
  * Orquestração TS do NOVO MODELO (plano previsto + agenda ativa + histórico).
