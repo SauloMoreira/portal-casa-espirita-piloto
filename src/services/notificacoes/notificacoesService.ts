@@ -30,6 +30,8 @@ export type {
   PainelWhatsapp,
   SeriePonto,
   PainelV2,
+  EncerramentoErroCadastroResult,
+  MensagemManualResult,
 };
 
 export interface PreferenciaNotificacao {
