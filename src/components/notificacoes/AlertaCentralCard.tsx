@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { souComunicadorElegivel } from "@/services/notificacoes/comunicadorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -26,8 +27,7 @@ export function AlertaCentralCard() {
     const carregar = async () => {
       if (!user) return;
       setCarregando(true);
-      const { data: ehElegivel } = await (supabase.rpc as any)("sou_comunicador_elegivel");
-      const elig = Boolean(ehElegivel);
+      const elig = await souComunicadorElegivel();
       setElegivel(elig);
 
       if (elig) {
