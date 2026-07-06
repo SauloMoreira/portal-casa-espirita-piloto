@@ -173,6 +173,7 @@ export function useFazerEntrevista() {
     setAiSugestao("");
     setAiSugestaoId(null);
     setAiEstruturada(null);
+    setAiMotivoAjuste("");
   }, []);
 
   const setQtd = useCallback((tratId: string, val: string) => {
