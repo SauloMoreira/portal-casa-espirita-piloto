@@ -84,6 +84,12 @@ export interface IaIndicadores {
   totalSugestoes: number;
   avaliadas: number;
   pendentes: number;
+  /** Sugestões pendentes criadas há mais de PENDENTE_ANTIGA_DIAS. */
+  pendentesAntigas: number;
+  /** Base considerada na taxa de aderência: exclui "sem uso" e "inconclusiva". */
+  baseAderencia: number;
+  /** Contagem de feedbacks com motivo de ajuste preenchido (sem expor texto). */
+  motivosPreenchidos: number;
   aderenciaTotal: number;
   aderenciaParcial: number;
   divergencia: number;
