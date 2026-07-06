@@ -169,3 +169,42 @@ export interface PainelV2 {
 export function parsePainelV2(data: unknown): PainelV2 {
   return (data as PainelV2 | null) ?? { autorizado: false };
 }
+
+// ===== Ações auditáveis (RPCs SECURITY DEFINER) =====
+// Q1-C6 — retornos tratados como sucesso direto da RPC. O erro de negócio
+// continua vindo pelo canal `error` do PostgREST/Supabase; por isso os parsers
+// NÃO introduzem fallback artificial — apenas tipam o payload de sucesso.
+
+/** Resultado estruturado do encerramento manual de um item por erro de cadastro. */
+export interface EncerramentoErroCadastroResult {
+  ok: boolean;
+  fila_id: string;
+  status: string;
+  motivo_encerramento: string;
+  motivo_anterior: string | null;
+  assistido_id: string | null;
+  encerrado_por: string | null;
+  encerrado_em: string;
+}
+
+/** Normaliza o retorno jsonb de `fn_encerrar_item_fila_erro_cadastro`. */
+export function parseEncerramentoErroCadastro(data: unknown): EncerramentoErroCadastroResult {
+  return data as EncerramentoErroCadastroResult;
+}
+
+/** Resultado estruturado do enfileiramento de uma mensagem manual. */
+export interface MensagemManualResult {
+  ok: boolean;
+  fila_id: string;
+  assistido_id: string;
+  assistido_nome: string | null;
+  telefone: string;
+  status: string;
+  origem_manual: string;
+  enviado_por: string | null;
+}
+
+/** Normaliza o retorno jsonb de `fn_enfileirar_mensagem_manual`. */
+export function parseMensagemManual(data: unknown): MensagemManualResult {
+  return data as MensagemManualResult;
+}

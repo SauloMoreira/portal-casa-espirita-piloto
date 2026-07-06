@@ -3,6 +3,8 @@ import {
   parseConversasResultado,
   parsePainelWhatsapp,
   parsePainelV2,
+  parseEncerramentoErroCadastro,
+  parseMensagemManual,
 } from "./notificacoesContracts";
 import type {
   ConversaEnriquecida,
@@ -13,6 +15,8 @@ import type {
   PainelWhatsapp,
   SeriePonto,
   PainelV2,
+  EncerramentoErroCadastroResult,
+  MensagemManualResult,
 } from "./notificacoesContracts";
 
 // Q1-C5 — contratos jsonb sensíveis centralizados em notificacoesContracts.
@@ -26,6 +30,8 @@ export type {
   PainelWhatsapp,
   SeriePonto,
   PainelV2,
+  EncerramentoErroCadastroResult,
+  MensagemManualResult,
 };
 
 export interface PreferenciaNotificacao {
@@ -343,17 +349,7 @@ export function aplicarDiagnosticoFila(
 
 
 
-/** Resultado estruturado do encerramento manual de um item por erro de cadastro. */
-export interface EncerramentoErroCadastroResult {
-  ok: boolean;
-  fila_id: string;
-  status: string;
-  motivo_encerramento: string;
-  motivo_anterior: string | null;
-  assistido_id: string | null;
-  encerrado_por: string | null;
-  encerrado_em: string;
-}
+// Q1-C6 — EncerramentoErroCadastroResult centralizado em notificacoesContracts.
 
 /**
  * Encerra SOMENTE o item atual da fila que ficou inviável por erro de cadastro.
@@ -373,7 +369,7 @@ export async function encerrarItemFilaErroCadastro(
     p_observacao: observacao?.trim() ? observacao.trim() : null,
   });
   if (error) throw error;
-  return data as unknown as EncerramentoErroCadastroResult;
+  return parseEncerramentoErroCadastro(data);
 }
 
 // ============================================================================
@@ -413,17 +409,7 @@ export async function buscarDestinatariosManual(termo: string): Promise<Destinat
   }));
 }
 
-/** Resultado estruturado do enfileiramento de uma mensagem manual. */
-export interface MensagemManualResult {
-  ok: boolean;
-  fila_id: string;
-  assistido_id: string;
-  assistido_nome: string | null;
-  telefone: string;
-  status: string;
-  origem_manual: string;
-  enviado_por: string | null;
-}
+// Q1-C6 — MensagemManualResult centralizado em notificacoesContracts.
 
 /**
  * Enfileira uma mensagem manual controlada para um destinatário específico.
@@ -444,7 +430,7 @@ export async function enfileirarMensagemManual(params: {
     p_observacao: params.observacao?.trim() ? params.observacao.trim() : null,
   });
   if (error) throw error;
-  return data as unknown as MensagemManualResult;
+  return parseMensagemManual(data);
 }
 
 
