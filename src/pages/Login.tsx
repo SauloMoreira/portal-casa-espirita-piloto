@@ -37,9 +37,9 @@ export default function Login() {
       // and must complete the TOTP step before reaching protected content.
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aal?.currentLevel === "aal1" && aal?.nextLevel === "aal2") {
-        navigate("/mfa-verify");
+        navigate(nextPath ? `/mfa-verify?next=${encodeURIComponent(nextPath)}` : "/mfa-verify");
       } else {
-        navigate("/dashboard");
+        navigate(nextPath ?? "/dashboard");
       }
     } catch (error: any) {
       toast({
