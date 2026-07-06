@@ -105,7 +105,19 @@ export interface FeedbackRow {
   sugestao_ia_id: string;
   classificacao: string;
   atribuicao_final_json?: unknown;
+  /** Texto livre opcional de ajuste/rejeição (Q2-A2.1). Nunca exposto cru
+   *  nos agregados: usado apenas para CONTAGEM de feedbacks com motivo. */
+  motivo_ajuste?: string | null;
 }
+
+/**
+ * Sugestões pendentes com mais dias que este limite são consideradas
+ * "antigas" apenas para dar visibilidade de leitura. Não gera cobrança,
+ * SLA, notificação nem ranking.
+ */
+export const PENDENTE_ANTIGA_DIAS = 30;
+
+const DIA_MS = 24 * 60 * 60 * 1000;
 
 const asArray = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 
