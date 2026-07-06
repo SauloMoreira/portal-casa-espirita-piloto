@@ -34,7 +34,7 @@ export default function MfaVerify() {
       if (!s) { if (active) navigate("/login", { replace: true }); return; }
       const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       const pending = data?.currentLevel === "aal1" && data?.nextLevel === "aal2";
-      if (active && !pending) navigate("/dashboard", { replace: true });
+      if (active && !pending) navigate(nextPath, { replace: true });
     })();
     return () => { active = false; };
   }, [navigate]);
