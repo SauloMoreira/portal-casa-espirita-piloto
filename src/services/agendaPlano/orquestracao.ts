@@ -382,16 +382,14 @@ export async function registrarAusenciaPlano(
   });
   const novaData = proj.sessoes[0]?.data_sessao ?? null;
 
-  const { data: resp, error } = await supabase.rpc("pts_registrar_ausencia", {
-    p_vinculo_id: vinculoId,
-    p_data: data,
-    p_registrado_por: registradoPor,
-    p_nova_data: novaData ?? undefined,
-    p_nova_horario: novoHorario ?? undefined,
-  } as never);
-  if (error) throw new Error(error.message);
+  const r = await registrarAusenciaRpc({
+    vinculoId,
+    data,
+    registradoPor,
+    novaData: novaData ?? undefined,
+    novaHorario: novoHorario ?? undefined,
+  });
 
-  const r = (resp ?? {}) as unknown as AusenciaResult;
   return {
     suspenso: r.suspenso ?? false,
     faltas_consecutivas: r.faltas_consecutivas ?? 0,
