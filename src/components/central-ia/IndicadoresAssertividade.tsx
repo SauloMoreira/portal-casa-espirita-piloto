@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { BarChart3, CheckCircle, AlertTriangle, Brain, MinusCircle, X } from "lucide-react";
+import { BarChart3, CheckCircle, AlertTriangle, Brain, MinusCircle, X, HelpCircle } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -56,18 +56,42 @@ export default function IndicadoresAssertividade() {
   if (loading) return <div className="space-y-6">{filtros}<div className="text-center text-muted-foreground py-12">Carregando indicadores...</div></div>;
 
   const pieData = [
-    { name: "Acertou totalmente", value: data.aderenciaTotal, color: "hsl(var(--primary))" },
-    { name: "Acertou parcialmente", value: data.aderenciaParcial, color: "hsl(var(--secondary))" },
-    { name: "Inadequada", value: data.divergencia, color: "hsl(var(--destructive))" },
+    { name: "Convergência total", value: data.aderenciaTotal, color: "hsl(var(--primary))" },
+    { name: "Convergência parcial", value: data.aderenciaParcial, color: "hsl(var(--secondary))" },
+    { name: "Divergência", value: data.divergencia, color: "hsl(var(--destructive))" },
     { name: "Inconclusiva", value: data.inconclusiva, color: "hsl(var(--muted-foreground))" },
     { name: "Sem uso", value: data.semUso, color: "hsl(var(--border))" },
   ].filter((d) => d.value > 0);
 
   const cards = [
-    { label: "Entrevistas com IA", value: data.totalSugestoes, icon: Brain, hint: `${data.avaliadas} avaliadas · ${data.pendentes} pendentes` },
-    { label: "Aderência total", value: `${data.taxaAderenciaTotal}%`, icon: CheckCircle, hint: `${data.aderenciaTotal} sugestões` },
-    { label: "Aderência parcial", value: `${data.taxaAderenciaParcial}%`, icon: BarChart3, hint: `${data.aderenciaParcial} sugestões` },
-    { label: "Divergência", value: `${data.taxaDivergencia}%`, icon: AlertTriangle, hint: `${data.divergencia} sugestões` },
+    {
+      label: "Entrevistas com apoio da IA",
+      value: data.totalSugestoes,
+      icon: Brain,
+      hint: `${data.avaliadas} avaliadas · ${data.pendentes} pendentes`,
+      tip: "Total de entrevistas em que a IA foi usada como apoio. A decisão final é sempre humana.",
+    },
+    {
+      label: "Convergência total",
+      value: `${data.taxaAderenciaTotal}%`,
+      icon: CheckCircle,
+      hint: `${data.aderenciaTotal} de ${data.baseAderencia} avaliações`,
+      tip: "Percentual de casos em que a decisão humana coincidiu integralmente com a sugestão da IA. Não significa 'acerto absoluto' da IA — mede convergência com a decisão final registrada. Base exclui 'sem uso' e 'inconclusiva'.",
+    },
+    {
+      label: "Convergência parcial",
+      value: `${data.taxaAderenciaParcial}%`,
+      icon: BarChart3,
+      hint: `${data.aderenciaParcial} de ${data.baseAderencia} avaliações`,
+      tip: "Casos em que a decisão humana coincidiu em parte com a sugestão da IA. Base exclui 'sem uso' e 'inconclusiva'.",
+    },
+    {
+      label: "Divergência",
+      value: `${data.taxaDivergencia}%`,
+      icon: AlertTriangle,
+      hint: `${data.divergencia} de ${data.baseAderencia} avaliações`,
+      tip: "Casos em que a decisão humana diferiu da sugestão da IA. Divergência não é erro do entrevistador: a decisão fraterna/humana prevalece sobre o apoio da IA.",
+    },
   ];
 
   return (
@@ -77,9 +101,12 @@ export default function IndicadoresAssertividade() {
 
         {cards.map((c) => (
           <Card key={c.label}>
-            <CardContent className="pt-4">
+            <CardContent className="pt-4" title={c.tip}>
               <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">{c.label}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  {c.label}
+                  <HelpCircle className="h-3 w-3 opacity-50" />
+                </p>
                 <c.icon className="h-4 w-4 text-primary" />
               </div>
               <p className="text-2xl font-bold mt-1">{c.value}</p>
@@ -88,6 +115,30 @@ export default function IndicadoresAssertividade() {
           </Card>
         ))}
       </div>
+
+      <Card className="border-dashed">
+        <CardContent className="pt-4 space-y-1.5 text-xs text-muted-foreground">
+          <p className="text-foreground/80">
+            Os indicadores medem a <strong>convergência entre a sugestão da IA e a
+            decisão humana registrada</strong> — não o "acerto absoluto" da IA. A IA é
+            apoio; a decisão final é sempre fraterna e humana.
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+            <span>Base de aderência: <strong>{data.baseAderencia}</strong> avaliações consideradas</span>
+            <span>Sugestões geradas no período: <strong>{data.totalSugestoes}</strong></span>
+            <span>Avaliadas: <strong>{data.avaliadas}</strong></span>
+            <span>Pendentes: <strong>{data.pendentes}</strong>{data.pendentesAntigas > 0 && (
+              <> · <span className="text-amber-600 dark:text-amber-500">{data.pendentesAntigas} pendente(s) há mais de 30 dias</span></>
+            )}</span>
+            <span>Feedbacks com motivo de ajuste: <strong>{data.motivosPreenchidos}</strong></span>
+          </div>
+          {data.baseAderencia > 0 && data.baseAderencia < 10 && (
+            <p className="text-amber-600 dark:text-amber-500">
+              Amostra pequena ({data.baseAderencia} avaliações): interprete os percentuais com cautela.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {data.avaliadas === 0 ? (
         <Card>

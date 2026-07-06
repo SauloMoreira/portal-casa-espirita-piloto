@@ -105,7 +105,19 @@ export interface FeedbackRow {
   sugestao_ia_id: string;
   classificacao: string;
   atribuicao_final_json?: unknown;
+  /** Texto livre opcional de ajuste/rejeição (Q2-A2.1). Nunca exposto cru
+   *  nos agregados: usado apenas para CONTAGEM de feedbacks com motivo. */
+  motivo_ajuste?: string | null;
 }
+
+/**
+ * Sugestões pendentes com mais dias que este limite são consideradas
+ * "antigas" apenas para dar visibilidade de leitura. Não gera cobrança,
+ * SLA, notificação nem ranking.
+ */
+export const PENDENTE_ANTIGA_DIAS = 30;
+
+const DIA_MS = 24 * 60 * 60 * 1000;
 
 const asArray = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 
@@ -131,6 +143,7 @@ function topCount(
 export function aggregateIndicadores(
   sugestoes: SugestaoRow[],
   feedbacks: FeedbackRow[],
+  now: Date = new Date(),
 ): IaIndicadores {
   const totalSugestoes = sugestoes.length;
   const fbBySugestao = new Map<string, FeedbackRow>();
@@ -162,7 +175,30 @@ export function aggregateIndicadores(
   }
 
   const avaliadas = feedbacks.length;
-  const pct = (n: number) => (avaliadas > 0 ? Math.round((n / avaliadas) * 100) : 0);
+
+  // Base de ADERÊNCIA: exclui estados inconclusivos ("sem uso" e
+  // "inconclusiva"), que não representam acerto nem divergência real da IA.
+  // Assim a taxa principal mede convergência com a decisão humana sobre os
+  // casos efetivamente comparáveis, sem diluição enganosa.
+  const baseAderencia = aderenciaTotal + aderenciaParcial + divergencia;
+  const pct = (n: number) =>
+    baseAderencia > 0 ? Math.round((n / baseAderencia) * 100) : 0;
+
+  // Contagem simples de feedbacks com motivo de ajuste/rejeição preenchido.
+  // NUNCA expõe o texto livre; apenas quantifica (LGPD / dado sensível).
+  const motivosPreenchidos = feedbacks.filter(
+    (f) => typeof f.motivo_ajuste === "string" && f.motivo_ajuste.trim().length > 0,
+  ).length;
+
+  // Pendências: sugestões sem feedback registrado. "Antigas" = criadas há
+  // mais de PENDENTE_ANTIGA_DIAS. Apenas leitura — sem cobrança/SLA/ranking.
+  let pendentesAntigas = 0;
+  const limiteAntiga = now.getTime() - PENDENTE_ANTIGA_DIAS * DIA_MS;
+  for (const s of sugestoes) {
+    if (fbBySugestao.has(s.id)) continue;
+    const ts = s.created_at ? new Date(s.created_at).getTime() : NaN;
+    if (Number.isFinite(ts) && ts < limiteAntiga) pendentesAntigas++;
+  }
 
   // Tratamentos sugeridos x atribuídos
   const sugeridosFlat: Array<{ nome?: string | null }> = [];
@@ -227,6 +263,9 @@ export function aggregateIndicadores(
     totalSugestoes,
     avaliadas,
     pendentes: totalSugestoes - avaliadas,
+    pendentesAntigas,
+    baseAderencia,
+    motivosPreenchidos,
     aderenciaTotal,
     aderenciaParcial,
     divergencia,

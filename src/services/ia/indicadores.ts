@@ -26,11 +26,11 @@ export async function fetchIndicadoresIA(filtro: IndicadoresFiltro = {}): Promis
   const { data: sugestoes } = await sugQuery;
   const ids = (sugestoes ?? []).map((s) => s.id);
 
-  let feedbacks: { sugestao_ia_id: string; classificacao: string; atribuicao_final_json: unknown }[] = [];
+  let feedbacks: { sugestao_ia_id: string; classificacao: string; atribuicao_final_json: unknown; motivo_ajuste: string | null }[] = [];
   if (ids.length > 0) {
     const { data } = await supabase
       .from("ia_feedback")
-      .select("sugestao_ia_id, classificacao, atribuicao_final_json")
+      .select("sugestao_ia_id, classificacao, atribuicao_final_json, motivo_ajuste")
       .in("sugestao_ia_id", ids);
     feedbacks = data ?? [];
   }
