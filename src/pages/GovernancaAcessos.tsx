@@ -212,13 +212,11 @@ export default function GovernancaAcessos() {
   const handleRevogarOperacional = async (userId: string, opRoleToRevoke: OperationalRole) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("fn_revogar_acesso_operacional", {
-        p_target_user_id: userId,
-        p_role: opRoleToRevoke,
-        p_motivo: null,
+      await revogarAcessoOperacional({
+        targetUserId: userId,
+        role: opRoleToRevoke,
+        motivo: null,
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
       toast({ title: "Acesso operacional revogado", description: `${OPERATIONAL_ROLE_LABELS[opRoleToRevoke]} de ${nameOf(userId)}.` });
       fetchAll();
     } catch (err: any) {
