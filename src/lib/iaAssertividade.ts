@@ -143,6 +143,7 @@ function topCount(
 export function aggregateIndicadores(
   sugestoes: SugestaoRow[],
   feedbacks: FeedbackRow[],
+  now: Date = new Date(),
 ): IaIndicadores {
   const totalSugestoes = sugestoes.length;
   const fbBySugestao = new Map<string, FeedbackRow>();
