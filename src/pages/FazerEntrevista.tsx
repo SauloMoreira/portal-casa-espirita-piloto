@@ -8,6 +8,7 @@ import { TratamentosSection } from "@/components/entrevista/TratamentosSection";
 import { EntrevistaActionsFooter } from "@/components/entrevista/EntrevistaActionsFooter";
 import { NovoAssistidoDialog } from "@/components/entrevista/NovoAssistidoDialog";
 import { AssistenteIaDialog } from "@/components/entrevista/AssistenteIaDialog";
+import { AjusteSugestaoIaField } from "@/components/entrevista/AjusteSugestaoIaField";
 
 export default function FazerEntrevista() {
   const e = useFazerEntrevista();
