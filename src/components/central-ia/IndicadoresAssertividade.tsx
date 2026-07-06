@@ -64,10 +64,34 @@ export default function IndicadoresAssertividade() {
   ].filter((d) => d.value > 0);
 
   const cards = [
-    { label: "Entrevistas com IA", value: data.totalSugestoes, icon: Brain, hint: `${data.avaliadas} avaliadas · ${data.pendentes} pendentes` },
-    { label: "Aderência total", value: `${data.taxaAderenciaTotal}%`, icon: CheckCircle, hint: `${data.aderenciaTotal} sugestões` },
-    { label: "Aderência parcial", value: `${data.taxaAderenciaParcial}%`, icon: BarChart3, hint: `${data.aderenciaParcial} sugestões` },
-    { label: "Divergência", value: `${data.taxaDivergencia}%`, icon: AlertTriangle, hint: `${data.divergencia} sugestões` },
+    {
+      label: "Entrevistas com apoio da IA",
+      value: data.totalSugestoes,
+      icon: Brain,
+      hint: `${data.avaliadas} avaliadas · ${data.pendentes} pendentes`,
+      tip: "Total de entrevistas em que a IA foi usada como apoio. A decisão final é sempre humana.",
+    },
+    {
+      label: "Convergência total",
+      value: `${data.taxaAderenciaTotal}%`,
+      icon: CheckCircle,
+      hint: `${data.aderenciaTotal} de ${data.baseAderencia} avaliações`,
+      tip: "Percentual de casos em que a decisão humana coincidiu integralmente com a sugestão da IA. Não significa 'acerto absoluto' da IA — mede convergência com a decisão final registrada. Base exclui 'sem uso' e 'inconclusiva'.",
+    },
+    {
+      label: "Convergência parcial",
+      value: `${data.taxaAderenciaParcial}%`,
+      icon: BarChart3,
+      hint: `${data.aderenciaParcial} de ${data.baseAderencia} avaliações`,
+      tip: "Casos em que a decisão humana coincidiu em parte com a sugestão da IA. Base exclui 'sem uso' e 'inconclusiva'.",
+    },
+    {
+      label: "Divergência",
+      value: `${data.taxaDivergencia}%`,
+      icon: AlertTriangle,
+      hint: `${data.divergencia} de ${data.baseAderencia} avaliações`,
+      tip: "Casos em que a decisão humana diferiu da sugestão da IA. Divergência não é erro do entrevistador: a decisão fraterna/humana prevalece sobre o apoio da IA.",
+    },
   ];
 
   return (
