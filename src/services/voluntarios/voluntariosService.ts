@@ -65,7 +65,12 @@ export async function isCpfDuplicado(
   cpf: string,
   excludeId?: string | null,
 ): Promise<boolean> {
-  let query = supabase.from("voluntarios").select("id").eq("cpf", cpf);
+  const instituicaoId = requireInstituicaoId();
+  let query = supabase
+    .from("voluntarios")
+    .select("id")
+    .eq("instituicao_id", instituicaoId)
+    .eq("cpf", cpf);
   if (excludeId) query = query.neq("id", excludeId);
   const { data } = await query;
   return !!data && data.length > 0;
@@ -78,17 +83,23 @@ export async function saveVoluntario(
   editId: string | null,
   createdBy: string,
 ): Promise<string> {
+  const instituicaoId = requireInstituicaoId();
   if (editId) {
     const { error } = await supabase
       .from("voluntarios")
       .update(payload as TablesUpdate<"voluntarios">)
-      .eq("id", editId);
+      .eq("id", editId)
+      .eq("instituicao_id", instituicaoId);
     if (error) throw error;
     return editId;
   }
   const { data, error } = await supabase
     .from("voluntarios")
-    .insert({ ...payload, created_by: createdBy } as TablesInsert<"voluntarios">)
+    .insert({
+      ...payload,
+      created_by: createdBy,
+      instituicao_id: instituicaoId,
+    } as TablesInsert<"voluntarios">)
     .select("id")
     .single();
   if (error) throw error;
