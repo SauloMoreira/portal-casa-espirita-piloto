@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          instituicao_id: string | null
           nome: string
           observacao: string | null
           ordem: number
@@ -34,6 +35,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          instituicao_id?: string | null
           nome: string
           observacao?: string | null
           ordem?: number
@@ -48,6 +50,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          instituicao_id?: string | null
           nome?: string
           observacao?: string | null
           ordem?: number
@@ -57,7 +60,15 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "acao_social_alimentos_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       acao_social_config: {
         Row: {
@@ -415,6 +426,7 @@ export type Database = {
           estado: string | null
           foto_url: string | null
           id: string
+          instituicao_id: string | null
           logradouro: string | null
           migrado_legado: boolean
           nome: string
@@ -447,6 +459,7 @@ export type Database = {
           estado?: string | null
           foto_url?: string | null
           id?: string
+          instituicao_id?: string | null
           logradouro?: string | null
           migrado_legado?: boolean
           nome: string
@@ -479,6 +492,7 @@ export type Database = {
           estado?: string | null
           foto_url?: string | null
           id?: string
+          instituicao_id?: string | null
           logradouro?: string | null
           migrado_legado?: boolean
           nome?: string
@@ -493,7 +507,15 @@ export type Database = {
           usa_agenda_plano?: boolean
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "assistidos_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -607,6 +629,7 @@ export type Database = {
           created_by: string | null
           destinatario_id: string
           id: string
+          instituicao_id: string | null
           lido: boolean
           lido_em: string | null
           link: string | null
@@ -619,6 +642,7 @@ export type Database = {
           created_by?: string | null
           destinatario_id: string
           id?: string
+          instituicao_id?: string | null
           lido?: boolean
           lido_em?: string | null
           link?: string | null
@@ -631,6 +655,7 @@ export type Database = {
           created_by?: string | null
           destinatario_id?: string
           id?: string
+          instituicao_id?: string | null
           lido?: boolean
           lido_em?: string | null
           link?: string | null
@@ -638,7 +663,15 @@ export type Database = {
           tipo?: string
           titulo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "avisos_internos_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cadastro_solicitacoes: {
         Row: {
@@ -702,6 +735,7 @@ export type Database = {
           imagem_origem: string
           imagem_otimizada: boolean
           imagem_url: string | null
+          instituicao_id: string | null
           ordem: number
           subtitulo: string | null
           titulo: string
@@ -724,6 +758,7 @@ export type Database = {
           imagem_origem?: string
           imagem_otimizada?: boolean
           imagem_url?: string | null
+          instituicao_id?: string | null
           ordem?: number
           subtitulo?: string | null
           titulo: string
@@ -746,13 +781,22 @@ export type Database = {
           imagem_origem?: string
           imagem_otimizada?: boolean
           imagem_url?: string | null
+          instituicao_id?: string | null
           ordem?: number
           subtitulo?: string | null
           titulo?: string
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campanhas_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       checkin_tentativas: {
         Row: {
@@ -848,6 +892,7 @@ export type Database = {
           envio_status: string
           evento_id: string | null
           id: string
+          instituicao_id: string | null
           mensagem: string
           publico_criterio: string
           publico_estimado: number
@@ -872,6 +917,7 @@ export type Database = {
           envio_status?: string
           evento_id?: string | null
           id?: string
+          instituicao_id?: string | null
           mensagem: string
           publico_criterio?: string
           publico_estimado?: number
@@ -896,6 +942,7 @@ export type Database = {
           envio_status?: string
           evento_id?: string | null
           id?: string
+          instituicao_id?: string | null
           mensagem?: string
           publico_criterio?: string
           publico_estimado?: number
@@ -924,6 +971,13 @@ export type Database = {
             columns: ["evento_id"]
             isOneToOne: false
             referencedRelation: "eventos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comunicacoes_institucionais_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
             referencedColumns: ["id"]
           },
         ]
@@ -1026,6 +1080,7 @@ export type Database = {
           chave: string
           descricao: string | null
           id: string
+          instituicao_id: string | null
           updated_at: string
           updated_by: string | null
           valor: string
@@ -1034,6 +1089,7 @@ export type Database = {
           chave: string
           descricao?: string | null
           id?: string
+          instituicao_id?: string | null
           updated_at?: string
           updated_by?: string | null
           valor: string
@@ -1042,11 +1098,20 @@ export type Database = {
           chave?: string
           descricao?: string | null
           id?: string
+          instituicao_id?: string | null
           updated_at?: string
           updated_by?: string | null
           valor?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "configuracoes_gerais_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       consentimentos_comunicacao: {
         Row: {
@@ -1202,6 +1267,7 @@ export type Database = {
           imagem_origem: string
           imagem_otimizada: boolean
           imagem_url: string | null
+          instituicao_id: string | null
           local: string | null
           ordem: number
           subtitulo: string | null
@@ -1227,6 +1293,7 @@ export type Database = {
           imagem_origem?: string
           imagem_otimizada?: boolean
           imagem_url?: string | null
+          instituicao_id?: string | null
           local?: string | null
           ordem?: number
           subtitulo?: string | null
@@ -1252,6 +1319,7 @@ export type Database = {
           imagem_origem?: string
           imagem_otimizada?: boolean
           imagem_url?: string | null
+          instituicao_id?: string | null
           local?: string | null
           ordem?: number
           subtitulo?: string | null
@@ -1259,7 +1327,15 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "eventos_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       excecoes_operacionais: {
         Row: {
@@ -1271,6 +1347,7 @@ export type Database = {
           data_excecao: string
           horario_afetado: string | null
           id: string
+          instituicao_id: string | null
           mensagem_ia: string | null
           motivo: string | null
           nova_data: string | null
@@ -1291,6 +1368,7 @@ export type Database = {
           data_excecao: string
           horario_afetado?: string | null
           id?: string
+          instituicao_id?: string | null
           mensagem_ia?: string | null
           motivo?: string | null
           nova_data?: string | null
@@ -1311,6 +1389,7 @@ export type Database = {
           data_excecao?: string
           horario_afetado?: string | null
           id?: string
+          instituicao_id?: string | null
           mensagem_ia?: string | null
           motivo?: string | null
           nova_data?: string | null
@@ -1323,6 +1402,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "excecoes_operacionais_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "excecoes_operacionais_tratamento_id_fkey"
             columns: ["tratamento_id"]
@@ -2236,6 +2322,7 @@ export type Database = {
           created_by: string | null
           data: string
           id: string
+          instituicao_id: string | null
           observacoes: string | null
           tema: string | null
         }
@@ -2244,6 +2331,7 @@ export type Database = {
           created_by?: string | null
           data: string
           id?: string
+          instituicao_id?: string | null
           observacoes?: string | null
           tema?: string | null
         }
@@ -2252,10 +2340,19 @@ export type Database = {
           created_by?: string | null
           data?: string
           id?: string
+          instituicao_id?: string | null
           observacoes?: string | null
           tema?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "palestras_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plano_modulos: {
         Row: {
@@ -2572,6 +2669,7 @@ export type Database = {
           frequencia: string | null
           horario: string | null
           id: string
+          instituicao_id: string | null
           observacao: string | null
           tipo: string
           tratamento_id: string | null
@@ -2587,6 +2685,7 @@ export type Database = {
           frequencia?: string | null
           horario?: string | null
           id?: string
+          instituicao_id?: string | null
           observacao?: string | null
           tipo?: string
           tratamento_id?: string | null
@@ -2602,12 +2701,20 @@ export type Database = {
           frequencia?: string | null
           horario?: string | null
           id?: string
+          instituicao_id?: string | null
           observacao?: string | null
           tipo?: string
           tratamento_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "programacao_padrao_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "programacao_padrao_tratamento_id_fkey"
             columns: ["tratamento_id"]
@@ -2627,6 +2734,7 @@ export type Database = {
           governavel: boolean
           id: string
           impacto: string | null
+          instituicao_id: string | null
           nome_amigavel: string | null
           opcoes: Json | null
           sensivel: boolean
@@ -2647,6 +2755,7 @@ export type Database = {
           governavel?: boolean
           id?: string
           impacto?: string | null
+          instituicao_id?: string | null
           nome_amigavel?: string | null
           opcoes?: Json | null
           sensivel?: boolean
@@ -2667,6 +2776,7 @@ export type Database = {
           governavel?: boolean
           id?: string
           impacto?: string | null
+          instituicao_id?: string | null
           nome_amigavel?: string | null
           opcoes?: Json | null
           sensivel?: boolean
@@ -2678,7 +2788,15 @@ export type Database = {
           valor_min?: number | null
           valor_padrao?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "regras_operacionais_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sessoes_publicas: {
         Row: {
@@ -2688,6 +2806,7 @@ export type Database = {
           horario_fim: string | null
           horario_inicio: string | null
           id: string
+          instituicao_id: string | null
           status: string
           token: string
           total_presentes: number
@@ -2701,6 +2820,7 @@ export type Database = {
           horario_fim?: string | null
           horario_inicio?: string | null
           id?: string
+          instituicao_id?: string | null
           status?: string
           token?: string
           total_presentes?: number
@@ -2714,6 +2834,7 @@ export type Database = {
           horario_fim?: string | null
           horario_inicio?: string | null
           id?: string
+          instituicao_id?: string | null
           status?: string
           token?: string
           total_presentes?: number
@@ -2721,6 +2842,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sessoes_publicas_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sessoes_publicas_tratamento_id_fkey"
             columns: ["tratamento_id"]
@@ -2894,6 +3022,7 @@ export type Database = {
           estado: string | null
           foto_url: string | null
           id: string
+          instituicao_id: string | null
           logradouro: string | null
           nome_completo: string
           numero: string | null
@@ -2934,6 +3063,7 @@ export type Database = {
           estado?: string | null
           foto_url?: string | null
           id?: string
+          instituicao_id?: string | null
           logradouro?: string | null
           nome_completo: string
           numero?: string | null
@@ -2974,6 +3104,7 @@ export type Database = {
           estado?: string | null
           foto_url?: string | null
           id?: string
+          instituicao_id?: string | null
           logradouro?: string | null
           nome_completo?: string
           numero?: string | null
@@ -2996,6 +3127,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "voluntarios_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "voluntarios_origem_assistido_id_fkey"
             columns: ["origem_assistido_id"]
