@@ -24,10 +24,15 @@ import {
 } from "@/services/notificacoes/notificacoesService";
 import { obterRolloutMonitor } from "@/services/programacao/excecoesService";
 import { buscarPessoaParaVoluntario } from "@/services/voluntarios/voluntariosService";
+import { _setCurrentInstituicaoId } from "@/lib/tenant/currentTenant";
+
+const FAKE_INST_ID = "00000000-0000-0000-0000-00000000c001";
 
 beforeEach(() => {
   rpcMock.mockReset();
   fromMock.mockReset();
+  // SAAS-05-E1: services de tenant exigem instituição ativa (fail-closed).
+  _setCurrentInstituicaoId(FAKE_INST_ID);
 });
 
 // ============================================================================
