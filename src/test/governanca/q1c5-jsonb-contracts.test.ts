@@ -145,12 +145,15 @@ describe("Q1-C5 contratos — parseRolloutMonitor", () => {
     expect(parseRolloutMonitor(valido)).toEqual(valido);
   });
 
-  it("obterRolloutMonitor usa a RPC fn_monitor_excecao_notificacoes", async () => {
+  it("obterRolloutMonitor usa a RPC fn_monitor_excecao_notificacoes com p_instituicao_id", async () => {
     rpcMock.mockResolvedValue({ data: valido, error: null });
     const r = await obterRolloutMonitor(14);
     expect(rpcMock).toHaveBeenCalledWith(
       "fn_monitor_excecao_notificacoes",
-      expect.objectContaining({ p_desde: expect.any(String) }),
+      expect.objectContaining({
+        p_desde: expect.any(String),
+        p_instituicao_id: FAKE_INST_ID,
+      }),
     );
     expect(r).toEqual(valido);
   });
