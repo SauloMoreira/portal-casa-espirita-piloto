@@ -3,6 +3,7 @@
  * Centralizes all Supabase queries previously inlined in the page.
  */
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import type {
   VoluntarioListItem,
   FuncaoVoluntariado,
