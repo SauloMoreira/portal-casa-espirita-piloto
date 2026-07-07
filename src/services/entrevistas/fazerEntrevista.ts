@@ -333,7 +333,7 @@ export async function submitEntrevista(
         status: "agendado",
         registrado_por: userId,
       }));
-      await supabase.from("agenda_tratamentos_assistido").insert(agendaRows as never);
+      await supabase.from("agenda_tratamentos_assistido").insert(agendaRows as TablesInsert<"agenda_tratamentos_assistido">[]);
       const lastSession = sessions[sessions.length - 1];
       return addDays(new Date(lastSession.data_sessao + "T12:00:00"), 1);
     }
