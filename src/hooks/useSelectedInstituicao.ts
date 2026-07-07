@@ -1,10 +1,15 @@
 /**
- * SAAS-03 — Seleção de instituição ativa (Portal/Hub).
+ * SAAS-04 — Seleção de instituição ativa persistente entre sessões.
  *
- * Persiste a seleção do usuário em sessionStorage. A seleção é apenas hint
- * de UI: RLS no backend continua sendo a fonte de verdade. Se o id não
- * corresponder a uma instituição permitida (retornada pela query), o hook
- * limpa a seleção automaticamente (fail-closed).
+ * Persiste em localStorage (chave `saas.portal.selectedInstituicaoId`) para
+ * manter a instituição escolhida entre janelas/sessões do navegador. A
+ * seleção é apenas hint de UI — a RLS no backend segue como fonte de verdade.
+ *
+ * Fail-closed:
+ * - Se o id persistido não estiver na lista `allowedIds` (retornada pelo hub),
+ *   a seleção é descartada automaticamente.
+ * - `selectInstituicao` recusa qualquer id fora da lista permitida.
+ * - Quando há exatamente 1 instituição permitida, seleciona automaticamente.
  */
 import { useCallback, useEffect, useState } from "react";
 
@@ -13,24 +18,29 @@ const STORAGE_KEY = "saas.portal.selectedInstituicaoId";
 function readInitial(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.sessionStorage.getItem(STORAGE_KEY);
+    return window.localStorage.getItem(STORAGE_KEY);
   } catch {
     return null;
+  }
+}
+
+function writeStorage(id: string | null) {
+  try {
+    if (id) window.localStorage.setItem(STORAGE_KEY, id);
+    else window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* noop */
   }
 }
 
 export function useSelectedInstituicao(allowedIds: string[]) {
   const [selectedId, setSelectedIdState] = useState<string | null>(readInitial);
 
-  // Limpa seleção inválida assim que a lista permitida muda.
+  // Fail-closed: descarta seleção que não está mais permitida.
   useEffect(() => {
     if (selectedId && !allowedIds.includes(selectedId)) {
       setSelectedIdState(null);
-      try {
-        window.sessionStorage.removeItem(STORAGE_KEY);
-      } catch {
-        /* noop */
-      }
+      writeStorage(null);
     }
   }, [allowedIds, selectedId]);
 
@@ -39,25 +49,28 @@ export function useSelectedInstituicao(allowedIds: string[]) {
     if (!selectedId && allowedIds.length === 1) {
       const only = allowedIds[0];
       setSelectedIdState(only);
-      try {
-        window.sessionStorage.setItem(STORAGE_KEY, only);
-      } catch {
-        /* noop */
-      }
+      writeStorage(only);
     }
   }, [allowedIds, selectedId]);
 
+  // Sincroniza entre abas: outra aba mudou a seleção → reflete aqui.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY) return;
+      const next = e.newValue;
+      if (next && !allowedIds.includes(next)) return; // ignora se não permitida
+      setSelectedIdState(next);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [allowedIds]);
+
   const selectInstituicao = useCallback(
     (id: string | null) => {
-      // Nunca permite selecionar um id fora da lista permitida.
       if (id && !allowedIds.includes(id)) return false;
       setSelectedIdState(id);
-      try {
-        if (id) window.sessionStorage.setItem(STORAGE_KEY, id);
-        else window.sessionStorage.removeItem(STORAGE_KEY);
-      } catch {
-        /* noop */
-      }
+      writeStorage(id);
       return true;
     },
     [allowedIds],
