@@ -228,7 +228,12 @@ import { parsePessoaCandidatas, type PessoaCandidata } from "./voluntariosContra
  * por fn_buscar_pessoa_para_voluntario.
  */
 export async function buscarPessoaParaVoluntario(termo: string): Promise<PessoaCandidata[]> {
-  const { data, error } = await supabase.rpc("fn_buscar_pessoa_para_voluntario", { p_termo: termo });
+  // SAAS-05-E1: RPC tenant-aware — p_instituicao_id obrigatório.
+  const instituicaoId = requireInstituicaoId();
+  const { data, error } = await supabase.rpc("fn_buscar_pessoa_para_voluntario", {
+    p_termo: termo,
+    p_instituicao_id: instituicaoId,
+  });
   if (error) throw error;
   return parsePessoaCandidatas(data);
 }
