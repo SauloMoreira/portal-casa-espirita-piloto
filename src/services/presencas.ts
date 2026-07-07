@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import type { PresencaTratamento } from "@/types";
 
 export async function listPresencasPorVinculo(
