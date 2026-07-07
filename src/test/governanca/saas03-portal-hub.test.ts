@@ -45,11 +45,11 @@ describe("SAAS-03 — rotas do Portal/Hub", () => {
 });
 
 describe("SAAS-03 — seleção de instituição (fail-closed)", () => {
-  const src = read("src/hooks/useSelectedInstituicao.ts");
+  const src = readFileSync(join(ROOT, "src/hooks/useSelectedInstituicao.ts"), "utf8");
 
-  it("persiste seleção em sessionStorage (não em localStorage)", () => {
-    expect(src).toContain("sessionStorage");
-    expect(src).not.toContain("localStorage");
+  it("persiste seleção em storage do navegador", () => {
+    // SAAS-04 promoveu a persistência para localStorage (persistente entre sessões).
+    expect(src).toContain("localStorage");
   });
 
   it("limpa seleção inválida quando o id não está entre os permitidos", () => {
