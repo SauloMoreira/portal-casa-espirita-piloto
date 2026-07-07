@@ -5,14 +5,15 @@
  * é apenas um espelho controlado, sincronizado pelo próprio provider via
  * `_setCurrentInstituicaoId`, para que services/hooks fora da árvore React
  * (ou dentro dela sem acesso direto ao context) possam falhar fechado sem ler
- * `localStorage` por conta própria.
+ * armazenamento persistente por conta própria.
  *
  * Regras (SAAS-05-D):
- * - NÃO ler `localStorage` aqui: quem persiste é `useSelectedInstituicao`.
+ * - NÃO ler armazenamento persistente aqui: quem persiste é o hook do provider.
  * - NÃO aceitar instituição fora do allowedIds: quem valida é o provider.
  * - Reads/writes em tabelas T-DIR devem chamar `requireInstituicaoId()` e
  *   falhar fechado quando não houver tenant ativo.
  */
+
 
 let _currentInstituicaoId: string | null = null;
 
