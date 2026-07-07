@@ -187,11 +187,14 @@ describe("Q1-C5 contratos — parsePessoaCandidatas", () => {
     expect(parsePessoaCandidatas(undefined)).toEqual([]);
   });
 
-  it("buscarPessoaParaVoluntario usa a RPC fn_buscar_pessoa_para_voluntario", async () => {
+  it("buscarPessoaParaVoluntario usa a RPC fn_buscar_pessoa_para_voluntario com p_instituicao_id", async () => {
     const lista = [{ origem: "usuario", origem_id: "u1", nome: "Ciclano" }];
     rpcMock.mockResolvedValue({ data: lista, error: null });
     const r = await buscarPessoaParaVoluntario("cicl");
-    expect(rpcMock).toHaveBeenCalledWith("fn_buscar_pessoa_para_voluntario", { p_termo: "cicl" });
+    expect(rpcMock).toHaveBeenCalledWith("fn_buscar_pessoa_para_voluntario", {
+      p_termo: "cicl",
+      p_instituicao_id: FAKE_INST_ID,
+    });
     expect(r).toEqual(lista);
   });
 
