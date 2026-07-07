@@ -1,9 +1,13 @@
 /**
  * Data access + orchestration for the Voluntários module.
  * Centralizes all Supabase queries previously inlined in the page.
+ *
+ * SAAS-05-D — Queries diretas à tabela T-DIR `voluntarios` são escopadas
+ * pela instituição ativa via `requireInstituicaoId()` (fail-closed).
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import type {
   VoluntarioListItem,
   FuncaoVoluntariado,
@@ -11,9 +15,11 @@ import type {
 } from "@/types/voluntarios";
 
 export async function fetchVoluntarios(): Promise<VoluntarioListItem[]> {
+  const instituicaoId = requireInstituicaoId();
   const { data } = await supabase
     .from("voluntarios")
     .select("*")
+    .eq("instituicao_id", instituicaoId)
     .order("nome_completo");
   return (data ?? []) as VoluntarioListItem[];
 }
