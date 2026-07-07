@@ -71,6 +71,12 @@ export const ROUTES = {
   configuracoes: "/configuracoes",
   gestaoCores: "/configuracoes/cores",
   instituicao: "/instituicao",
+
+  // SaaS Portal / Hub (SAAS-03)
+  portal: "/portal",
+  portalInstituicoes: "/portal/instituicoes",
+  portalModulos: "/portal/modulos",
+  portalAdmin: "/portal/admin",
 } as const;
 
 export type AppRoute = typeof ROUTES;
