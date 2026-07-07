@@ -63,13 +63,13 @@ export async function salvarExcecao(input: ExcecaoInput, id?: string): Promise<v
   if (id) {
     const { error } = await supabase
       .from("excecoes_operacionais")
-      .update(input as never)
+      .update(input as TablesUpdate<"excecoes_operacionais">)
       .eq("id", id);
     if (error) throw error;
   } else {
     const { data, error } = await supabase
       .from("excecoes_operacionais")
-      .insert(input as never)
+      .insert(input as TablesInsert<"excecoes_operacionais">)
       .select("id")
       .single();
     if (error) throw error;
