@@ -85,7 +85,7 @@ d("Q2-C2 — diagnóstico template_indisponivel", () => {
       // apenas para provar o INVARIANTE: sem template válido não há envio.
       const admin = (
         await c.query(
-          `SELECT user_id FROM public.user_roles WHERE role IN ('administrador','master') LIMIT 1`,
+          `SELECT user_id FROM public.user_roles WHERE role = 'admin'::app_role LIMIT 1`,
         )
       ).rows[0]?.user_id;
       const a = (
