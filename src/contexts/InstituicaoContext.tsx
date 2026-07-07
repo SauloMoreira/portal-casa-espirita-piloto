@@ -55,6 +55,17 @@ export const InstituicaoProvider: React.FC<{ children: React.ReactNode }> = ({
     [instituicoes, selectedInstituicaoId],
   );
 
+  // SAAS-05-D — Espelha o tenant ativo no módulo `currentTenant` para que
+  // services/hooks possam falhar fechado sem ler localStorage por fora.
+  useEffect(() => {
+    _setCurrentInstituicaoId(selecionada?.id ?? null);
+    return () => {
+      _setCurrentInstituicaoId(null);
+    };
+  }, [selecionada?.id]);
+
+
+
   const value = useMemo<InstituicaoContextValue>(
     () => ({
       isLoading,
