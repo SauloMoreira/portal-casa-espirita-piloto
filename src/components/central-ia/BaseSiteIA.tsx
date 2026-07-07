@@ -113,7 +113,7 @@ export default function BaseSiteIA() {
     });
     setCapturing(false);
     if (error || !data?.preview) {
-      const msg = (data as any)?.error || error?.message || "Falha ao capturar a página.";
+      const msg = edgeBodyError(data) || error?.message || "Falha ao capturar a página.";
       toast({ title: "Erro na captura", description: msg, variant: "destructive" });
       return;
     }
