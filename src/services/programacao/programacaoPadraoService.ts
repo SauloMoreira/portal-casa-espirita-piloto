@@ -1,5 +1,10 @@
+/**
+ * SAAS-05-D — Queries diretas à tabela T-DIR `programacao_padrao` são
+ * escopadas pela instituição ativa via `requireInstituicaoId()` (fail-closed).
+ */
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 
 export interface ProgramacaoPadrao {
   id: string;
@@ -29,9 +34,11 @@ export type ProgramacaoInput = Partial<
 >;
 
 export async function listarProgramacao(f: ProgramacaoFiltros): Promise<ProgramacaoPadrao[]> {
+  const instituicaoId = requireInstituicaoId();
   let q = supabase
     .from("programacao_padrao")
     .select("*")
+    .eq("instituicao_id", instituicaoId)
     .order("dia_semana", { ascending: true })
     .order("horario", { ascending: true });
 
@@ -49,29 +56,38 @@ export async function listarProgramacao(f: ProgramacaoFiltros): Promise<Programa
 }
 
 export async function salvarProgramacao(input: ProgramacaoInput, id?: string): Promise<void> {
+  const instituicaoId = requireInstituicaoId();
   if (id) {
     const { error } = await supabase
       .from("programacao_padrao")
       .update(input as TablesUpdate<"programacao_padrao">)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("instituicao_id", instituicaoId);
     if (error) throw error;
   } else {
     const { error } = await supabase
       .from("programacao_padrao")
-      .insert(input as TablesInsert<"programacao_padrao">);
+      .insert({ ...input, instituicao_id: instituicaoId } as TablesInsert<"programacao_padrao">);
     if (error) throw error;
   }
 }
 
 export async function alternarAtivoProgramacao(id: string, ativo: boolean): Promise<void> {
+  const instituicaoId = requireInstituicaoId();
   const { error } = await supabase
     .from("programacao_padrao")
     .update({ ativo } as TablesUpdate<"programacao_padrao">)
-    .eq("id", id);
+    .eq("id", id)
+    .eq("instituicao_id", instituicaoId);
   if (error) throw error;
 }
 
 export async function excluirProgramacao(id: string): Promise<void> {
-  const { error } = await supabase.from("programacao_padrao").delete().eq("id", id);
+  const instituicaoId = requireInstituicaoId();
+  const { error } = await supabase
+    .from("programacao_padrao")
+    .delete()
+    .eq("id", id)
+    .eq("instituicao_id", instituicaoId);
   if (error) throw error;
 }
