@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { addDays, format, getDay } from "date-fns";
 import { generateSessionDates, buildValidDesignacoes } from "@/lib/fazerEntrevista";
 import { MODO_AGENDAMENTO, VINCULO_STATUS_RESETAVEL } from "@/constants/fazerEntrevista";
@@ -64,7 +65,7 @@ export async function insertAssistido(
 ): Promise<{ data: EntrevistaAssistido | null; error: { message: string } | null }> {
   const { data, error } = await supabase
     .from("assistidos")
-    .insert(payload as never)
+    .insert(payload as TablesInsert<"assistidos">)
     .select(ASSISTIDO_SELECT)
     .single();
   return { data: data as EntrevistaAssistido | null, error };
@@ -289,7 +290,7 @@ export async function submitEntrevista(
           status: "agendado",
           registrado_por: userId,
         }));
-        await supabase.from("agenda_tratamentos_assistido").insert(agendaRows as never);
+        await supabase.from("agenda_tratamentos_assistido").insert(agendaRows as TablesInsert<"agenda_tratamentos_assistido">[]);
         const lastSession = sessions[sessions.length - 1];
         return addDays(new Date(lastSession.data_sessao + "T12:00:00"), 1);
       }
@@ -332,7 +333,7 @@ export async function submitEntrevista(
         status: "agendado",
         registrado_por: userId,
       }));
-      await supabase.from("agenda_tratamentos_assistido").insert(agendaRows as never);
+      await supabase.from("agenda_tratamentos_assistido").insert(agendaRows as TablesInsert<"agenda_tratamentos_assistido">[]);
       const lastSession = sessions[sessions.length - 1];
       return addDays(new Date(lastSession.data_sessao + "T12:00:00"), 1);
     }
@@ -374,7 +375,7 @@ export async function submitEntrevista(
           status: "aguardando_agendamento",
           entrevista_id: entrevistaId,
           created_by: userId,
-        } as never);
+        } as TablesInsert<"assistido_tratamentos">);
       }
     }
   }

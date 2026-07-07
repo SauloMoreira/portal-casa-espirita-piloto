@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 export interface ProgramacaoPadrao {
   id: string;
@@ -51,13 +52,13 @@ export async function salvarProgramacao(input: ProgramacaoInput, id?: string): P
   if (id) {
     const { error } = await supabase
       .from("programacao_padrao")
-      .update(input as never)
+      .update(input as TablesUpdate<"programacao_padrao">)
       .eq("id", id);
     if (error) throw error;
   } else {
     const { error } = await supabase
       .from("programacao_padrao")
-      .insert(input as never);
+      .insert(input as TablesInsert<"programacao_padrao">);
     if (error) throw error;
   }
 }
@@ -65,7 +66,7 @@ export async function salvarProgramacao(input: ProgramacaoInput, id?: string): P
 export async function alternarAtivoProgramacao(id: string, ativo: boolean): Promise<void> {
   const { error } = await supabase
     .from("programacao_padrao")
-    .update({ ativo } as never)
+    .update({ ativo } as TablesUpdate<"programacao_padrao">)
     .eq("id", id);
   if (error) throw error;
 }

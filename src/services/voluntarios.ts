@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import type { Voluntario } from "@/types";
 
 export async function listFuncoesAtivas() {
@@ -35,14 +36,14 @@ export async function upsertVoluntario(
   if (editId) {
     const { error } = await supabase
       .from("voluntarios")
-      .update(payload as never)
+      .update(payload as TablesUpdate<"voluntarios">)
       .eq("id", editId);
     if (error) throw error;
     return editId;
   }
   const { data, error } = await supabase
     .from("voluntarios")
-    .insert(payload as never)
+    .insert(payload as TablesInsert<"voluntarios">)
     .select("id")
     .single();
   if (error) throw error;

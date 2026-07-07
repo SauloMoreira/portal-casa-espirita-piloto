@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import {
   buildAssistidoLegadoInsert,
   validateTratamentoLegado,
@@ -147,7 +148,7 @@ export async function migrarAssistidoLegado(
     }
     const { error } = await supabase
       .from("assistidos")
-      .update(updatePayload as never)
+      .update(updatePayload as TablesUpdate<"assistidos">)
       .eq("id", assistidoId);
     if (error) throw new Error(error.message);
   } else {
@@ -158,7 +159,7 @@ export async function migrarAssistidoLegado(
     });
     const { data, error } = await supabase
       .from("assistidos")
-      .insert(payload as never)
+      .insert(payload as TablesInsert<"assistidos">)
       .select("id")
       .single();
     if (error || !data) throw new Error(error?.message || "Erro ao cadastrar assistido.");
@@ -263,7 +264,7 @@ export async function migrarAssistidoLegado(
     "migrar_assistido_legado_tratamento",
     {
       p_assistido_id: assistidoId,
-      p_tratamentos: tratamentosPayload as never,
+      p_tratamentos: tratamentosPayload as unknown as Json,
     },
   );
   if (rpcErr) throw new Error(rpcErr.message);
@@ -358,7 +359,7 @@ export async function reconciliarAssistidoLegado(
     "migrar_assistido_legado_tratamento",
     {
       p_assistido_id: assistidoId,
-      p_tratamentos: tratamentosPayload as never,
+      p_tratamentos: tratamentosPayload as unknown as Json,
     },
   );
   if (rpcErr) throw new Error(rpcErr.message);
@@ -650,7 +651,7 @@ export async function executarReconciliacao(
         vinculos: result.vinculosCriados,
         reprocessamento,
         idempotente_sem_novas: idempotenteSemNovas,
-      } as never,
+      } as unknown as Json,
     });
   } catch {
     // silencioso: a gravação da agenda é a operação crítica.

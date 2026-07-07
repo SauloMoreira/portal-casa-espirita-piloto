@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { parseRolloutMonitor, type RolloutMonitor } from "./excecoesContracts";
 
 export interface ExcecaoOperacional {
@@ -62,13 +63,13 @@ export async function salvarExcecao(input: ExcecaoInput, id?: string): Promise<v
   if (id) {
     const { error } = await supabase
       .from("excecoes_operacionais")
-      .update(input as never)
+      .update(input as TablesUpdate<"excecoes_operacionais">)
       .eq("id", id);
     if (error) throw error;
   } else {
     const { data, error } = await supabase
       .from("excecoes_operacionais")
-      .insert(input as never)
+      .insert(input as TablesInsert<"excecoes_operacionais">)
       .select("id")
       .single();
     if (error) throw error;
@@ -92,7 +93,7 @@ export async function salvarExcecao(input: ExcecaoInput, id?: string): Promise<v
 export async function alternarAtivoExcecao(id: string, ativo: boolean): Promise<void> {
   const { error } = await supabase
     .from("excecoes_operacionais")
-    .update({ ativo } as never)
+    .update({ ativo } as TablesUpdate<"excecoes_operacionais">)
     .eq("id", id);
   if (error) throw error;
 }
@@ -121,7 +122,7 @@ export async function obterRolloutAtivo(): Promise<boolean> {
 export async function definirRolloutAtivo(ativo: boolean): Promise<void> {
   const { error } = await supabase
     .from("regras_operacionais")
-    .update({ valor: ativo ? "true" : "false" } as never)
+    .update({ valor: ativo ? "true" : "false" } as TablesUpdate<"regras_operacionais">)
     .eq("chave", ROLLOUT_KEY);
   if (error) throw error;
 }

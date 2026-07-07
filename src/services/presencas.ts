@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import type { PresencaTratamento } from "@/types";
 
 export async function listPresencasPorVinculo(
@@ -18,6 +19,6 @@ export async function registrarPresenca(
 ): Promise<void> {
   const { error } = await supabase
     .from("presencas_tratamentos")
-    .upsert(payload as never);
+    .upsert(payload as TablesInsert<"presencas_tratamentos">);
   if (error) throw error;
 }
