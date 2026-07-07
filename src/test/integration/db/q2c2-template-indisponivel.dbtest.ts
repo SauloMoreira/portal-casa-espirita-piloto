@@ -37,19 +37,26 @@ d("Q2-C2 — diagnóstico template_indisponivel", () => {
     await closePool();
   });
 
-  it("a chave de template do enfileirador NÃO existe no catálogo (causa raiz)", async () => {
+  // NOTA HISTÓRICA (pós-Q2-C3-A): a causa raiz original era a AUSÊNCIA da chave
+  // no catálogo. O Q2-C3-A corrigiu estruturalmente o catálogo, criando
+  // `tratamento_ausencia_remarcada` e `tratamento_suspenso` como templates
+  // ATIVOS. Os testes abaixo foram ajustados para refletir a nova realidade,
+  // preservando o registro histórico da falha e provando que ela não reincide.
+
+  it("a chave de template do enfileirador AGORA existe no catálogo (corrigido no Q2-C3-A)", async () => {
     await withRollback(async (c) => {
       const r = await c.query(
         `SELECT count(*)::int AS n FROM public.notificacoes_templates
           WHERE codigo_template = $1`,
         [CHAVE_DIVERGENTE],
       );
-      // Divergência estrutural: nenhuma linha (ativa ou inativa) para a chave.
-      expect(r.rows[0].n).toBe(0);
+      // Antes do Q2-C3-A: n = 0 (divergência estrutural — causa raiz).
+      // Depois do Q2-C3-A: n = 1 (catálogo corrigido).
+      expect(r.rows[0].n).toBe(1);
     });
   });
 
-  it("reproduz o predicado do dispatcher: chave inexistente => template_indisponivel", async () => {
+  it("predicado do dispatcher: chave AGORA existente/ativa => NÃO gera template_indisponivel", async () => {
     await withRollback(async (c) => {
       // Espelho fiel do lookup do dispatcher (notificacoes-dispatch/index.ts).
       const r = await c.query(
@@ -59,11 +66,12 @@ d("Q2-C2 — diagnóstico template_indisponivel", () => {
       );
       const tpl = r.rows[0];
       const rejeitado = !tpl || tpl.ativo !== true;
-      expect(rejeitado).toBe(true); // dispatcher marcaria erro='template_indisponivel'
+      // Pós-Q2-C3-A: template válido e ativo => dispatcher não rejeita.
+      expect(rejeitado).toBe(false);
     });
   });
 
-  it("templates efetivamente usados por falta_registrada com remarcação divergem do catálogo", async () => {
+  it("templates de falta_registrada com remarcação/suspensão AGORA constam do catálogo", async () => {
     await withRollback(async (c) => {
       // Chaves que o fluxo de falta enfileira hoje.
       const chavesEnfileiradas = ["falta_registrada", "tratamento_suspenso", CHAVE_DIVERGENTE];
@@ -73,16 +81,17 @@ d("Q2-C2 — diagnóstico template_indisponivel", () => {
         [chavesEnfileiradas],
       );
       const existentes = new Set(r.rows.map((x) => x.codigo_template as string));
-      // 'falta_registrada' existe; as chaves de remarcação/suspensão NÃO.
+      // Pós-Q2-C3-A: TODAS as chaves enfileiradas existem no catálogo.
       expect(existentes.has("falta_registrada")).toBe(true);
-      expect(existentes.has(CHAVE_DIVERGENTE)).toBe(false);
+      expect(existentes.has("tratamento_suspenso")).toBe(true);
+      expect(existentes.has(CHAVE_DIVERGENTE)).toBe(true);
     });
   });
 
-  it("garantia diagnóstica: item com a chave divergente permaneceria sem envio (sent_at nulo)", async () => {
+  it("garantia pós-correção: item com a chave AGORA seria enviável (template válido)", async () => {
     await withRollback(async (c) => {
-      // Semeia (e reverte) um item na fila espelhando o item real remanescente,
-      // apenas para provar o INVARIANTE: sem template válido não há envio.
+      // Semeia (e reverte) um item na fila espelhando o item real remanescente.
+      // Prova que a barreira original (template ausente) não existe mais.
       const admin = (
         await c.query(
           `SELECT user_id FROM public.user_roles WHERE role = 'admin'::app_role LIMIT 1`,
@@ -107,14 +116,15 @@ d("Q2-C2 — diagnóstico template_indisponivel", () => {
           [a, CHAVE_DIVERGENTE],
         )
       ).rows[0];
-      // O predicado do dispatcher não encontra template => não envia.
+      // O predicado do dispatcher agora encontra template ativo.
       const tpl = (
         await c.query(
           `SELECT ativo FROM public.notificacoes_templates WHERE codigo_template = $1 LIMIT 1`,
           [CHAVE_DIVERGENTE],
         )
       ).rows[0];
-      expect(!tpl || tpl.ativo !== true).toBe(true);
+      expect(!tpl || tpl.ativo !== true).toBe(false);
+      // O item semeado (revertido) espelha o estado terminal histórico.
       expect(item.status).toBe("falha");
       expect(item.sent_at).toBeNull();
     });
