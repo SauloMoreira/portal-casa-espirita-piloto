@@ -215,13 +215,12 @@ describe("SAAS-05-D — Nenhuma migration/RLS/RPC/edge function alterada", () =>
     expect(true).toBe(true);
   });
 
-  it("services adaptados NÃO adicionam parâmetros p_instituicao_id em RPCs existentes", () => {
+  it("[atualizado por SAAS-05-E1] RPCs de exceção agora enviam p_instituicao_id", () => {
+    // Contrato original do 05-D era: services não injetam p_instituicao_id (pendência).
+    // Após SAAS-05-E1 essa pendência foi resolvida — a migração de contrato é intencional.
     const excecoes = read("src/services/programacao/excecoesService.ts");
-    // RPC existente segue com assinatura original (apenas p_excecao_id / p_desde).
-    expect(excecoes).toMatch(/fn_processar_excecao_notificacoes[^)]*p_excecao_id/);
-    expect(excecoes).not.toMatch(/fn_processar_excecao_notificacoes[^)]*p_instituicao_id/);
-    expect(excecoes).toMatch(/fn_monitor_excecao_notificacoes[^)]*p_desde/);
-    expect(excecoes).not.toMatch(/fn_monitor_excecao_notificacoes[^)]*p_instituicao_id/);
+    expect(excecoes).toMatch(/fn_processar_excecao_notificacoes[\s\S]*?p_instituicao_id/);
+    expect(excecoes).toMatch(/fn_monitor_excecao_notificacoes[\s\S]*?p_instituicao_id/);
   });
 });
 
