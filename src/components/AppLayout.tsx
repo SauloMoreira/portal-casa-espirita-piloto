@@ -13,6 +13,8 @@ import { LifeBuoy } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { InstituicaoProvider } from "@/contexts/InstituicaoContext";
+import { TenantSwitcher } from "@/components/TenantSwitcher";
 
 export function AppLayout() {
   const [nomeFantasia, setNomeFantasia] = useState<string | null>(null);
