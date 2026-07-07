@@ -99,18 +99,15 @@ describe("SAAS-05-C — helpers de contexto multi-tenant", () => {
 });
 
 describe("SAAS-05-C — policies shadow multi-tenant", () => {
-  it("cria policy shadow para cada uma das 13 tabelas T-DIR base", () => {
+  it("declara as 13 tabelas T-DIR no array e padrão 'shadow_tenant_all_' || t", () => {
     for (const t of TDIR_BASE) {
-      expect(SQL, `tabela ${t} deve ter policy shadow`).toContain(
-        `shadow_tenant_all_${t}`,
-      );
+      expect(SQL, `tabela ${t} deve estar no array v_tables`).toContain(`'${t}'`);
     }
+    expect(SQL).toMatch(/'shadow_tenant_all_'\s*\|\|\s*t/);
   });
 
   it("policies são PERMISSIVE (modo shadow — não restringem acesso atual)", () => {
-    const permissiveMatches = SQL.match(/AS\s+PERMISSIVE/gi) || [];
-    expect(permissiveMatches.length).toBeGreaterThanOrEqual(TDIR_BASE.length);
-    // Garante que não há policies RESTRICTIVE sendo criadas nesta fase
+    expect(SQL).toMatch(/AS\s+PERMISSIVE/i);
     expect(SQL).not.toMatch(/AS\s+RESTRICTIVE/i);
   });
 
@@ -134,8 +131,8 @@ describe("SAAS-05-C — policies shadow multi-tenant", () => {
   });
 
   it("policies shadow são idempotentes (DROP IF EXISTS + CREATE) sem afetar legadas", () => {
-    const drops = SQL.match(/DROP\s+POLICY\s+IF\s+EXISTS/gi) || [];
-    expect(drops.length).toBe(TDIR_BASE.length);
+    expect(SQL).toMatch(/DROP\s+POLICY\s+IF\s+EXISTS\s+%I\s+ON\s+public\.%I/i);
+    expect(SQL).toMatch(/CREATE\s+POLICY\s+%I\s+ON\s+public\.%I\s+AS\s+PERMISSIVE/i);
     expect(SQL).not.toMatch(/ALTER\s+POLICY/i);
     // Nenhum DROP POLICY sem IF EXISTS (só as shadow são dropadas, e de forma segura)
     expect(SQL).not.toMatch(/DROP\s+POLICY(?!\s+IF\s+EXISTS)/i);
