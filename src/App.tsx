@@ -70,6 +70,12 @@ const SegurancaPrivacidade = lazy(() => import("./pages/SegurancaPrivacidade"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// SaaS Portal / Hub (SAAS-03)
+const Portal = lazy(() => import("./pages/Portal"));
+const PortalInstituicoes = lazy(() => import("./pages/PortalInstituicoes"));
+const PortalModulos = lazy(() => import("./pages/PortalModulos"));
+const PortalAdmin = lazy(() => import("./pages/PortalAdmin"));
+
 const queryClient = new QueryClient();
 
 const ThemeLoader = ({ children }: { children: React.ReactNode }) => {
