@@ -651,7 +651,7 @@ export async function executarReconciliacao(
         vinculos: result.vinculosCriados,
         reprocessamento,
         idempotente_sem_novas: idempotenteSemNovas,
-      } as never,
+      } as unknown as Json,
     });
   } catch {
     // silencioso: a gravação da agenda é a operação crítica.
