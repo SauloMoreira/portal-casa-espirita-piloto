@@ -10,12 +10,13 @@
  * - `selecionada` só é preenchida com instituições cujo `vinculo_status` é
  *   `ativo` (fail-closed vem do useSelectedInstituicao/allowedIds).
  */
-import React, { createContext, useContext, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useMemo } from "react";
 import {
   usePortalHub,
   type PortalInstituicaoView,
 } from "@/hooks/usePortalHub";
 import { useSelectedInstituicao } from "@/hooks/useSelectedInstituicao";
+import { _setCurrentInstituicaoId } from "@/lib/tenant/currentTenant";
 
 interface InstituicaoContextValue {
   isLoading: boolean;
