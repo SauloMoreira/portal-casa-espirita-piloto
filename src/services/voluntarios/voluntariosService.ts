@@ -136,10 +136,13 @@ async function manageVoluntario(
   voluntarioId: string,
   motivo?: string | null,
 ): Promise<VoluntarioActionResult> {
+  // SAAS-05-E1: RPC tenant-aware — p_instituicao_id obrigatório.
+  const instituicaoId = requireInstituicaoId();
   const { data, error } = await supabase.rpc("gerenciar_voluntario", {
     p_action: action,
     p_voluntario_id: voluntarioId,
     p_motivo: motivo ?? null,
+    p_instituicao_id: instituicaoId,
   });
   if (error) throw error;
   return (data ?? {}) as VoluntarioActionResult;
