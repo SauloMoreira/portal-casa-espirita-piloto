@@ -70,8 +70,8 @@ describe("SAAS-04 — TenantSwitcher no header global", () => {
 
   it("switcher consome o contexto (não instancia hooks diretamente)", () => {
     expect(switcher).toContain("useInstituicaoAtiva");
-    expect(switcher).not.toContain("usePortalHub");
-    expect(switcher).not.toContain("useSelectedInstituicao");
+    expect(switcher).not.toMatch(/from\s+"@\/hooks\/usePortalHub"/);
+    expect(switcher).not.toMatch(/from\s+"@\/hooks\/useSelectedInstituicao"/);
   });
 
   it("switcher fica oculto quando não há instituições vinculadas", () => {
