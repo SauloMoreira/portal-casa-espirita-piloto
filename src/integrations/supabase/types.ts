@@ -3337,28 +3337,51 @@ export type Database = {
           tratado_por: string
         }[]
       }
-      fn_buscar_pessoa_para_voluntario: {
-        Args: { p_termo: string }
-        Returns: {
-          bairro: string
-          celular: string
-          cep: string
-          cidade: string
-          complemento: string
-          cpf: string
-          data_nascimento: string
-          email: string
-          estado: string
-          foto_url: string
-          ja_voluntario: boolean
-          logradouro: string
-          nome: string
-          numero: string
-          origem: string
-          origem_id: string
-          user_id: string
-        }[]
-      }
+      fn_buscar_pessoa_para_voluntario:
+        | {
+            Args: { p_termo: string }
+            Returns: {
+              bairro: string
+              celular: string
+              cep: string
+              cidade: string
+              complemento: string
+              cpf: string
+              data_nascimento: string
+              email: string
+              estado: string
+              foto_url: string
+              ja_voluntario: boolean
+              logradouro: string
+              nome: string
+              numero: string
+              origem: string
+              origem_id: string
+              user_id: string
+            }[]
+          }
+        | {
+            Args: { p_instituicao_id: string; p_termo: string }
+            Returns: {
+              bairro: string
+              celular: string
+              cep: string
+              cidade: string
+              complemento: string
+              cpf: string
+              data_nascimento: string
+              email: string
+              estado: string
+              foto_url: string
+              ja_voluntario: boolean
+              logradouro: string
+              nome: string
+              numero: string
+              origem: string
+              origem_id: string
+              user_id: string
+            }[]
+          }
       fn_conceder_acesso_operacional: {
         Args: {
           p_motivo?: string
@@ -3468,10 +3491,9 @@ export type Database = {
           valor_padrao: string
         }[]
       }
-      fn_monitor_excecao_notificacoes: {
-        Args: { p_desde?: string }
-        Returns: Json
-      }
+      fn_monitor_excecao_notificacoes:
+        | { Args: { p_desde?: string }; Returns: Json }
+        | { Args: { p_desde: string; p_instituicao_id: string }; Returns: Json }
       fn_normalize_phone: { Args: { p: string }; Returns: string }
       fn_notif_ping: { Args: never; Returns: string }
       fn_observabilidade_operacional: {
@@ -3479,10 +3501,12 @@ export type Database = {
         Returns: Json
       }
       fn_presenca_classificacao: { Args: { p_status: string }; Returns: Json }
-      fn_processar_excecao_notificacoes: {
-        Args: { p_excecao_id: string }
-        Returns: Json
-      }
+      fn_processar_excecao_notificacoes:
+        | { Args: { p_excecao_id: string }; Returns: Json }
+        | {
+            Args: { p_excecao_id: string; p_instituicao_id: string }
+            Returns: Json
+          }
       fn_promover_proxima_sessao: {
         Args: { p_vinculo: string }
         Returns: undefined
@@ -3551,20 +3575,46 @@ export type Database = {
         Args: { p_voluntario_id: string }
         Returns: string[]
       }
-      gerenciar_termo_voluntario: {
-        Args: {
-          p_action: string
-          p_motivo?: string
-          p_nome?: string
-          p_path?: string
-          p_voluntario_id: string
-        }
-        Returns: Json
-      }
-      gerenciar_voluntario: {
-        Args: { p_action: string; p_motivo?: string; p_voluntario_id: string }
-        Returns: Json
-      }
+      gerenciar_termo_voluntario:
+        | {
+            Args: {
+              p_action: string
+              p_motivo?: string
+              p_nome?: string
+              p_path?: string
+              p_voluntario_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_action: string
+              p_instituicao_id: string
+              p_motivo: string
+              p_nome: string
+              p_path: string
+              p_voluntario_id: string
+            }
+            Returns: Json
+          }
+      gerenciar_voluntario:
+        | {
+            Args: {
+              p_action: string
+              p_motivo?: string
+              p_voluntario_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_action: string
+              p_instituicao_id: string
+              p_motivo: string
+              p_voluntario_id: string
+            }
+            Returns: Json
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
