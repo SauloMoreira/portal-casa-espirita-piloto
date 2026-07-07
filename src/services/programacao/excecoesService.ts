@@ -150,10 +150,12 @@ export async function definirRolloutAtivo(ativo: boolean): Promise<void> {
 
 /** Painel de monitoramento das primeiras ocorrências reais do rollout. */
 export async function obterRolloutMonitor(diasJanela = 14): Promise<RolloutMonitor> {
+  const instituicaoId = requireInstituicaoId();
   const desde = new Date(Date.now() - diasJanela * 24 * 60 * 60 * 1000).toISOString();
-  // SAAS-05-D: RPC funcional preservada; adaptação p_instituicao_id → SAAS-05-E.
+  // SAAS-05-E1: RPC tenant-aware — p_instituicao_id obrigatório.
   const { data, error } = await supabase.rpc("fn_monitor_excecao_notificacoes", {
     p_desde: desde,
+    p_instituicao_id: instituicaoId,
   });
   if (error) throw error;
   return parseRolloutMonitor(data);
