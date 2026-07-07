@@ -24,10 +24,15 @@ import {
 } from "@/services/notificacoes/notificacoesService";
 import { obterRolloutMonitor } from "@/services/programacao/excecoesService";
 import { buscarPessoaParaVoluntario } from "@/services/voluntarios/voluntariosService";
+import { _setCurrentInstituicaoId } from "@/lib/tenant/currentTenant";
+
+const FAKE_INST_ID = "00000000-0000-0000-0000-00000000c001";
 
 beforeEach(() => {
   rpcMock.mockReset();
   fromMock.mockReset();
+  // SAAS-05-E1: services de tenant exigem instituição ativa (fail-closed).
+  _setCurrentInstituicaoId(FAKE_INST_ID);
 });
 
 // ============================================================================
@@ -140,12 +145,15 @@ describe("Q1-C5 contratos — parseRolloutMonitor", () => {
     expect(parseRolloutMonitor(valido)).toEqual(valido);
   });
 
-  it("obterRolloutMonitor usa a RPC fn_monitor_excecao_notificacoes", async () => {
+  it("obterRolloutMonitor usa a RPC fn_monitor_excecao_notificacoes com p_instituicao_id", async () => {
     rpcMock.mockResolvedValue({ data: valido, error: null });
     const r = await obterRolloutMonitor(14);
     expect(rpcMock).toHaveBeenCalledWith(
       "fn_monitor_excecao_notificacoes",
-      expect.objectContaining({ p_desde: expect.any(String) }),
+      expect.objectContaining({
+        p_desde: expect.any(String),
+        p_instituicao_id: FAKE_INST_ID,
+      }),
     );
     expect(r).toEqual(valido);
   });
@@ -179,11 +187,14 @@ describe("Q1-C5 contratos — parsePessoaCandidatas", () => {
     expect(parsePessoaCandidatas(undefined)).toEqual([]);
   });
 
-  it("buscarPessoaParaVoluntario usa a RPC fn_buscar_pessoa_para_voluntario", async () => {
+  it("buscarPessoaParaVoluntario usa a RPC fn_buscar_pessoa_para_voluntario com p_instituicao_id", async () => {
     const lista = [{ origem: "usuario", origem_id: "u1", nome: "Ciclano" }];
     rpcMock.mockResolvedValue({ data: lista, error: null });
     const r = await buscarPessoaParaVoluntario("cicl");
-    expect(rpcMock).toHaveBeenCalledWith("fn_buscar_pessoa_para_voluntario", { p_termo: "cicl" });
+    expect(rpcMock).toHaveBeenCalledWith("fn_buscar_pessoa_para_voluntario", {
+      p_termo: "cicl",
+      p_instituicao_id: FAKE_INST_ID,
+    });
     expect(r).toEqual(lista);
   });
 

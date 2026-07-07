@@ -136,10 +136,13 @@ async function manageVoluntario(
   voluntarioId: string,
   motivo?: string | null,
 ): Promise<VoluntarioActionResult> {
+  // SAAS-05-E1: RPC tenant-aware — p_instituicao_id obrigatório.
+  const instituicaoId = requireInstituicaoId();
   const { data, error } = await supabase.rpc("gerenciar_voluntario", {
     p_action: action,
     p_voluntario_id: voluntarioId,
     p_motivo: motivo ?? null,
+    p_instituicao_id: instituicaoId,
   });
   if (error) throw error;
   return (data ?? {}) as VoluntarioActionResult;
@@ -174,12 +177,15 @@ async function manageTermo(
   voluntarioId: string,
   opts: { path?: string | null; nome?: string | null; motivo?: string | null } = {},
 ): Promise<TermoActionResult> {
+  // SAAS-05-E1: RPC tenant-aware — p_instituicao_id obrigatório.
+  const instituicaoId = requireInstituicaoId();
   const { data, error } = await supabase.rpc("gerenciar_termo_voluntario", {
     p_action: action,
     p_voluntario_id: voluntarioId,
     p_path: opts.path ?? null,
     p_nome: opts.nome ?? null,
     p_motivo: opts.motivo ?? null,
+    p_instituicao_id: instituicaoId,
   });
   if (error) throw error;
   return (data ?? {}) as TermoActionResult;
@@ -222,7 +228,12 @@ import { parsePessoaCandidatas, type PessoaCandidata } from "./voluntariosContra
  * por fn_buscar_pessoa_para_voluntario.
  */
 export async function buscarPessoaParaVoluntario(termo: string): Promise<PessoaCandidata[]> {
-  const { data, error } = await supabase.rpc("fn_buscar_pessoa_para_voluntario", { p_termo: termo });
+  // SAAS-05-E1: RPC tenant-aware — p_instituicao_id obrigatório.
+  const instituicaoId = requireInstituicaoId();
+  const { data, error } = await supabase.rpc("fn_buscar_pessoa_para_voluntario", {
+    p_termo: termo,
+    p_instituicao_id: instituicaoId,
+  });
   if (error) throw error;
   return parsePessoaCandidatas(data);
 }
