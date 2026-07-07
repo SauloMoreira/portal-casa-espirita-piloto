@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import type { SessaoPublica, CheckinPublico } from "@/types";
 import { SESSAO_PUBLICA_STATUS } from "@/constants";
 
