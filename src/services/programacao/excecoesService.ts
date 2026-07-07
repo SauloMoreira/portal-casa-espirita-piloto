@@ -1,5 +1,11 @@
+/**
+ * SAAS-05-D — Queries diretas às tabelas T-DIR `excecoes_operacionais` e
+ * `regras_operacionais` são escopadas pela instituição ativa via
+ * `requireInstituicaoId()` (fail-closed).
+ */
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { parseRolloutMonitor, type RolloutMonitor } from "./excecoesContracts";
 
 export interface ExcecaoOperacional {
@@ -37,9 +43,11 @@ export type ExcecaoInput = Partial<
 >;
 
 export async function listarExcecoes(f: ExcecaoFiltros): Promise<ExcecaoOperacional[]> {
+  const instituicaoId = requireInstituicaoId();
   let q = supabase
     .from("excecoes_operacionais")
     .select("*")
+    .eq("instituicao_id", instituicaoId)
     .order("data_excecao", { ascending: false })
     .order("prioridade", { ascending: false });
 
@@ -59,17 +67,19 @@ export async function listarExcecoes(f: ExcecaoFiltros): Promise<ExcecaoOperacio
 }
 
 export async function salvarExcecao(input: ExcecaoInput, id?: string): Promise<void> {
+  const instituicaoId = requireInstituicaoId();
   let excecaoId = id;
   if (id) {
     const { error } = await supabase
       .from("excecoes_operacionais")
       .update(input as TablesUpdate<"excecoes_operacionais">)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("instituicao_id", instituicaoId);
     if (error) throw error;
   } else {
     const { data, error } = await supabase
       .from("excecoes_operacionais")
-      .insert(input as TablesInsert<"excecoes_operacionais">)
+      .insert({ ...input, instituicao_id: instituicaoId } as TablesInsert<"excecoes_operacionais">)
       .select("id")
       .single();
     if (error) throw error;
@@ -78,12 +88,12 @@ export async function salvarExcecao(input: ExcecaoInput, id?: string): Promise<v
 
   // Caminho principal (imediato): aplica efeito na agenda e enfileira a
   // comunicação oficial. A reconciliação no cron é apenas rede de segurança.
+  // SAAS-05-D: RPC funcional preservada; adaptação p_instituicao_id → SAAS-05-E.
   if (excecaoId) {
     const { error: rpcError } = await supabase.rpc(
       "fn_processar_excecao_notificacoes",
       { p_excecao_id: excecaoId },
     );
-    // Falha aqui não deve reverter a exceção já gravada: o cron reconcilia.
     if (rpcError) {
       console.error("Falha ao processar notificações da exceção", rpcError);
     }
@@ -91,15 +101,22 @@ export async function salvarExcecao(input: ExcecaoInput, id?: string): Promise<v
 }
 
 export async function alternarAtivoExcecao(id: string, ativo: boolean): Promise<void> {
+  const instituicaoId = requireInstituicaoId();
   const { error } = await supabase
     .from("excecoes_operacionais")
     .update({ ativo } as TablesUpdate<"excecoes_operacionais">)
-    .eq("id", id);
+    .eq("id", id)
+    .eq("instituicao_id", instituicaoId);
   if (error) throw error;
 }
 
 export async function excluirExcecao(id: string): Promise<void> {
-  const { error } = await supabase.from("excecoes_operacionais").delete().eq("id", id);
+  const instituicaoId = requireInstituicaoId();
+  const { error } = await supabase
+    .from("excecoes_operacionais")
+    .delete()
+    .eq("id", id)
+    .eq("instituicao_id", instituicaoId);
   if (error) throw error;
 }
 
@@ -109,9 +126,11 @@ export type { RolloutMonitor };
 
 /** Lê o interruptor de contenção do rollout (true = liberado). */
 export async function obterRolloutAtivo(): Promise<boolean> {
+  const instituicaoId = requireInstituicaoId();
   const { data, error } = await supabase
     .from("regras_operacionais")
     .select("valor")
+    .eq("instituicao_id", instituicaoId)
     .eq("chave", ROLLOUT_KEY)
     .maybeSingle();
   if (error) throw error;
@@ -120,9 +139,11 @@ export async function obterRolloutAtivo(): Promise<boolean> {
 
 /** Liga/desliga a notificação automática por exceção (contenção rápida). */
 export async function definirRolloutAtivo(ativo: boolean): Promise<void> {
+  const instituicaoId = requireInstituicaoId();
   const { error } = await supabase
     .from("regras_operacionais")
     .update({ valor: ativo ? "true" : "false" } as TablesUpdate<"regras_operacionais">)
+    .eq("instituicao_id", instituicaoId)
     .eq("chave", ROLLOUT_KEY);
   if (error) throw error;
 }
@@ -130,6 +151,7 @@ export async function definirRolloutAtivo(ativo: boolean): Promise<void> {
 /** Painel de monitoramento das primeiras ocorrências reais do rollout. */
 export async function obterRolloutMonitor(diasJanela = 14): Promise<RolloutMonitor> {
   const desde = new Date(Date.now() - diasJanela * 24 * 60 * 60 * 1000).toISOString();
+  // SAAS-05-D: RPC funcional preservada; adaptação p_instituicao_id → SAAS-05-E.
   const { data, error } = await supabase.rpc("fn_monitor_excecao_notificacoes", {
     p_desde: desde,
   });

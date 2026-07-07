@@ -10,12 +10,13 @@
  * - `selecionada` só é preenchida com instituições cujo `vinculo_status` é
  *   `ativo` (fail-closed vem do useSelectedInstituicao/allowedIds).
  */
-import React, { createContext, useContext, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useMemo } from "react";
 import {
   usePortalHub,
   type PortalInstituicaoView,
 } from "@/hooks/usePortalHub";
 import { useSelectedInstituicao } from "@/hooks/useSelectedInstituicao";
+import { _setCurrentInstituicaoId } from "@/lib/tenant/currentTenant";
 
 interface InstituicaoContextValue {
   isLoading: boolean;
@@ -53,6 +54,17 @@ export const InstituicaoProvider: React.FC<{ children: React.ReactNode }> = ({
       instituicoes.find((i) => i.id === selectedInstituicaoId) ?? null,
     [instituicoes, selectedInstituicaoId],
   );
+
+  // SAAS-05-D — Espelha o tenant ativo no módulo `currentTenant` para que
+  // services/hooks possam falhar fechado sem ler localStorage por fora.
+  useEffect(() => {
+    _setCurrentInstituicaoId(selecionada?.id ?? null);
+    return () => {
+      _setCurrentInstituicaoId(null);
+    };
+  }, [selecionada?.id]);
+
+
 
   const value = useMemo<InstituicaoContextValue>(
     () => ({

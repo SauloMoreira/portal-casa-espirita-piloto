@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { RequireInstituicao } from "@/components/RequireInstituicao";
 import { AppLayout } from "@/components/AppLayout";
 import { withErrorBoundary as guard } from "@/components/ErrorBoundary";
 import { useThemeColors } from "@/hooks/useThemeColors";
@@ -89,6 +90,12 @@ const RouteFallback = () => (
   </div>
 );
 
+// SAAS-05-D — Wrapper que exige instituição ativa selecionada em rotas
+// operacionais. Rotas globais (identidade, portal, check-in público) NÃO usam.
+const tenant = (node: ReactNode) => (
+  <RequireInstituicao>{node}</RequireInstituicao>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -111,55 +118,55 @@ const App = () => (
 
 
                 <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                  <Route path={ROUTES.dashboard} element={guard(<Dashboard />, "Dashboard")} />
-                  <Route path={ROUTES.usuarios} element={<ProtectedRoute allowedRoles={["admin"]}><Usuarios /></ProtectedRoute>} />
-                  <Route path={ROUTES.solicitacoesCadastro} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<SolicitacoesCadastro />, "Solicitações de Cadastro")}</ProtectedRoute>} />
-                  <Route path={ROUTES.governancaAcessos} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<GovernancaAcessos />, "Governança de Acessos")}</ProtectedRoute>} />
-                  <Route path={ROUTES.escopoOperacional} element={<ProtectedRoute allowedRoles={["admin", "administrador_master"]}>{guard(<EscopoOperacional />, "Escopo Operacional")}</ProtectedRoute>} />
+                  <Route path={ROUTES.dashboard} element={tenant(guard(<Dashboard />, "Dashboard"))} />
+                  <Route path={ROUTES.usuarios} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Usuarios />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.solicitacoesCadastro} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<SolicitacoesCadastro />, "Solicitações de Cadastro"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.governancaAcessos} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<GovernancaAcessos />, "Governança de Acessos"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.escopoOperacional} element={<ProtectedRoute allowedRoles={["admin", "administrador_master"]}>{tenant(guard(<EscopoOperacional />, "Escopo Operacional"))}</ProtectedRoute>} />
                   <Route path={ROUTES.segurancaConta} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<SegurancaConta />, "Segurança da Conta")}</ProtectedRoute>} />
 
-                  <Route path={ROUTES.tratamentos} element={<ProtectedRoute allowedRoles={["admin"]}><Tratamentos /></ProtectedRoute>} />
-                  <Route path={ROUTES.assistidos} element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}><Assistidos /></ProtectedRoute>} />
-                  <Route path={ROUTES.consultaAssistido} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<ConsultaAssistido />, "Consulta do Assistido")}</ProtectedRoute>} />
-                  <Route path={ROUTES.migrarAssistido} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<MigrarAssistido />, "Migrar Assistido")}</ProtectedRoute>} />
-                  <Route path={ROUTES.homologacaoAgenda} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<HomologacaoAgenda />, "Homologação da Agenda")}</ProtectedRoute>} />
-                  <Route path={ROUTES.entrevistas} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "tarefeiro"]}><Entrevistas /></ProtectedRoute>} />
-                  <Route path={ROUTES.fazerEntrevista} element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}>{guard(<FazerEntrevista />, "Fazer Entrevista")}</ProtectedRoute>} />
-                  <Route path={ROUTES.agenda} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "tarefeiro"]}>{guard(<Agenda />, "Agenda")}</ProtectedRoute>} />
-                  <Route path={ROUTES.avisosAusencia} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "tarefeiro", "coordenador_de_tratamento"]}>{guard(<AvisosAusencia />, "Avisos de Ausência")}</ProtectedRoute>} />
-                  <Route path={ROUTES.presenca} element={<ProtectedRoute allowedRoles={["admin", "tarefeiro"]}>{guard(<Presenca />, "Controle de Presença")}</ProtectedRoute>} />
+                  <Route path={ROUTES.tratamentos} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Tratamentos />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.assistidos} element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}>{tenant(<Assistidos />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.consultaAssistido} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<ConsultaAssistido />, "Consulta do Assistido"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.migrarAssistido} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<MigrarAssistido />, "Migrar Assistido"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.homologacaoAgenda} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<HomologacaoAgenda />, "Homologação da Agenda"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.entrevistas} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "tarefeiro"]}>{tenant(<Entrevistas />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.fazerEntrevista} element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}>{tenant(guard(<FazerEntrevista />, "Fazer Entrevista"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.agenda} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "tarefeiro"]}>{tenant(guard(<Agenda />, "Agenda"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.avisosAusencia} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "tarefeiro", "coordenador_de_tratamento"]}>{tenant(guard(<AvisosAusencia />, "Avisos de Ausência"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.presenca} element={<ProtectedRoute allowedRoles={["admin", "tarefeiro"]}>{tenant(guard(<Presenca />, "Controle de Presença"))}</ProtectedRoute>} />
                   <Route path={ROUTES.meusTratamentos} element={<ProtectedRoute allowedRoles={["assistido"]}>{guard(<MeusTratamentos />, "Meus Tratamentos")}</ProtectedRoute>} />
                   <Route path={ROUTES.minhaAgenda} element={<ProtectedRoute allowedRoles={["assistido"]}>{guard(<MinhaAgenda />, "Minha Agenda")}</ProtectedRoute>} />
                   <Route path={ROUTES.meuPerfil} element={<ProtectedRoute allowedRoles={["assistido", "admin", "entrevistador", "tarefeiro", "coordenador_de_tratamento"]}><MeuPerfil /></ProtectedRoute>} />
                   <Route path={ROUTES.meusDocumentos} element={<ProtectedRoute allowedRoles={["assistido"]}>{guard(<MeusDocumentos />, "Meus Documentos")}</ProtectedRoute>} />
                   <Route path={ROUTES.notificacoes} element={<Notificacoes />} />
                   <Route path={ROUTES.ajuda} element={guard(<CentralAjuda />, "Central de Ajuda")} />
-                  <Route path={ROUTES.centralNotificacoes} element={<ProtectedRoute allowedRoles={["admin", "coordenador_de_tratamento"]}>{guard(<CentralNotificacoes />, "Central de Notificações")}</ProtectedRoute>} />
-                  <Route path={ROUTES.observabilidade} element={<ProtectedRoute allowedRoles={["admin", "administrador_master", "coordenador_de_tratamento"]}>{guard(<Observabilidade />, "Observabilidade Operacional")}</ProtectedRoute>} />
-                  <Route path={ROUTES.listaEspera} element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}><CoordenadorListaEspera /></ProtectedRoute>} />
-                  <Route path={ROUTES.coordenadorTratamentos} element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}><CoordenadorTratamentos /></ProtectedRoute>} />
-                  <Route path={ROUTES.coordenadorAgenda} element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}><CoordenadorAgenda /></ProtectedRoute>} />
-                  <Route path={ROUTES.relatorios} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "coordenador_de_tratamento", "tarefeiro"]}><Relatorios /></ProtectedRoute>} />
-                  <Route path={ROUTES.configuracoes} element={<ProtectedRoute allowedRoles={["admin"]}><Configuracoes /></ProtectedRoute>} />
-                  <Route path={ROUTES.gestaoCores} element={<ProtectedRoute allowedRoles={["admin"]}><GestaoCores /></ProtectedRoute>} />
-                  <Route path={ROUTES.auditoria} element={<ProtectedRoute allowedRoles={["admin"]}><Auditoria /></ProtectedRoute>} />
-                  <Route path={ROUTES.regras} element={<ProtectedRoute allowedRoles={["admin"]}><RegrasOperacionais /></ProtectedRoute>} />
-                  <Route path={ROUTES.governancaParametros} element={<ProtectedRoute allowedRoles={["admin", "administrador_master"]}><GovernancaParametros /></ProtectedRoute>} />
-                  <Route path={ROUTES.excecoes} element={<ProtectedRoute allowedRoles={["admin"]}><Excecoes /></ProtectedRoute>} />
-                  <Route path={ROUTES.excecoesOperacionais} element={<ProtectedRoute allowedRoles={["admin", "coordenador_de_tratamento"]}>{guard(<ExcecoesOperacionais />, "Exceções Operacionais")}</ProtectedRoute>} />
-                  <Route path={ROUTES.programacaoPadrao} element={<ProtectedRoute allowedRoles={["admin", "coordenador_de_tratamento"]}>{guard(<ProgramacaoPadrao />, "Programação Padrão")}</ProtectedRoute>} />
-                  <Route path={ROUTES.instituicao} element={<ProtectedRoute allowedRoles={["admin"]}><Instituicao /></ProtectedRoute>} />
-                  <Route path={ROUTES.centralIa} element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}><CentralIA /></ProtectedRoute>} />
-                  <Route path={ROUTES.voluntarios} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<Voluntarios />, "Voluntários")}</ProtectedRoute>} />
-                  <Route path={ROUTES.funcoesVoluntariado} element={<ProtectedRoute allowedRoles={["admin"]}><FuncoesVoluntariado /></ProtectedRoute>} />
-                  <Route path={ROUTES.sessoesPublicas} element={<ProtectedRoute allowedRoles={["admin", "tarefeiro"]}>{guard(<SessoesPublicas />, "Sessões Públicas")}</ProtectedRoute>} />
-                  <Route path={ROUTES.acaoSocial} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<AcaoSocial />, "Ação Social")}</ProtectedRoute>} />
-                  <Route path={ROUTES.campanhas} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<Campanhas />, "Campanhas")}</ProtectedRoute>} />
-                  <Route path={ROUTES.eventos} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<Eventos />, "Eventos")}</ProtectedRoute>} />
-                 <Route path={ROUTES.comunicacaoInstitucional} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<ComunicacaoInstitucional />, "Comunicação Institucional")}</ProtectedRoute>} />
-                 <Route path={ROUTES.painelInstitucional} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<PainelInstitucional />, "Painel Institucional")}</ProtectedRoute>} />
+                  <Route path={ROUTES.centralNotificacoes} element={<ProtectedRoute allowedRoles={["admin", "coordenador_de_tratamento"]}>{tenant(guard(<CentralNotificacoes />, "Central de Notificações"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.observabilidade} element={<ProtectedRoute allowedRoles={["admin", "administrador_master", "coordenador_de_tratamento"]}>{tenant(guard(<Observabilidade />, "Observabilidade Operacional"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.listaEspera} element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}>{tenant(<CoordenadorListaEspera />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.coordenadorTratamentos} element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}>{tenant(<CoordenadorTratamentos />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.coordenadorAgenda} element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}>{tenant(<CoordenadorAgenda />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.relatorios} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "coordenador_de_tratamento", "tarefeiro"]}>{tenant(<Relatorios />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.configuracoes} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Configuracoes />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.gestaoCores} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<GestaoCores />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.auditoria} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Auditoria />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.regras} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<RegrasOperacionais />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.governancaParametros} element={<ProtectedRoute allowedRoles={["admin", "administrador_master"]}>{tenant(<GovernancaParametros />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.excecoes} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Excecoes />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.excecoesOperacionais} element={<ProtectedRoute allowedRoles={["admin", "coordenador_de_tratamento"]}>{tenant(guard(<ExcecoesOperacionais />, "Exceções Operacionais"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.programacaoPadrao} element={<ProtectedRoute allowedRoles={["admin", "coordenador_de_tratamento"]}>{tenant(guard(<ProgramacaoPadrao />, "Programação Padrão"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.instituicao} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Instituicao />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.centralIa} element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}>{tenant(<CentralIA />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.voluntarios} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<Voluntarios />, "Voluntários"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.funcoesVoluntariado} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<FuncoesVoluntariado />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.sessoesPublicas} element={<ProtectedRoute allowedRoles={["admin", "tarefeiro"]}>{tenant(guard(<SessoesPublicas />, "Sessões Públicas"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.acaoSocial} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<AcaoSocial />, "Ação Social"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.campanhas} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<Campanhas />, "Campanhas"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.eventos} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<Eventos />, "Eventos"))}</ProtectedRoute>} />
+                 <Route path={ROUTES.comunicacaoInstitucional} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<ComunicacaoInstitucional />, "Comunicação Institucional"))}</ProtectedRoute>} />
+                 <Route path={ROUTES.painelInstitucional} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<PainelInstitucional />, "Painel Institucional"))}</ProtectedRoute>} />
 
-                 {/* SaaS Portal / Hub (SAAS-03) — acessível a qualquer usuário autenticado. */}
+                 {/* SaaS Portal / Hub (SAAS-03) — acessível a qualquer usuário autenticado, sem exigir tenant ativo. */}
                  <Route path={ROUTES.portal} element={guard(<Portal />, "Portal SaaS")} />
                  <Route path={ROUTES.portalInstituicoes} element={guard(<PortalInstituicoes />, "Portal · Instituições")} />
                  <Route path={ROUTES.portalModulos} element={guard(<PortalModulos />, "Portal · Módulos")} />
