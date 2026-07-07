@@ -22,15 +22,10 @@ export default function Portal() {
     selectInstituicao,
   } = useInstituicaoAtiva();
 
-  const allowedIds = useMemo(
-    () => instituicoes.filter((i) => i.vinculo_status === "ativo").map((i) => i.id),
-    [instituicoes],
-  );
-  const { selectedInstituicaoId, selectInstituicao } = useSelectedInstituicao(allowedIds);
-  const selecionada =
-    instituicoes.find((i) => i.id === selectedInstituicaoId) ?? null;
+  void selectedInstituicaoId;
 
   const nomeExibicao = profile?.nome_completo || user?.email || "Bem-vindo";
+
 
   if (isLoading) {
     return (
