@@ -2994,6 +2994,10 @@ export type Database = {
         Args: { p_fila_id: string; p_motivo?: string; p_observacao?: string }
         Returns: Json
       }
+      fn_encerrar_item_fila_obsoleto: {
+        Args: { p_fila_id: string; p_observacao?: string }
+        Returns: Json
+      }
       fn_enfileirar_mensagem_manual: {
         Args: {
           p_assistido_id: string
