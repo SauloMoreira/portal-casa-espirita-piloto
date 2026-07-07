@@ -70,6 +70,12 @@ const SegurancaPrivacidade = lazy(() => import("./pages/SegurancaPrivacidade"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// SaaS Portal / Hub (SAAS-03)
+const Portal = lazy(() => import("./pages/Portal"));
+const PortalInstituicoes = lazy(() => import("./pages/PortalInstituicoes"));
+const PortalModulos = lazy(() => import("./pages/PortalModulos"));
+const PortalAdmin = lazy(() => import("./pages/PortalAdmin"));
+
 const queryClient = new QueryClient();
 
 const ThemeLoader = ({ children }: { children: React.ReactNode }) => {
@@ -152,6 +158,12 @@ const App = () => (
                   <Route path={ROUTES.eventos} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<Eventos />, "Eventos")}</ProtectedRoute>} />
                  <Route path={ROUTES.comunicacaoInstitucional} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<ComunicacaoInstitucional />, "Comunicação Institucional")}</ProtectedRoute>} />
                  <Route path={ROUTES.painelInstitucional} element={<ProtectedRoute allowedRoles={["admin"]}>{guard(<PainelInstitucional />, "Painel Institucional")}</ProtectedRoute>} />
+
+                 {/* SaaS Portal / Hub (SAAS-03) — acessível a qualquer usuário autenticado. */}
+                 <Route path={ROUTES.portal} element={guard(<Portal />, "Portal SaaS")} />
+                 <Route path={ROUTES.portalInstituicoes} element={guard(<PortalInstituicoes />, "Portal · Instituições")} />
+                 <Route path={ROUTES.portalModulos} element={guard(<PortalModulos />, "Portal · Módulos")} />
+                 <Route path={ROUTES.portalAdmin} element={guard(<PortalAdmin />, "Portal · Administração")} />
 
                 </Route>
 
