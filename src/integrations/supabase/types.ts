@@ -3292,6 +3292,7 @@ export type Database = {
       contar_publico_elegivel: { Args: { p_versao: string }; Returns: number }
       count_active_masters: { Args: never; Returns: number }
       count_apt_admins: { Args: never; Returns: number }
+      current_instituicao_id: { Args: never; Returns: string }
       dashboard_admin: {
         Args: { p_fim: string; p_inicio: string }
         Returns: Json
@@ -3571,8 +3572,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_role_in_instituicao: {
+        Args: {
+          _instituicao_id: string
+          _papel: Database["public"]["Enums"]["saas_papel_local"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_active_admin: { Args: { _uid: string }; Returns: boolean }
       is_active_master: { Args: { _uid: string }; Returns: boolean }
+      is_member_of_instituicao: {
+        Args: { _instituicao_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       lista_usuarios_email: {
         Args: never
