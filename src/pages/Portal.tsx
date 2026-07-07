@@ -1,12 +1,10 @@
-import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Building2, ShieldCheck, Boxes, ArrowRight, Loader2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePortalHub } from "@/hooks/usePortalHub";
-import { useSelectedInstituicao } from "@/hooks/useSelectedInstituicao";
+import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { ROUTES } from "@/constants";
 import { InstituicaoSelector } from "@/components/portal/InstituicaoSelector";
 import { ModulosGrid } from "@/components/portal/ModulosGrid";
@@ -14,7 +12,15 @@ import { PlanoResumo } from "@/components/portal/PlanoResumo";
 
 export default function Portal() {
   const { profile, user } = useAuth();
-  const { isLoading, isError, isPlatformAdmin, instituicoes } = usePortalHub();
+  const {
+    isLoading,
+    isError,
+    isPlatformAdmin,
+    instituicoes,
+    selectedInstituicaoId,
+    selecionada,
+    selectInstituicao,
+  } = useInstituicaoAtiva();
 
   const allowedIds = useMemo(
     () => instituicoes.filter((i) => i.vinculo_status === "ativo").map((i) => i.id),
