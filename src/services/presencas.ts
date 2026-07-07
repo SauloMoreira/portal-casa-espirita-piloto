@@ -19,6 +19,6 @@ export async function registrarPresenca(
 ): Promise<void> {
   const { error } = await supabase
     .from("presencas_tratamentos")
-    .upsert(payload as never);
+    .upsert(payload as TablesInsert<"presencas_tratamentos">);
   if (error) throw error;
 }
