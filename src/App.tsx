@@ -90,6 +90,12 @@ const RouteFallback = () => (
   </div>
 );
 
+// SAAS-05-D — Wrapper que exige instituição ativa selecionada em rotas
+// operacionais. Rotas globais (identidade, portal, check-in público) NÃO usam.
+const tenant = (node: React.ReactNode) => (
+  <RequireInstituicao>{node}</RequireInstituicao>
+);
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
