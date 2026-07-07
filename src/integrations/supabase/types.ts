@@ -248,6 +248,57 @@ export type Database = {
         }
         Relationships: []
       }
+      assinaturas: {
+        Row: {
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          instituicao_id: string
+          plano_id: string
+          status: Database["public"]["Enums"]["saas_assinatura_status"]
+          trial_ate: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          instituicao_id: string
+          plano_id: string
+          status?: Database["public"]["Enums"]["saas_assinatura_status"]
+          trial_ate?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          instituicao_id?: string
+          plano_id?: string
+          status?: Database["public"]["Enums"]["saas_assinatura_status"]
+          trial_ate?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assinaturas_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assinaturas_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "planos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistido_tratamentos: {
         Row: {
           agendado_por: string | null
@@ -1806,6 +1857,89 @@ export type Database = {
         }
         Relationships: []
       }
+      instituicao_usuarios: {
+        Row: {
+          created_at: string
+          id: string
+          instituicao_id: string
+          papel_local: Database["public"]["Enums"]["saas_papel_local"]
+          status: Database["public"]["Enums"]["saas_vinculo_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instituicao_id: string
+          papel_local: Database["public"]["Enums"]["saas_papel_local"]
+          status?: Database["public"]["Enums"]["saas_vinculo_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instituicao_id?: string
+          papel_local?: Database["public"]["Enums"]["saas_papel_local"]
+          status?: Database["public"]["Enums"]["saas_vinculo_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instituicao_usuarios_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instituicoes: {
+        Row: {
+          cidade: string | null
+          cnpj: string | null
+          created_at: string
+          email_contato: string | null
+          id: string
+          nome: string
+          nome_fantasia: string | null
+          slug: string
+          status: Database["public"]["Enums"]["saas_instituicao_status"]
+          telefone_contato: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          cidade?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email_contato?: string | null
+          id?: string
+          nome: string
+          nome_fantasia?: string | null
+          slug: string
+          status?: Database["public"]["Enums"]["saas_instituicao_status"]
+          telefone_contato?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cidade?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email_contato?: string | null
+          id?: string
+          nome?: string
+          nome_fantasia?: string | null
+          slug?: string
+          status?: Database["public"]["Enums"]["saas_instituicao_status"]
+          telefone_contato?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mfa_recovery_codes: {
         Row: {
           code_hash: string
@@ -1827,6 +1961,33 @@ export type Database = {
           id?: string
           used_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      modulos: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
         }
         Relationships: []
       }
@@ -2096,6 +2257,42 @@ export type Database = {
         }
         Relationships: []
       }
+      plano_modulos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          modulo_id: string
+          plano_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          modulo_id: string
+          plano_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          modulo_id?: string
+          plano_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_modulos_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_modulos_plano_id_fkey"
+            columns: ["plano_id"]
+            isOneToOne: false
+            referencedRelation: "planos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plano_tratamento_sessoes: {
         Row: {
           agenda_sessao_id: string | null
@@ -2163,6 +2360,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      planos: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          valor_implantacao: number
+          valor_mensal: number
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          valor_implantacao?: number
+          valor_mensal?: number
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          valor_implantacao?: number
+          valor_mensal?: number
+        }
+        Relationships: []
+      }
+      platform_admins: {
+        Row: {
+          created_at: string
+          id: string
+          papel: Database["public"]["Enums"]["saas_papel_global"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          papel: Database["public"]["Enums"]["saas_papel_global"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          papel?: Database["public"]["Enums"]["saas_papel_global"]
+          user_id?: string
+        }
+        Relationships: []
       }
       presencas_palestras: {
         Row: {
@@ -3184,6 +3435,7 @@ export type Database = {
       }
       is_active_admin: { Args: { _uid: string }; Returns: boolean }
       is_active_master: { Args: { _uid: string }; Returns: boolean }
+      is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       lista_usuarios_email: {
         Args: never
         Returns: {
@@ -3356,6 +3608,22 @@ export type Database = {
           user_id: string
         }[]
       }
+      user_is_admin_instituicao: {
+        Args: { _instituicao_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_pertence_instituicao: {
+        Args: { _instituicao_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_tem_papel_local: {
+        Args: {
+          _instituicao_id: string
+          _papel: Database["public"]["Enums"]["saas_papel_local"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
@@ -3386,6 +3654,28 @@ export type Database = {
         | "mensagem_manual"
         | "aviso_ausencia_recebido"
       notif_status: "pendente" | "agendado" | "enviado" | "falha" | "cancelado"
+      saas_assinatura_status:
+        | "trial"
+        | "ativa"
+        | "suspensa"
+        | "cancelada"
+        | "inadimplente"
+      saas_instituicao_status: "implantacao" | "ativa" | "inativa" | "suspensa"
+      saas_papel_global:
+        | "platform_owner"
+        | "platform_admin"
+        | "support"
+        | "billing_admin"
+      saas_papel_local:
+        | "admin_instituicao"
+        | "coordenador"
+        | "entrevistador"
+        | "tarefeiro"
+        | "assistido"
+        | "leitor"
+        | "caixa"
+        | "bibliotecario"
+      saas_vinculo_status: "pendente" | "ativo" | "inativo"
       status_etapa_plano:
         | "prevista"
         | "ativa"
@@ -3551,6 +3841,31 @@ export const Constants = {
         "aviso_ausencia_recebido",
       ],
       notif_status: ["pendente", "agendado", "enviado", "falha", "cancelado"],
+      saas_assinatura_status: [
+        "trial",
+        "ativa",
+        "suspensa",
+        "cancelada",
+        "inadimplente",
+      ],
+      saas_instituicao_status: ["implantacao", "ativa", "inativa", "suspensa"],
+      saas_papel_global: [
+        "platform_owner",
+        "platform_admin",
+        "support",
+        "billing_admin",
+      ],
+      saas_papel_local: [
+        "admin_instituicao",
+        "coordenador",
+        "entrevistador",
+        "tarefeiro",
+        "assistido",
+        "leitor",
+        "caixa",
+        "bibliotecario",
+      ],
+      saas_vinculo_status: ["pendente", "ativo", "inativo"],
       status_etapa_plano: [
         "prevista",
         "ativa",
