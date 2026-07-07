@@ -89,7 +89,7 @@ var minhas_notificacoes_default = defineTool2({
 });
 
 // src/lib/mcp/index.ts
-var projectRef = "sstxquugeffchpwdyahe";
+var projectRef = "wfgorvzzlbvzajzwxxzc";
 var mcp_default = defineMcp({
   name: "fer-mcp",
   title: "FER \u2014 Gest\xE3o de Tratamentos MCP",
