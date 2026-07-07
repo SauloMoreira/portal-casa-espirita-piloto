@@ -177,12 +177,15 @@ async function manageTermo(
   voluntarioId: string,
   opts: { path?: string | null; nome?: string | null; motivo?: string | null } = {},
 ): Promise<TermoActionResult> {
+  // SAAS-05-E1: RPC tenant-aware — p_instituicao_id obrigatório.
+  const instituicaoId = requireInstituicaoId();
   const { data, error } = await supabase.rpc("gerenciar_termo_voluntario", {
     p_action: action,
     p_voluntario_id: voluntarioId,
     p_path: opts.path ?? null,
     p_nome: opts.nome ?? null,
     p_motivo: opts.motivo ?? null,
+    p_instituicao_id: instituicaoId,
   });
   if (error) throw error;
   return (data ?? {}) as TermoActionResult;
