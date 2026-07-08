@@ -59,8 +59,8 @@ export default function MetricasWhatsApp() {
     try {
       const { atual: jAtual, anterior: jAnt } = calcularJanelas(d);
       const [r1, r2] = await Promise.all([
-        supabase.rpc("metricas_ia_whatsapp", { p_inicio: jAtual.inicio, p_fim: jAtual.fim }),
-        supabase.rpc("metricas_ia_whatsapp", { p_inicio: jAnt.inicio, p_fim: jAnt.fim }),
+        supabase.rpc("metricas_ia_whatsapp", { p_inicio: jAtual.inicio, p_fim: jAtual.fim, p_instituicao_id: requireInstituicaoId() }),
+        supabase.rpc("metricas_ia_whatsapp", { p_inicio: jAnt.inicio, p_fim: jAnt.fim, p_instituicao_id: requireInstituicaoId() }),
       ]);
       if (r1.error) throw r1.error;
       setAtual(r1.data as unknown as MetricasIaWhatsapp);
