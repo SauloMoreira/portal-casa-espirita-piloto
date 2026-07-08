@@ -511,16 +511,44 @@ export default function PortalAssinaturas() {
 
     const asgRes = await supabase
       .from("assinaturas")
-      .insert(asgPayload as never);
+      .insert(asgPayload as never)
+      .select("id")
+      .single();
 
-    if (asgRes.error) {
+    if (asgRes.error || !asgRes.data) {
       toast({
         title: "Instituição criada, mas falhou a assinatura",
-        description: asgRes.error.message,
+        description: asgRes.error?.message,
         variant: "destructive",
       });
       setCreating(false);
       return;
+    }
+
+    // Persiste módulos habilitados iniciais como overrides quando diferem do padrão do plano.
+    const assinaturaId = (asgRes.data as { id: string }).id;
+    const defaults = modulosDoPlano(f.plano_id);
+    const toUpsert: Array<{ assinatura_id: string; modulo_id: string; ativo: boolean }> = [];
+    for (const m of modulosCatalogo) {
+      const efetivo = createModulos[m.id] ?? defaults[m.id] ?? false;
+      const padrao = defaults[m.id] ?? false;
+      if (efetivo !== padrao) {
+        toUpsert.push({ assinatura_id: assinaturaId, modulo_id: m.id, ativo: efetivo });
+      }
+    }
+    if (toUpsert.length > 0) {
+      const up = await supabase
+        .from("assinatura_modulos")
+        .upsert(toUpsert as never, { onConflict: "assinatura_id,modulo_id" });
+      if (up.error) {
+        toast({
+          title: "Assinatura criada, mas falhou salvar módulos",
+          description: up.error.message,
+          variant: "destructive",
+        });
+        setCreating(false);
+        return;
+      }
     }
 
     toast({
@@ -530,6 +558,7 @@ export default function PortalAssinaturas() {
     });
     setCreateOpen(false);
     setCreating(false);
+    setCreateModulos({});
     setCreateForm((s) => ({
       ...s,
       nome: "",
