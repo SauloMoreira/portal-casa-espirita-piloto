@@ -167,6 +167,10 @@ export default function PortalAssinaturas() {
   });
   const [modulosCatalogo, setModulosCatalogo] = useState<ModuloCatalogo[]>([]);
   const [planoModulos, setPlanoModulos] = useState<PlanoModulo[]>([]);
+  /** Overrides por assinatura: assinaturaId -> { moduloId: ativo }. */
+  const [overridesPorAssinatura, setOverridesPorAssinatura] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createModulos, setCreateModulos] = useState<Record<string, boolean>>({});
@@ -193,7 +197,7 @@ export default function PortalAssinaturas() {
 
   const carregar = async () => {
     setLoading(true);
-    const [instRes, asgRes, planosRes, modRes, pmRes] = await Promise.all([
+    const [instRes, asgRes, planosRes, modRes, pmRes, ovRes] = await Promise.all([
       supabase
         .from("instituicoes")
         .select(
@@ -207,11 +211,18 @@ export default function PortalAssinaturas() {
         .order("valor_mensal"),
       supabase.from("modulos").select("id, codigo, nome, descricao, ativo").order("nome"),
       supabase.from("plano_modulos").select("plano_id, modulo_id, ativo"),
+      supabase.from("assinatura_modulos").select("assinatura_id, modulo_id, ativo"),
     ]);
-    if (instRes.error || asgRes.error || planosRes.error || modRes.error || pmRes.error) {
+    if (
+      instRes.error || asgRes.error || planosRes.error ||
+      modRes.error || pmRes.error || ovRes.error
+    ) {
       toast({
         title: "Falha ao carregar assinaturas",
-        description: (instRes.error ?? asgRes.error ?? planosRes.error ?? modRes.error ?? pmRes.error)?.message,
+        description: (
+          instRes.error ?? asgRes.error ?? planosRes.error ??
+          modRes.error ?? pmRes.error ?? ovRes.error
+        )?.message,
         variant: "destructive",
       });
       setLoading(false);
@@ -225,6 +236,15 @@ export default function PortalAssinaturas() {
       instituicao: inst as Row["instituicao"],
       assinatura: asgByInst.get(inst.id) ?? null,
     }));
+    const overrides: Record<string, Record<string, boolean>> = {};
+    for (const o of (ovRes.data ?? []) as Array<{
+      assinatura_id: string;
+      modulo_id: string;
+      ativo: boolean;
+    }>) {
+      (overrides[o.assinatura_id] ??= {})[o.modulo_id] = o.ativo;
+    }
+    setOverridesPorAssinatura(overrides);
     setRows(list);
     setPlanos(planosRes.data as Plano[]);
     setModulosCatalogo((modRes.data ?? []) as ModuloCatalogo[]);
@@ -676,6 +696,7 @@ export default function PortalAssinaturas() {
                     <th className="py-2 pr-4">Instituição</th>
                     <th className="py-2 pr-4">Classificação</th>
                     <th className="py-2 pr-4">Plano</th>
+                    <th className="py-2 pr-4">Módulos</th>
                     <th className="py-2 pr-4">Status</th>
                     <th className="py-2 pr-4">Valor</th>
                     <th className="py-2 pr-4">Próx. venc.</th>
@@ -689,6 +710,26 @@ export default function PortalAssinaturas() {
                     const plano = planos.find(
                       (p) => p.id === r.assinatura?.plano_id,
                     );
+                    const bloqueada =
+                      !!r.assinatura &&
+                      STATUS_BLOQUEIA_MODULOS.includes(r.assinatura.status);
+                    const defaults = r.assinatura
+                      ? modulosDoPlano(r.assinatura.plano_id)
+                      : {};
+                    const overrides = r.assinatura
+                      ? overridesPorAssinatura[r.assinatura.id] ?? {}
+                      : {};
+                    const habilitados = r.assinatura
+                      ? modulosCatalogo.filter((m) => {
+                          const ov = overrides[m.id];
+                          const efetivo = ov !== undefined ? ov : (defaults[m.id] ?? false);
+                          return efetivo && m.ativo;
+                        })
+                      : [];
+                    const MAX = 3;
+                    const visiveis = habilitados.slice(0, MAX);
+                    const extras = habilitados.length - visiveis.length;
+                    const tituloTooltip = habilitados.map((m) => m.nome).join(", ");
                     return (
                       <tr key={r.instituicao.id} className="border-t">
                         <td className="py-2 pr-4">
@@ -709,6 +750,41 @@ export default function PortalAssinaturas() {
                           </Badge>
                         </td>
                         <td className="py-2 pr-4">{plano?.nome ?? "—"}</td>
+                        <td
+                          className="py-2 pr-4"
+                          data-testid={`modulos-cell-${r.instituicao.slug}`}
+                        >
+                          {habilitados.length === 0 ? (
+                            <span
+                              className="text-xs text-amber-600"
+                              data-testid="modulos-vazio"
+                            >
+                              Nenhum módulo
+                            </span>
+                          ) : (
+                            <div
+                              className="flex flex-wrap gap-1"
+                              title={
+                                bloqueada
+                                  ? `Bloqueada — ${tituloTooltip}`
+                                  : tituloTooltip
+                              }
+                            >
+                              {visiveis.map((m) => (
+                                <Badge
+                                  key={m.id}
+                                  variant={bloqueada ? "outline" : "secondary"}
+                                  className="capitalize"
+                                >
+                                  {m.nome}
+                                </Badge>
+                              ))}
+                              {extras > 0 && (
+                                <Badge variant="outline">+{extras}</Badge>
+                              )}
+                            </div>
+                          )}
+                        </td>
                         <td className="py-2 pr-4">
                           {r.assinatura ? (
                             <Badge variant={statusVariant(r.assinatura.status)}>

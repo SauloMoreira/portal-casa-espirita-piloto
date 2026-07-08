@@ -129,6 +129,44 @@ describe("SAAS-06-B0.4 — Módulos na criação de nova instituição", () => {
   });
 });
 
+describe("SAAS-06-B0.5 — Módulos na listagem principal", () => {
+  const src = read("src/pages/PortalAssinaturas.tsx");
+
+  it("carrega overrides de todas as assinaturas na listagem", () => {
+    expect(src).toMatch(/from\("assinatura_modulos"\)[\s\S]*?\.select\("assinatura_id, modulo_id, ativo"\)/);
+    expect(src).toMatch(/overridesPorAssinatura/);
+  });
+
+  it("tabela exibe coluna Módulos", () => {
+    expect(src).toMatch(/<th[^>]*>Módulos<\/th>/);
+    expect(src).toMatch(/data-testid=\{`modulos-cell-\$\{r\.instituicao\.slug\}`\}/);
+  });
+
+  it("aplica override sobre padrão do plano na exibição da lista", () => {
+    // efetivo = override ?? plano
+    expect(src).toMatch(/ov !== undefined \? ov : \(defaults\[m\.id\] \?\? false\)/);
+  });
+
+  it("mostra 'Nenhum módulo' quando não há módulos habilitados", () => {
+    expect(src).toContain("Nenhum módulo");
+    expect(src).toMatch(/data-testid="modulos-vazio"/);
+  });
+
+  it("condensa excedentes com badge +N", () => {
+    expect(src).toMatch(/\+\{extras\}/);
+  });
+
+  it("sinaliza bloqueio (suspensa/cancelada/encerrada) no tooltip", () => {
+    expect(src).toMatch(/Bloqueada — \$\{tituloTooltip\}/);
+  });
+
+  it("recarrega listagem após salvar edição (mesmo carregar())", () => {
+    // O botão Salvar chama carregar() ao final; mesma função recarrega overrides.
+    expect(src).toMatch(/await carregar\(\)/);
+  });
+});
+
+
 
 describe("SAAS-06-B0.3 — Sem cobrança automática", () => {
   const src = read("src/pages/PortalAssinaturas.tsx");
