@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import {
   agruparPadroesFalha, gerarBacklog,
   type PeriodoDias, type MetricasIaWhatsapp, type Delta, type Impacto,
 } from "@/lib/whatsappMetricas";
+
 
 const PERIODOS: { dias: PeriodoDias; label: string }[] = [
   { dias: 7, label: "7 dias" },
