@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import type { Json } from "@/integrations/supabase/types";
 import {
   construirPlanoConsolidado,
@@ -199,6 +200,7 @@ export async function converterAssistidoParaPlano(
   const { data, error } = await supabase.rpc("pts_converter_assistido", {
     p_assistido_id: assistidoId,
     p_planos: payload as unknown as Json,
+    p_instituicao_id: requireInstituicaoId(),
   });
   if (error) throw new Error(error.message);
   const r = (data ?? {}) as { planos?: number; sessoes_neutralizadas?: number };
@@ -220,11 +222,13 @@ export async function reconciliarPlanoAssistido(assistidoId: string): Promise<vo
     montarInputs(vinc, tipoMap, statusPorEtapa),
     baseStart,
   );
+  const instituicaoId = requireInstituicaoId();
   for (const p of planos) {
     const { error } = await supabase.rpc("pts_persistir_plano", {
       p_vinculo_id: p.ref,
       p_etapas: etapasParaPayload(p.plano.etapas) as unknown as Json,
       p_sessao_ativa: sessaoAtivaParaPayload(p.plano.sessaoAtiva) as unknown as Json,
+      p_instituicao_id: instituicaoId,
     });
     if (error) throw new Error(error.message);
   }
@@ -490,6 +494,8 @@ export async function registrarPresencaRoteada(
     p_data: data,
     p_status_presenca: status,
     p_registrado_por: registradoPor,
+    p_observacao: null,
+    p_instituicao_id: requireInstituicaoId(),
   });
   if (error) throw new Error(error.message);
   return { rota: "legado", usaNovoModelo, temPlano, remarcacaoAplicavel: false };

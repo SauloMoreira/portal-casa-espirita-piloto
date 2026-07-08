@@ -46,15 +46,18 @@ import {
   rollbackControladoPlano,
   reprocessarAssistidoHomologacao,
 } from "./orquestracao";
+import { _setCurrentInstituicaoId } from "@/lib/tenant/currentTenant";
 
 const ASSISTIDO = "00000000-0000-0000-0000-000000000001";
 const VINC = "00000000-0000-0000-0000-0000000000a1";
 const TIPO = "00000000-0000-0000-0000-0000000000b1";
+const TENANT = "00000000-0000-0000-0000-0000000000e2";
 
 function resetData() {
   for (const k of Object.keys(tableData)) delete tableData[k];
   rpcCalls.length = 0;
   rpcError = null;
+  _setCurrentInstituicaoId(TENANT);
 }
 
 describe("homologação — gate", () => {

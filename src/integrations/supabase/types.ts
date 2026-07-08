@@ -3695,54 +3695,126 @@ export type Database = {
         }
         Returns: Json
       }
-      pts_converter_assistido: {
-        Args: { p_assistido_id: string; p_planos: Json }
-        Returns: Json
-      }
-      pts_homologacao_auditar: {
-        Args: { p_acao: string; p_assistido_id: string; p_resultado?: Json }
-        Returns: Json
-      }
-      pts_persistir_plano: {
-        Args: { p_etapas: Json; p_sessao_ativa?: Json; p_vinculo_id: string }
-        Returns: Json
-      }
-      pts_registrar_ausencia: {
-        Args: {
-          p_data: string
-          p_nova_data?: string
-          p_nova_horario?: string
-          p_registrado_por: string
-          p_vinculo_id: string
-        }
-        Returns: Json
-      }
-      pts_registrar_presenca: {
-        Args: {
-          p_data: string
-          p_proxima_data?: string
-          p_proxima_horario?: string
-          p_proxima_numero_etapa?: number
-          p_registrado_por: string
-          p_vinculo_id: string
-        }
-        Returns: Json
-      }
-      pts_rollback_piloto: { Args: { p_assistido_id: string }; Returns: Json }
+      pts_converter_assistido:
+        | { Args: { p_assistido_id: string; p_planos: Json }; Returns: Json }
+        | {
+            Args: {
+              p_assistido_id: string
+              p_instituicao_id: string
+              p_planos: Json
+            }
+            Returns: Json
+          }
+      pts_homologacao_auditar:
+        | {
+            Args: { p_acao: string; p_assistido_id: string; p_resultado?: Json }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_acao: string
+              p_assistido_id: string
+              p_instituicao_id: string
+              p_resultado: Json
+            }
+            Returns: undefined
+          }
+      pts_persistir_plano:
+        | {
+            Args: {
+              p_etapas: Json
+              p_sessao_ativa?: Json
+              p_vinculo_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_etapas: Json
+              p_instituicao_id: string
+              p_sessao_ativa: Json
+              p_vinculo_id: string
+            }
+            Returns: undefined
+          }
+      pts_registrar_ausencia:
+        | {
+            Args: {
+              p_data: string
+              p_nova_data?: string
+              p_nova_horario?: string
+              p_registrado_por: string
+              p_vinculo_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_data: string
+              p_instituicao_id: string
+              p_nova_data: string
+              p_nova_horario: string
+              p_registrado_por: string
+              p_vinculo_id: string
+            }
+            Returns: Json
+          }
+      pts_registrar_presenca:
+        | {
+            Args: {
+              p_data: string
+              p_proxima_data?: string
+              p_proxima_horario?: string
+              p_proxima_numero_etapa?: number
+              p_registrado_por: string
+              p_vinculo_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_data: string
+              p_instituicao_id: string
+              p_proxima_data: string
+              p_proxima_horario: string
+              p_proxima_numero_etapa: number
+              p_registrado_por: string
+              p_vinculo_id: string
+            }
+            Returns: Json
+          }
+      pts_rollback_piloto:
+        | { Args: { p_assistido_id: string }; Returns: Json }
+        | {
+            Args: { p_assistido_id: string; p_instituicao_id: string }
+            Returns: Json
+          }
       registrar_auditoria_reconciliacao: {
         Args: { p_assistido_id: string; p_dados: Json }
         Returns: string
       }
-      registrar_presenca: {
-        Args: {
-          p_assistido_tratamento_id: string
-          p_data: string
-          p_observacao?: string
-          p_registrado_por: string
-          p_status_presenca: string
-        }
-        Returns: Json
-      }
+      registrar_presenca:
+        | {
+            Args: {
+              p_assistido_tratamento_id: string
+              p_data: string
+              p_observacao?: string
+              p_registrado_por: string
+              p_status_presenca: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_assistido_tratamento_id: string
+              p_data: string
+              p_instituicao_id: string
+              p_observacao: string
+              p_registrado_por: string
+              p_status_presenca: string
+            }
+            Returns: undefined
+          }
       relatorio_carga_tarefeiro: {
         Args: {
           p_data_fim: string

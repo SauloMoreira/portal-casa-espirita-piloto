@@ -20,10 +20,14 @@ import {
   getComunicacaoGeralAtiva,
   setComunicacaoGeralAtiva,
 } from "@/services/notificacoes/notificacoesService";
+import { _setCurrentInstituicaoId } from "@/lib/tenant/currentTenant";
+
+const TENANT = "00000000-0000-0000-0000-0000000000e2";
 
 beforeEach(() => {
   rpcMock.mockReset();
   fromMock.mockReset();
+  _setCurrentInstituicaoId(TENANT);
 });
 
 describe("Q1-C4 planoRpcService — pts_registrar_presenca", () => {
@@ -47,6 +51,7 @@ describe("Q1-C4 planoRpcService — pts_registrar_presenca", () => {
       p_proxima_numero_etapa: 4,
       p_proxima_data: "2026-07-13",
       p_proxima_horario: "19:30",
+      p_instituicao_id: TENANT,
     });
     expect(r).toEqual({ concluido: true, quantidade_realizada: 3, quantidade_total: 5 });
   });
@@ -61,6 +66,7 @@ describe("Q1-C4 planoRpcService — pts_registrar_presenca", () => {
       p_proxima_numero_etapa: undefined,
       p_proxima_data: undefined,
       p_proxima_horario: undefined,
+      p_instituicao_id: TENANT,
     });
     expect(r).toEqual({ concluido: false, quantidade_realizada: 0, quantidade_total: 0 });
   });
@@ -92,6 +98,7 @@ describe("Q1-C4 planoRpcService — pts_registrar_ausencia", () => {
       p_registrado_por: "u1",
       p_nova_data: "2026-07-13",
       p_nova_horario: "20:00",
+      p_instituicao_id: TENANT,
     });
     expect(r).toEqual({ suspenso: true, faltas_consecutivas: 2, remarcacoes_automaticas: 1 });
   });
@@ -117,7 +124,7 @@ describe("Q1-C4 planoRpcService — pts_rollback_piloto", () => {
       error: null,
     });
     const r = await rollbackPilotoRpc("a1");
-    expect(rpcMock).toHaveBeenCalledWith("pts_rollback_piloto", { p_assistido_id: "a1" });
+    expect(rpcMock).toHaveBeenCalledWith("pts_rollback_piloto", { p_assistido_id: "a1", p_instituicao_id: TENANT });
     expect(r).toEqual({ sessoes_removidas: 4, sessoes_restauradas: 10, etapas_removidas: 2 });
   });
 
@@ -145,6 +152,7 @@ describe("Q1-C4 planoRpcService — pts_homologacao_auditar", () => {
       p_assistido_id: "a1",
       p_acao: "PLANO_PREVIA_HOMOLOGACAO",
       p_resultado: { total_planos: 2 },
+      p_instituicao_id: TENANT,
     });
   });
 
@@ -155,6 +163,7 @@ describe("Q1-C4 planoRpcService — pts_homologacao_auditar", () => {
       p_assistido_id: "a1",
       p_acao: "X",
       p_resultado: undefined,
+      p_instituicao_id: TENANT,
     });
   });
 
