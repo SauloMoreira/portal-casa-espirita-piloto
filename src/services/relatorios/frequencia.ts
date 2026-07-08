@@ -36,6 +36,7 @@ export async function fetchFrequenciaPresenca(
       p_coordenador_id: norm(filtros.coordenadorId),
       p_page: paginacao.page,
       p_page_size: paginacao.pageSize,
+      p_instituicao_id: requireInstituicaoId(),
     }),
   );
 
