@@ -192,7 +192,8 @@ serve(async (req) => {
 
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(supabaseUrl, serviceKey);
-    const path = `conteudo-ia/${user.id}/${crypto.randomUUID()}.${ext}`;
+    // SAAS-05-E-EDGE-D: segrega storage por tenant para não misturar arquivos.
+    const path = `conteudo-ia/${tenantResolvido}/${user.id}/${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await admin.storage.from(BUCKET).upload(path, bytes, {
       contentType,
       cacheControl: "31536000",
@@ -201,7 +202,21 @@ serve(async (req) => {
     if (upErr) return json({ error: `Falha ao salvar imagem: ${upErr.message}` }, 500);
 
     const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
-    return json({ url: pub.publicUrl, origem: "ai", otimizada: modo === "otimizar", formato });
+    await admin.from("audit_logs").insert({
+      user_id: user.id,
+      tabela: "conteudo_imagem_ia",
+      acao: "SAAS05_E_EDGE_D_IMAGEM",
+      dados_novos: {
+        tenant_resolvido: tenantResolvido,
+        origem_tenant: origemTenant,
+        marcador: "saas05_e_edge_d",
+        modo,
+        formato,
+        storage_path: path,
+      },
+    });
+    return json({ url: pub.publicUrl, origem: "ai", otimizada: modo === "otimizar", formato, tenant_resolvido: tenantResolvido });
+
   } catch (e) {
     return json({ error: (e as Error).message ?? "Erro inesperado" }, 500);
   }
