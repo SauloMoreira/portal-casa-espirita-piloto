@@ -152,6 +152,7 @@ describe("Q1-C4 planoRpcService — pts_homologacao_auditar", () => {
       p_assistido_id: "a1",
       p_acao: "PLANO_PREVIA_HOMOLOGACAO",
       p_resultado: { total_planos: 2 },
+      p_instituicao_id: TENANT,
     });
   });
 
