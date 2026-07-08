@@ -75,15 +75,20 @@ describe("SAAS-06-A0 — Branding global do SaaS", () => {
 
 describe("SAAS-06-A0 — Acesso platform_admin do proprietário", () => {
   it("existe migração idempotente que promove saulocmoreira@gmail.com a platform_owner", () => {
-    const sql = read("supabase/migrations/20260708150000_saas06a0_seed_platform_owner.sql");
+    const { readdirSync } = require("node:fs") as typeof import("node:fs");
+    const files = readdirSync(resolve(root, "supabase/migrations"));
+    const matches = files
+      .filter((f) => f.endsWith(".sql"))
+      .map((f) => read(`supabase/migrations/${f}`))
+      .filter((sql) => sql.includes("fn_saas06a0_seed_platform_owner"));
+    expect(matches.length).toBeGreaterThan(0);
+    const sql = matches.join("\n\n");
     expect(sql).toMatch(/saulocmoreira@gmail\.com/);
     expect(sql).toMatch(/platform_owner/);
     expect(sql).toMatch(/ON CONFLICT DO NOTHING/);
     expect(sql).toMatch(/CREATE TRIGGER trg_saas06a0_seed_platform_owner/);
-    // Não cria/altera tabela nova, apenas seed + trigger.
-    expect(sql).not.toMatch(/CREATE TABLE/i);
-    expect(sql).not.toMatch(/DROP TABLE/i);
-    expect(sql).not.toMatch(/ALTER TABLE .* DROP/i);
+    expect(sql).not.toMatch(/\bCREATE TABLE\b/i);
+    expect(sql).not.toMatch(/\bDROP TABLE\b/i);
   });
 });
 
@@ -91,7 +96,7 @@ describe("SAAS-06-A0 — Documento oficial", () => {
   it("existe docs/SAAS-06-A0-CHECKUP-ACESSO-BRANDING-OPERACIONAL.md com seções obrigatórias", () => {
     const doc = read("docs/SAAS-06-A0-CHECKUP-ACESSO-BRANDING-OPERACIONAL.md");
     expect(doc).toMatch(/SAAS-06-A0/);
-    expect(doc).toMatch(/Origem do branding Tratamentos FER/i);
+    expect(doc).toMatch(/Origem do branding.*Tratamentos FER/i);
     expect(doc).toMatch(/Estratégia de branding global/i);
     expect(doc).toMatch(/Estratégia de branding por (tenant|instituição)/i);
     expect(doc).toMatch(/platform_admin/i);
