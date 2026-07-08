@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, ShieldCheck, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalHub } from "@/hooks/usePortalHub";
 import { ROUTES } from "@/constants";
