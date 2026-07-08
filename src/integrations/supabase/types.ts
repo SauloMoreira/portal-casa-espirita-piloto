@@ -259,6 +259,54 @@ export type Database = {
         }
         Relationships: []
       }
+      assinatura_modulos: {
+        Row: {
+          assinatura_id: string
+          ativo: boolean
+          created_at: string
+          id: string
+          modulo_id: string
+          observacao: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          assinatura_id: string
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          modulo_id: string
+          observacao?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          assinatura_id?: string
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          modulo_id?: string
+          observacao?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assinatura_modulos_assinatura_id_fkey"
+            columns: ["assinatura_id"]
+            isOneToOne: false
+            referencedRelation: "assinaturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assinatura_modulos_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assinaturas: {
         Row: {
           condicao_especial: string | null
