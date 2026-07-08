@@ -26,6 +26,7 @@ import { usePortalHub } from "@/hooks/usePortalHub";
 import { toast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { ROUTES } from "@/constants";
+import { VinculosInstituicaoSection } from "@/components/portal/VinculosInstituicaoSection";
 
 /**
  * SAAS-06-B0 — Central de Assinaturas.
