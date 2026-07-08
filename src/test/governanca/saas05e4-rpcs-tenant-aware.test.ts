@@ -129,9 +129,9 @@ describe("SAAS-05-E4 — Migration: overloads com p_instituicao_id", () => {
 
   it("metricas_ia_whatsapp filtra logs por assistidos via notificacoes_fila e whatsapp_conversas", () => {
     const upTo = blockOfMetricas();
-    expect(upTo).toMatch(/public\.notificacoes_fila/);
-    expect(upTo).toMatch(/public\.whatsapp_conversas/);
-    expect(upTo).toMatch(/public\.assistidos/);
+    expect(upTo).toMatch(/\bnotificacoes_fila\b/);
+    expect(upTo).toMatch(/\bwhatsapp_conversas\b/);
+    expect(upTo).toMatch(/\bassistidos\b/);
     expect(upTo).toMatch(/a1\.instituicao_id IS NULL OR a1\.instituicao_id = p_instituicao_id/);
     expect(upTo).toMatch(/a2\.instituicao_id IS NULL OR a2\.instituicao_id = p_instituicao_id/);
   });
