@@ -92,7 +92,7 @@ export default function Portal() {
         </Card>
       )}
 
-      {isPlatformAdmin && (
+      {podeVerCardAdminPlataforma && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex items-center justify-between gap-4 py-4">
             <div className="flex items-center gap-3">
