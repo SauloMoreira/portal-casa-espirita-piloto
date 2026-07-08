@@ -72,15 +72,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Quais comunicações processar: a indicada (se válida) ou todas em andamento/preparadas.
+    // SAAS-05-E-EDGE-B: cada comunicacao já é ancorada em instituicao_id.
+    // Selecionamos o tenant a partir da comunicação e validamos, na iteração
+    // dos envios, que o assistido pertence ao mesmo tenant (fail-closed).
     let comQuery = admin
       .from("comunicacoes_institucionais")
-      .select("id, mensagem, status, envio_status")
+      .select("id, mensagem, status, envio_status, instituicao_id")
       .eq("status", "aprovada")
       .in("envio_status", ["preparado", "em_andamento"]);
     if (comunicacaoId) comQuery = admin
       .from("comunicacoes_institucionais")
-      .select("id, mensagem, status, envio_status")
+      .select("id, mensagem, status, envio_status, instituicao_id")
       .eq("id", comunicacaoId)
       .eq("status", "aprovada")
       .in("envio_status", ["preparado", "em_andamento"]);
