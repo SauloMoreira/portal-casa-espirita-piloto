@@ -197,7 +197,7 @@ export default function PortalAssinaturas() {
 
   const carregar = async () => {
     setLoading(true);
-    const [instRes, asgRes, planosRes, modRes, pmRes] = await Promise.all([
+    const [instRes, asgRes, planosRes, modRes, pmRes, ovRes] = await Promise.all([
       supabase
         .from("instituicoes")
         .select(
@@ -211,11 +211,18 @@ export default function PortalAssinaturas() {
         .order("valor_mensal"),
       supabase.from("modulos").select("id, codigo, nome, descricao, ativo").order("nome"),
       supabase.from("plano_modulos").select("plano_id, modulo_id, ativo"),
+      supabase.from("assinatura_modulos").select("assinatura_id, modulo_id, ativo"),
     ]);
-    if (instRes.error || asgRes.error || planosRes.error || modRes.error || pmRes.error) {
+    if (
+      instRes.error || asgRes.error || planosRes.error ||
+      modRes.error || pmRes.error || ovRes.error
+    ) {
       toast({
         title: "Falha ao carregar assinaturas",
-        description: (instRes.error ?? asgRes.error ?? planosRes.error ?? modRes.error ?? pmRes.error)?.message,
+        description: (
+          instRes.error ?? asgRes.error ?? planosRes.error ??
+          modRes.error ?? pmRes.error ?? ovRes.error
+        )?.message,
         variant: "destructive",
       });
       setLoading(false);
@@ -229,6 +236,15 @@ export default function PortalAssinaturas() {
       instituicao: inst as Row["instituicao"],
       assinatura: asgByInst.get(inst.id) ?? null,
     }));
+    const overrides: Record<string, Record<string, boolean>> = {};
+    for (const o of (ovRes.data ?? []) as Array<{
+      assinatura_id: string;
+      modulo_id: string;
+      ativo: boolean;
+    }>) {
+      (overrides[o.assinatura_id] ??= {})[o.modulo_id] = o.ativo;
+    }
+    setOverridesPorAssinatura(overrides);
     setRows(list);
     setPlanos(planosRes.data as Plano[]);
     setModulosCatalogo((modRes.data ?? []) as ModuloCatalogo[]);
