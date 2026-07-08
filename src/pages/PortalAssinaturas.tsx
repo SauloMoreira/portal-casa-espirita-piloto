@@ -169,6 +169,7 @@ export default function PortalAssinaturas() {
   const [planoModulos, setPlanoModulos] = useState<PlanoModulo[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createModulos, setCreateModulos] = useState<Record<string, boolean>>({});
   const [createForm, setCreateForm] = useState({
     nome: "",
     nome_fantasia: "",
