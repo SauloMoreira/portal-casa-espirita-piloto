@@ -88,14 +88,21 @@ export default function PortalAdmin() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <ShieldCheck className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Administração da plataforma</h1>
-          <p className="text-sm text-muted-foreground">
-            Visão global de instituições, planos e assinaturas.
-          </p>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Administração da plataforma</h1>
+            <p className="text-sm text-muted-foreground">
+              Visão global de instituições, planos e assinaturas.
+            </p>
+          </div>
         </div>
+        <Button asChild size="sm" variant="outline">
+          <Link to={ROUTES.portalAssinaturas}>
+            <CreditCard className="h-4 w-4 mr-2" /> Central de Assinaturas
+          </Link>
+        </Button>
       </header>
 
       <Card>
