@@ -295,14 +295,23 @@ Para cada tratamento, "quantidade" é o número de sessões recomendado (inteiro
       sugestaoId = inserted?.id ?? null;
     }
 
-    // Log audit
+    // Log audit — SAAS-05-E-EDGE-D
     await serviceClient.from("audit_logs").insert({
       user_id: user.id,
       tabela: "ia_sugestoes",
-      acao: "ASSISTENTE_IA",
+      acao: "SAAS05_E_EDGE_D_ASSISTENTE",
       registro_id: sugestaoId,
-      dados_novos: { assistido_nome, observacoes_length: observacoes.length, queixas_consultadas: queixas?.length || 0, biblioteca_consultada: config?.usar_base_doutrinaria || false },
+      dados_novos: {
+        assistido_nome,
+        observacoes_length: observacoes.length,
+        queixas_consultadas: queixas?.length || 0,
+        biblioteca_consultada: config?.usar_base_doutrinaria || false,
+        tenant_resolvido: tenantResolvido,
+        origem_tenant: origemTenant,
+        marcador: "saas05_e_edge_d",
+      },
     });
+
 
     return new Response(JSON.stringify({
       sugestao_id: sugestaoId,
