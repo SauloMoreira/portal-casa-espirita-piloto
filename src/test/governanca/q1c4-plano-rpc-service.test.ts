@@ -98,6 +98,7 @@ describe("Q1-C4 planoRpcService — pts_registrar_ausencia", () => {
       p_registrado_por: "u1",
       p_nova_data: "2026-07-13",
       p_nova_horario: "20:00",
+      p_instituicao_id: TENANT,
     });
     expect(r).toEqual({ suspenso: true, faltas_consecutivas: 2, remarcacoes_automaticas: 1 });
   });
