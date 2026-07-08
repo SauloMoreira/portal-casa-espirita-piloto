@@ -164,7 +164,10 @@ Deno.serve(async (req) => {
         erros.push(`${c.user_id}:${res.error ?? "erro"}`);
       }
 
-      // Auditoria do disparo (sucesso ou falha)
+      // Auditoria do disparo (sucesso ou falha).
+      // SAAS-05-E-EDGE-A: registra `tenant_resolvido: null` explicitamente
+      // enquanto as RPCs subjacentes forem legadas (marcador para o backfill
+      // de auditoria pós-cutover).
       await admin.from("audit_logs").insert({
         tabela: "comunicador_alerta_config",
         acao: "ALERTA_CENTRAL_ENVIADO",
@@ -180,6 +183,8 @@ Deno.serve(async (req) => {
           consolidado: true,
           enviado: res.ok,
           erro: res.ok ? null : (res.error ?? "erro"),
+          tenant_resolvido: null,
+          saas05_e_edge_a_pendencia: "rpcs_legadas_fila_humana_pendente_e_comunicadores_elegiveis",
         },
       });
     }
