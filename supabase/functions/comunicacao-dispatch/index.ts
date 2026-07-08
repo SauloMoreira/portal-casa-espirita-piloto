@@ -127,6 +127,42 @@ Deno.serve(async (req) => {
         restante--;
         result.processados++;
 
+        // SAAS-05-E-EDGE-B: fail-closed em ambiguidade cross-tenant.
+        // Quando a comunicacao carrega instituicao_id, o assistido destinatário
+        // precisa pertencer ao MESMO tenant. Envios legados (comunicacao ou
+        // assistido sem instituicao_id) seguem no fluxo pré-cutover.
+        const tenantComunicacao = (com.instituicao_id as string | null) ?? null;
+        let tenantResolvido: string | null = tenantComunicacao;
+        let origemTenant = tenantComunicacao ? "comunicacao" : "pre_cutover";
+        if (tenantComunicacao) {
+          const { data: aTenant } = await admin
+            .from("assistidos")
+            .select("instituicao_id")
+            .eq("id", env.assistido_id)
+            .maybeSingle();
+          const tenantAssistido = (aTenant?.instituicao_id as string | null) ?? null;
+          if (tenantAssistido && tenantAssistido !== tenantComunicacao) {
+            await admin
+              .from("comunicacoes_institucionais_envios")
+              .update({ status: "bloqueado", motivo: "tenant_mismatch" })
+              .eq("id", env.id);
+            await admin.from("audit_logs").insert({
+              tabela: "comunicacoes_institucionais_envios",
+              acao: "SAAS05_E_EDGE_B_TENANT_MISMATCH",
+              registro_id: env.id,
+              dados_novos: {
+                tenant_comunicacao: tenantComunicacao,
+                tenant_assistido: tenantAssistido,
+                marcador: "saas05_e_edge_b",
+              },
+            });
+            result.bloqueados++;
+            continue;
+          }
+          tenantResolvido = tenantComunicacao;
+          origemTenant = tenantAssistido ? "match_comunicacao_assistido" : "comunicacao";
+        }
+
         // 1) Reconfirma consentimento e preferência de comunicação geral no
         //    momento do envio. Comunicações institucionais são SEMPRE "geral",
         //    portanto respeitam tanto o opt-out de canal quanto a flag geral.
