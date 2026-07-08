@@ -29,6 +29,7 @@ export async function fetchCargaTarefeiro(
     p_tarefeiro_id: norm(filtros.tarefeiroId),
     p_page: paginacao.page,
     p_page_size: paginacao.pageSize,
+    p_instituicao_id: requireInstituicaoId(),
   });
 
   if (error) throw error;
