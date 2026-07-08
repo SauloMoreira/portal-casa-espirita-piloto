@@ -9,6 +9,8 @@ import { ROUTES } from "@/constants";
 import { InstituicaoSelector } from "@/components/portal/InstituicaoSelector";
 import { ModulosGrid } from "@/components/portal/ModulosGrid";
 import { PlanoResumo } from "@/components/portal/PlanoResumo";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
+import { SAAS_BRANDING } from "@/config/saasBranding";
 
 export default function Portal() {
   const { profile, user } = useAuth();
