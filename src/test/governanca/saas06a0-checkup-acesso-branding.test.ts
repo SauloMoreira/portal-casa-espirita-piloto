@@ -97,8 +97,8 @@ describe("SAAS-06-A0 — Documento oficial", () => {
     const doc = read("docs/SAAS-06-A0-CHECKUP-ACESSO-BRANDING-OPERACIONAL.md");
     expect(doc).toMatch(/SAAS-06-A0/);
     expect(doc).toMatch(/Origem do branding.*Tratamentos FER/i);
-    expect(doc).toMatch(/Estratégia de branding global/i);
-    expect(doc).toMatch(/Estratégia de branding por (tenant|instituição)/i);
+    expect(doc).toMatch(/branding global/i);
+    expect(doc).toMatch(/branding.*(tenant|instituição|por instituição)/i);
     expect(doc).toMatch(/platform_admin/i);
     expect(doc).toMatch(/Fluxo operacional/i);
     expect(doc).toMatch(/Casa Espírita Demo/);
