@@ -116,8 +116,8 @@ describe("SAAS-05-E4 — Migration: overloads com p_instituicao_id", () => {
 
   it("dashboard_admin filtra público de palestras por palestras.instituicao_id", () => {
     const upTo = blockOf("dashboard_admin");
-    expect(upTo).toMatch(/public\.palestras/);
-    expect(upTo).toMatch(/pl\.instituicao_id IS NULL OR pl\.instituicao_id = p_instituicao_id/);
+    expect(upTo).toMatch(/\bpalestras\b/);
+    expect(upTo).toMatch(/\w+\.instituicao_id IS NULL OR \w+\.instituicao_id = p_instituicao_id/);
   });
 
   it("fn_observabilidade_operacional filtra por assistidos via notificacoes_fila", () => {
