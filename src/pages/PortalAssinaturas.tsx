@@ -93,6 +93,8 @@ type Row = {
 };
 
 type Plano = { id: string; codigo: string; nome: string; valor_mensal: number };
+type ModuloCatalogo = { id: string; codigo: string; nome: string; descricao: string | null; ativo: boolean };
+type PlanoModulo = { plano_id: string; modulo_id: string; ativo: boolean };
 
 interface EditState {
   open: boolean;
