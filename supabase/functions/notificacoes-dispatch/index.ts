@@ -105,6 +105,28 @@ function renderTemplate(corpo: string, payload: Record<string, unknown>): string
     .trim();
 }
 
+// SAAS-05-E-EDGE-B — dispatcher tenant-aware.
+// Resolve o tenant de cada item da fila via assistido (única âncora estável
+// pré-cutover, pois notificacoes_fila ainda não carrega instituicao_id).
+// Anota `tenant_resolvido` e a `origem_tenant` no notificacoes_log, mantendo
+// idempotência, retry_count, sent_at e external_message_id inalterados.
+// Fail-closed em ambiguidade cross-tenant; itens legados (assistido sem
+// instituicao_id) seguem o caminho antigo com marcador de pendência
+// (`saas05_e_edge_b_sem_tenant`) até o cutover.
+async function resolverTenantDoItem(
+  admin: ReturnType<typeof createClient>,
+  item: { assistido_id: string | null },
+): Promise<{ tenantId: string | null; origem: string }> {
+  if (!item.assistido_id) return { tenantId: null, origem: "sem_assistido" };
+  const { data } = await admin
+    .from("assistidos")
+    .select("instituicao_id")
+    .eq("id", item.assistido_id)
+    .maybeSingle();
+  const tenantId = (data?.instituicao_id as string | null) ?? null;
+  return { tenantId, origem: tenantId ? "assistido" : "assistido_sem_tenant" };
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req, "authorization, x-client-info, apikey, content-type, x-cron-secret");
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -151,6 +173,9 @@ Deno.serve(async (req) => {
     const result = { processados: 0, enviados: 0, ignorados: 0, falhas: 0, detalhes: [] as unknown[] };
 
     for (const item of itens || []) {
+      // SAAS-05-E-EDGE-B: resolver tenant ANTES de qualquer efeito colateral.
+      const { tenantId, origem: origemTenant } = await resolverTenantDoItem(admin, item);
+      const tenantCtx = { tenant_resolvido: tenantId, origem_tenant: origemTenant, marcador: "saas05_e_edge_b" };
       result.processados++;
       const agora = new Date();
 
