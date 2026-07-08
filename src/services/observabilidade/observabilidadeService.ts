@@ -19,6 +19,7 @@ export async function carregarObservabilidade(
   return withRetry(async () => {
     const { data, error } = await supabase.rpc("fn_observabilidade_operacional", {
       p_janela: janela,
+      p_instituicao_id: requireInstituicaoId(),
     });
     if (error) throw error;
     return data as unknown as ObservabilidadePayload;
