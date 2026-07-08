@@ -51,6 +51,7 @@ describe("Q1-C4 planoRpcService — pts_registrar_presenca", () => {
       p_proxima_numero_etapa: 4,
       p_proxima_data: "2026-07-13",
       p_proxima_horario: "19:30",
+      p_instituicao_id: TENANT,
     });
     expect(r).toEqual({ concluido: true, quantidade_realizada: 3, quantidade_total: 5 });
   });
