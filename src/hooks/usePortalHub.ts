@@ -178,14 +178,30 @@ export function usePortalHub(): UsePortalHubResult {
             )
           : new Set<string>();
 
-        const modulosView: PortalModulo[] = modulos.map((m) => ({
-          id: m.id,
-          codigo: m.codigo,
-          nome: m.nome,
-          descricao: m.descricao,
-          ativo_no_catalogo: m.ativo,
-          ativo_no_plano: modulosPlano.has(m.id),
-        }));
+        // Override por assinatura: se existir linha em assinatura_modulos
+        // para (assinatura, módulo), o valor `ativo` prevalece sobre o plano.
+        const overridesPorModulo = new Map<string, boolean>();
+        if (assinatura) {
+          for (const am of assinaturaModulos) {
+            if (am.assinatura_id === assinatura.id) {
+              overridesPorModulo.set(am.modulo_id, am.ativo);
+            }
+          }
+        }
+
+        const modulosView: PortalModulo[] = modulos.map((m) => {
+          const override = overridesPorModulo.get(m.id);
+          const ativo_no_plano =
+            override !== undefined ? override : modulosPlano.has(m.id);
+          return {
+            id: m.id,
+            codigo: m.codigo,
+            nome: m.nome,
+            descricao: m.descricao,
+            ativo_no_catalogo: m.ativo,
+            ativo_no_plano,
+          };
+        });
 
         const acessivel =
           vinculo.status === "ativo" &&
