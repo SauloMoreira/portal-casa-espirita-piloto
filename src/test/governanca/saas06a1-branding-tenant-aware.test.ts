@@ -15,6 +15,8 @@ import { resolve } from "node:path";
 
 const root = resolve(__dirname, "..", "..", "..");
 const read = (rel: string) => readFileSync(resolve(root, rel), "utf8");
+const stripComments = (s: string) =>
+  s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 
 describe("SAAS-06-A1 — Hook useTenantBranding", () => {
   const src = read("src/hooks/useTenantBranding.ts");
