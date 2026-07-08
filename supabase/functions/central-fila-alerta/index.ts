@@ -111,8 +111,26 @@ Deno.serve(async (req) => {
     const errosTotal: string[] = [];
     const porTenant: Array<Record<string, unknown>> = [];
 
+    // SAAS-05-I: telemetria de fallback quando `tenantsIds` cai para [null].
+    if (tenantsIds.length === 1 && tenantsIds[0] === null) {
+      await admin.rpc("fn_saas05_i_log_fallback", {
+        p_fallback: "central-fila-alerta",
+        p_motivo: "tenants_ids_vazio",
+        p_fail_closed: true,
+        p_contexto: { origem: "scheduler_service_role" },
+      });
+    }
+
     for (const tenantId of tenantsIds) {
       // 1) Estado da fila humana — overload tenant-aware quando tenantId != null.
+      // SAAS-05-I: registra uso legado da assinatura sem parâmetro.
+      if (!tenantId) {
+        await admin.rpc("fn_saas05_i_log_legacy_rpc", {
+          p_rpc: "fila_humana_pendente",
+          p_origem: "edge:central-fila-alerta:service_role",
+          p_overload_tenant_aware_existe: true,
+        });
+      }
       const filaCall = tenantId
         ? admin.rpc("fila_humana_pendente", { p_instituicao_id: tenantId })
         : admin.rpc("fila_humana_pendente");
