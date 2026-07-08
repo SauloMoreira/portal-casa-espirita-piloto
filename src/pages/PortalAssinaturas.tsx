@@ -1330,6 +1330,59 @@ export default function PortalAssinaturas() {
             </div>
           </div>
 
+          <div
+            className="mt-4 border-t pt-4"
+            data-testid="criar-modulos-section"
+          >
+            <h3 className="text-sm font-semibold">
+              Módulos habilitados para esta instituição
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Selecione os módulos comerciais que ficarão liberados no
+              provisionamento inicial. Podem ser ajustados depois em Editar.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {modulosCatalogo.map((m) => {
+                const defaults = createForm.plano_id
+                  ? modulosDoPlano(createForm.plano_id)
+                  : {};
+                const padrao = defaults[m.id] ?? false;
+                const efetivo = createModulos[m.id] ?? padrao;
+                const overrideAtivo = efetivo !== padrao;
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between rounded-md border p-3"
+                    data-testid={`criar-modulo-item-${m.codigo}`}
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium capitalize truncate">
+                        {m.nome}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Plano: {padrao ? "incluso" : "não incluso"}
+                        {overrideAtivo && (
+                          <span className="ml-1 text-amber-600">· override</span>
+                        )}
+                      </div>
+                    </div>
+                    <Switch
+                      checked={efetivo}
+                      onCheckedChange={(v) =>
+                        setCreateModulos((s) => ({ ...s, [m.id]: Boolean(v) }))
+                      }
+                    />
+                  </div>
+                );
+              })}
+              {modulosCatalogo.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum módulo cadastrado no catálogo.
+                </p>
+              )}
+            </div>
+          </div>
+
           <DialogFooter>
             <Button
               variant="outline"
