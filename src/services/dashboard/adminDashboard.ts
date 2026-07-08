@@ -64,6 +64,7 @@ export async function fetchAdminDashboard(
     supabase.rpc("dashboard_admin", {
       p_inicio: range.start,
       p_fim: range.end,
+      p_instituicao_id: requireInstituicaoId(),
     }),
   );
   if (error) throw error;
