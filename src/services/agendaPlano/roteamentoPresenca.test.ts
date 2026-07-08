@@ -36,14 +36,17 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import { registrarPresencaRoteada } from "./orquestracao";
+import { _setCurrentInstituicaoId } from "@/lib/tenant/currentTenant";
 
 const VINC = "00000000-0000-0000-0000-0000000000a1";
 const ASSIST = "00000000-0000-0000-0000-000000000001";
 const TIPO = "00000000-0000-0000-0000-0000000000b1";
+const TENANT = "00000000-0000-0000-0000-0000000000e2";
 
 function resetData() {
   for (const k of Object.keys(tableData)) delete tableData[k];
   rpcCalls.length = 0;
+  _setCurrentInstituicaoId(TENANT);
 }
 
 /** Configura o backend simulado: gate do assistido + existência de plano. */
