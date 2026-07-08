@@ -494,6 +494,8 @@ export async function registrarPresencaRoteada(
     p_data: data,
     p_status_presenca: status,
     p_registrado_por: registradoPor,
+    p_observacao: null,
+    p_instituicao_id: requireInstituicaoId(),
   });
   if (error) throw new Error(error.message);
   return { rota: "legado", usaNovoModelo, temPlano, remarcacaoAplicavel: false };
