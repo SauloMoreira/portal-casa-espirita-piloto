@@ -113,6 +113,10 @@ interface EditState {
     condicao_especial: string;
     classificacao_comercial: string;
   };
+  /** Estado efetivo por módulo (override ?? plano). Mapa moduloId -> ativo. */
+  modulos: Record<string, boolean>;
+  /** Snapshot dos overrides atualmente persistidos, para diffar no salvar. */
+  overridesOriginais: Record<string, boolean>;
   saving: boolean;
 }
 
