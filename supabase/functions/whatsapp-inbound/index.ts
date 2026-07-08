@@ -1377,14 +1377,55 @@ Deno.serve(async (req) => {
       ZAPI_CLIENT_TOKEN: Deno.env.get("ZAPI_CLIENT_TOKEN"),
     });
 
-    // Identify assistido by phone (digits-only match on celular/telefone).
+    // SAAS-05-E-EDGE-C ─────────────────────────────────────────────────────
+    // Identifica o assistido pelo telefone e, ao mesmo tempo, resolve o
+    // tenant de forma segura. Regras:
+    //   • Se o mesmo telefone pertence a assistidos de instituições diferentes
+    //     (`instituicao_id` distintos), a identificação FALHA FECHADA: a
+    //     conversa é tratada como não identificada, sem escolher um tenant
+    //     arbitrariamente. A ambiguidade é registrada em `audit_logs` com
+    //     marcador `saas05_e_edge_c` para triagem manual.
+    //   • Assistidos pré-cutover (instituicao_id NULL) continuam sendo
+    //     identificados individualmente — o tenant apenas fica como null.
     const { data: assistidos } = await admin
       .from("assistidos")
-      .select("id, nome, celular, telefone")
+      .select("id, nome, celular, telefone, instituicao_id")
       .is("deleted_at", null);
-    const assistido = (assistidos || []).find((a: any) =>
+    const candidatos = (assistidos || []).filter((a: any) =>
       mesmoTelefone(a.celular || "", telefone) || mesmoTelefone(a.telefone || "", telefone)
     );
+    const tenantsDistintos = Array.from(
+      new Set(candidatos.map((a: any) => (a.instituicao_id as string | null) || "__sem_tenant__")),
+    );
+    let assistido: any = null;
+    let tenantResolvido: string | null = null;
+    let origemTenant = "sem_assistido";
+    if (candidatos.length === 1) {
+      assistido = candidatos[0];
+      tenantResolvido = (assistido.instituicao_id as string | null) ?? null;
+      origemTenant = tenantResolvido ? "assistido" : "assistido_sem_tenant";
+    } else if (candidatos.length > 1 && tenantsDistintos.length > 1) {
+      // Fail-closed: telefone em mais de um tenant → não identifica ninguém.
+      await admin.from("audit_logs").insert({
+        tabela: "whatsapp_conversas",
+        acao: "SAAS05_E_EDGE_C_TELEFONE_AMBIGUO",
+        registro_id: null,
+        dados_novos: {
+          telefone,
+          candidatos_ids: candidatos.map((c: any) => c.id),
+          tenants: tenantsDistintos,
+          marcador: "saas05_e_edge_c",
+        },
+      });
+      origemTenant = "ambiguo_multi_tenant";
+    } else if (candidatos.length > 1) {
+      // Vários assistidos, mesmo tenant (ou todos pré-cutover). Mantém o
+      // comportamento pré-EDGE-C: usa o primeiro match, sem escolha entre
+      // tenants distintos.
+      assistido = candidatos[0];
+      tenantResolvido = (assistido.instituicao_id as string | null) ?? null;
+      origemTenant = tenantResolvido ? "assistido" : "assistido_sem_tenant";
+    }
 
     // Fallback identification: any registered system user (profiles) by phone.
     // This does NOT link to an assistido — it only records the contact name/type
@@ -1400,7 +1441,7 @@ Deno.serve(async (req) => {
       );
       if (perfil) {
         nomeContato = perfil.nome_completo ?? null;
-        tipoContato = "usuario";
+        tipoContato = origemTenant === "ambiguo_multi_tenant" ? "ambiguo" : "usuario";
       }
     }
 
@@ -1418,6 +1459,8 @@ Deno.serve(async (req) => {
       await admin.from("whatsapp_conversas").update({
         ultimo_contato_em: new Date().toISOString(),
         ultima_mensagem: resumo(conteudoExibicaoInbound),
+        // SAAS-05-E-EDGE-C: não sobrescreve assistido_id quando a nova mensagem
+        // é ambígua ou de outro tenant; preserva o vínculo original.
         assistido_id: assistido?.id ?? convExist.assistido_id,
         nome_contato: nomeContato ?? convExist.nome_contato,
         tipo_contato: tipoContato ?? convExist.tipo_contato,
@@ -1431,6 +1474,20 @@ Deno.serve(async (req) => {
       }).select("id").single();
       conversaId = novaConv!.id;
     }
+
+    // SAAS-05-E-EDGE-C: registra tenant resolvido na trilha de auditoria da
+    // conversa (sem alteração de schema em whatsapp_conversas).
+    await admin.from("audit_logs").insert({
+      tabela: "whatsapp_conversas",
+      acao: "SAAS05_E_EDGE_C_INBOUND",
+      registro_id: conversaId,
+      dados_novos: {
+        telefone,
+        tenant_resolvido: tenantResolvido,
+        origem_tenant: origemTenant,
+        marcador: "saas05_e_edge_c",
+      },
+    });
 
     // ===== Classify + build response. Any failure here MUST fall back to handoff. =====
     let intencao: Intencao = "complexo";
