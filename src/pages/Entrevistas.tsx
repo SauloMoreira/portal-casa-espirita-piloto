@@ -15,6 +15,7 @@ import { Plus, Calendar, BookOpen, Eye, Trash2, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, addWeeks, addMonths, getDay, startOfDay, format } from "date-fns";
 import { CartaAgendamento } from "@/components/CartaAgendamento";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 
 interface Entrevista {
   id: string;
@@ -135,7 +136,7 @@ export default function Entrevistas() {
     // decisoes. O conteúdo sigiloso só é carregado sob demanda (openRealizar),
     // e apenas para perfis autorizados (admin/entrevistador).
     const [{ data: ent }, { data: assist }, { data: trat }, { data: config }] = await Promise.all([
-      supabase.rpc("fn_entrevistas_operacional"),
+      supabase.rpc("fn_entrevistas_operacional", { _start: null, _end: null, _id: null, p_instituicao_id: requireInstituicaoId() }),
       supabase.from("assistidos").select("id, nome, quantidade_palestras, status").is("deleted_at", null).order("nome"),
       supabase.from("tipos_tratamento").select("id, nome, tipo, status, dia_semana, horario, frequencia_valor, frequencia_unidade, ordem_tratamento, tratamento_livre, bloqueia_proximo_tratamento, modo_agendamento").eq("status", "ativo"),
       supabase.from("configuracoes_gerais").select("chave, valor"),
@@ -176,6 +177,7 @@ export default function Entrevistas() {
       _data: form.data,
       _tipo: form.tipo_entrevista,
       _observacoes: form.observacoes || "",
+      p_instituicao_id: requireInstituicaoId(),
     });
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
