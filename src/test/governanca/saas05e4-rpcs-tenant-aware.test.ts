@@ -89,10 +89,10 @@ describe("SAAS-05-E4 — Migration: overloads com p_instituicao_id", () => {
 
   it.each(RPCS)("%s REVOGA de PUBLIC/anon e concede a authenticated", (fn) => {
     const revokes = migration.match(
-      new RegExp(`REVOKE EXECUTE ON FUNCTION public\\.${fn}\\([^)]*\\) FROM PUBLIC, anon`, "g"),
+      new RegExp(`REVOKE EXECUTE ON FUNCTION public\\.${fn}\\([^)]*\\) FROM PUBLIC, anon`, "gi"),
     );
     const grants = migration.match(
-      new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${fn}\\([^)]*\\) TO authenticated`, "g"),
+      new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${fn}\\([^)]*\\) TO authenticated`, "gi"),
     );
     expect(revokes?.length ?? 0).toBeGreaterThanOrEqual(1);
     expect(grants?.length ?? 0).toBeGreaterThanOrEqual(1);
