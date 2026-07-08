@@ -172,6 +172,7 @@ const App = () => (
                  <Route path={ROUTES.portalInstituicoes} element={guard(<PortalInstituicoes />, "Portal · Instituições")} />
                  <Route path={ROUTES.portalModulos} element={guard(<PortalModulos />, "Portal · Módulos")} />
                  <Route path={ROUTES.portalAdmin} element={guard(<PortalAdmin />, "Portal · Administração")} />
+                 <Route path={ROUTES.portalAssinaturas} element={guard(<PortalAssinaturas />, "Portal · Assinaturas")} />
 
                 </Route>
 
