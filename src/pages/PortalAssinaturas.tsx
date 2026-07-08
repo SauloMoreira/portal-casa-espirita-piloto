@@ -24,6 +24,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalHub } from "@/hooks/usePortalHub";
 import { toast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 import { ROUTES } from "@/constants";
 
 /**
