@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Campanha } from "@/lib/campanhas";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 
 export type CampanhaInput = {
   titulo: string;
@@ -49,7 +50,7 @@ export async function listCampanhasVigentes(): Promise<Campanha[]> {
 }
 
 export async function createCampanha(input: CampanhaInput): Promise<void> {
-  const { error } = await supabase.from(TABLE).insert(input);
+  const { error } = await supabase.from(TABLE).insert({ ...input, instituicao_id: requireInstituicaoId() });
   if (error) throw error;
 }
 

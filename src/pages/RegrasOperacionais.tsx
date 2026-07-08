@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,7 +103,7 @@ export default function RegrasOperacionais() {
       if (existing) {
         await supabase.from("configuracoes_gerais").update({ valor: c.valor, updated_by: user?.id }).eq("chave", c.chave);
       } else {
-        await supabase.from("configuracoes_gerais").insert({ ...c, updated_by: user?.id });
+        await supabase.from("configuracoes_gerais").insert({ ...c, updated_by: user?.id, instituicao_id: requireInstituicaoId() });
       }
     }
 

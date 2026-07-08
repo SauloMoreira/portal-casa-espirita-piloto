@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,6 +135,7 @@ export default function SessoesPublicas() {
       tratamento_id: tratamentoId,
       data_sessao: today,
       criado_por: user?.id,
+      instituicao_id: requireInstituicaoId(),
     });
 
     if (error) {

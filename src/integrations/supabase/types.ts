@@ -20,7 +20,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           nome: string
           observacao: string | null
           ordem: number
@@ -35,7 +35,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           nome: string
           observacao?: string | null
           ordem?: number
@@ -50,7 +50,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           nome?: string
           observacao?: string | null
           ordem?: number
@@ -426,7 +426,7 @@ export type Database = {
           estado: string | null
           foto_url: string | null
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           logradouro: string | null
           migrado_legado: boolean
           nome: string
@@ -459,7 +459,7 @@ export type Database = {
           estado?: string | null
           foto_url?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           logradouro?: string | null
           migrado_legado?: boolean
           nome: string
@@ -492,7 +492,7 @@ export type Database = {
           estado?: string | null
           foto_url?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           logradouro?: string | null
           migrado_legado?: boolean
           nome?: string
@@ -629,7 +629,7 @@ export type Database = {
           created_by: string | null
           destinatario_id: string
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           lido: boolean
           lido_em: string | null
           link: string | null
@@ -642,7 +642,7 @@ export type Database = {
           created_by?: string | null
           destinatario_id: string
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           lido?: boolean
           lido_em?: string | null
           link?: string | null
@@ -655,7 +655,7 @@ export type Database = {
           created_by?: string | null
           destinatario_id?: string
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           lido?: boolean
           lido_em?: string | null
           link?: string | null
@@ -735,7 +735,7 @@ export type Database = {
           imagem_origem: string
           imagem_otimizada: boolean
           imagem_url: string | null
-          instituicao_id: string | null
+          instituicao_id: string
           ordem: number
           subtitulo: string | null
           titulo: string
@@ -758,7 +758,7 @@ export type Database = {
           imagem_origem?: string
           imagem_otimizada?: boolean
           imagem_url?: string | null
-          instituicao_id?: string | null
+          instituicao_id: string
           ordem?: number
           subtitulo?: string | null
           titulo: string
@@ -781,7 +781,7 @@ export type Database = {
           imagem_origem?: string
           imagem_otimizada?: boolean
           imagem_url?: string | null
-          instituicao_id?: string | null
+          instituicao_id?: string
           ordem?: number
           subtitulo?: string | null
           titulo?: string
@@ -892,7 +892,7 @@ export type Database = {
           envio_status: string
           evento_id: string | null
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           mensagem: string
           publico_criterio: string
           publico_estimado: number
@@ -917,7 +917,7 @@ export type Database = {
           envio_status?: string
           evento_id?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           mensagem: string
           publico_criterio?: string
           publico_estimado?: number
@@ -942,7 +942,7 @@ export type Database = {
           envio_status?: string
           evento_id?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           mensagem?: string
           publico_criterio?: string
           publico_estimado?: number
@@ -1080,7 +1080,7 @@ export type Database = {
           chave: string
           descricao: string | null
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           updated_at: string
           updated_by: string | null
           valor: string
@@ -1089,7 +1089,7 @@ export type Database = {
           chave: string
           descricao?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           updated_at?: string
           updated_by?: string | null
           valor: string
@@ -1098,7 +1098,7 @@ export type Database = {
           chave?: string
           descricao?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           updated_at?: string
           updated_by?: string | null
           valor?: string
@@ -1267,7 +1267,7 @@ export type Database = {
           imagem_origem: string
           imagem_otimizada: boolean
           imagem_url: string | null
-          instituicao_id: string | null
+          instituicao_id: string
           local: string | null
           ordem: number
           subtitulo: string | null
@@ -1293,7 +1293,7 @@ export type Database = {
           imagem_origem?: string
           imagem_otimizada?: boolean
           imagem_url?: string | null
-          instituicao_id?: string | null
+          instituicao_id: string
           local?: string | null
           ordem?: number
           subtitulo?: string | null
@@ -1319,7 +1319,7 @@ export type Database = {
           imagem_origem?: string
           imagem_otimizada?: boolean
           imagem_url?: string | null
-          instituicao_id?: string | null
+          instituicao_id?: string
           local?: string | null
           ordem?: number
           subtitulo?: string | null
@@ -1347,7 +1347,7 @@ export type Database = {
           data_excecao: string
           horario_afetado: string | null
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           mensagem_ia: string | null
           motivo: string | null
           nova_data: string | null
@@ -1368,7 +1368,7 @@ export type Database = {
           data_excecao: string
           horario_afetado?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           mensagem_ia?: string | null
           motivo?: string | null
           nova_data?: string | null
@@ -1389,7 +1389,7 @@ export type Database = {
           data_excecao?: string
           horario_afetado?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           mensagem_ia?: string | null
           motivo?: string | null
           nova_data?: string | null
@@ -2322,7 +2322,7 @@ export type Database = {
           created_by: string | null
           data: string
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           observacoes: string | null
           tema: string | null
         }
@@ -2331,7 +2331,7 @@ export type Database = {
           created_by?: string | null
           data: string
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           observacoes?: string | null
           tema?: string | null
         }
@@ -2340,7 +2340,7 @@ export type Database = {
           created_by?: string | null
           data?: string
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           observacoes?: string | null
           tema?: string | null
         }
@@ -2669,7 +2669,7 @@ export type Database = {
           frequencia: string | null
           horario: string | null
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           observacao: string | null
           tipo: string
           tratamento_id: string | null
@@ -2685,7 +2685,7 @@ export type Database = {
           frequencia?: string | null
           horario?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           observacao?: string | null
           tipo?: string
           tratamento_id?: string | null
@@ -2701,7 +2701,7 @@ export type Database = {
           frequencia?: string | null
           horario?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           observacao?: string | null
           tipo?: string
           tratamento_id?: string | null
@@ -2734,7 +2734,7 @@ export type Database = {
           governavel: boolean
           id: string
           impacto: string | null
-          instituicao_id: string | null
+          instituicao_id: string
           nome_amigavel: string | null
           opcoes: Json | null
           sensivel: boolean
@@ -2755,7 +2755,7 @@ export type Database = {
           governavel?: boolean
           id?: string
           impacto?: string | null
-          instituicao_id?: string | null
+          instituicao_id: string
           nome_amigavel?: string | null
           opcoes?: Json | null
           sensivel?: boolean
@@ -2776,7 +2776,7 @@ export type Database = {
           governavel?: boolean
           id?: string
           impacto?: string | null
-          instituicao_id?: string | null
+          instituicao_id?: string
           nome_amigavel?: string | null
           opcoes?: Json | null
           sensivel?: boolean
@@ -2806,7 +2806,7 @@ export type Database = {
           horario_fim: string | null
           horario_inicio: string | null
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           status: string
           token: string
           total_presentes: number
@@ -2820,7 +2820,7 @@ export type Database = {
           horario_fim?: string | null
           horario_inicio?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           status?: string
           token?: string
           total_presentes?: number
@@ -2834,7 +2834,7 @@ export type Database = {
           horario_fim?: string | null
           horario_inicio?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           status?: string
           token?: string
           total_presentes?: number
@@ -3022,7 +3022,7 @@ export type Database = {
           estado: string | null
           foto_url: string | null
           id: string
-          instituicao_id: string | null
+          instituicao_id: string
           logradouro: string | null
           nome_completo: string
           numero: string | null
@@ -3063,7 +3063,7 @@ export type Database = {
           estado?: string | null
           foto_url?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id: string
           logradouro?: string | null
           nome_completo: string
           numero?: string | null
@@ -3104,7 +3104,7 @@ export type Database = {
           estado?: string | null
           foto_url?: string | null
           id?: string
-          instituicao_id?: string | null
+          instituicao_id?: string
           logradouro?: string | null
           nome_completo?: string
           numero?: string | null
