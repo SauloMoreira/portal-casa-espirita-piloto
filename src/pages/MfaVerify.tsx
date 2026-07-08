@@ -11,7 +11,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldCheck, KeyRound, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { isValidTotpCode, isValidRecoveryCodeFormat } from "@/lib/mfa";
-import ferIcon from "@/assets/fer-icon.png";
+import brandIcon from "@/assets/portal-casa-espirita-icon.png";
+import { SAAS_BRANDING } from "@/config/saasBranding";
 
 export default function MfaVerify() {
   const { refreshMfa, signOut } = useAuth();
@@ -113,7 +114,7 @@ export default function MfaVerify() {
       <div className="relative z-10 w-full max-w-md space-y-8">
         <header className="text-center space-y-4">
           <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-card/70 shadow-lg ring-1 ring-border/60 backdrop-blur-sm">
-            <img src={ferIcon} alt="Tratamentos FER" width={96} height={96} className="h-20 w-20 object-contain" />
+            <img src={brandIcon} alt={SAAS_BRANDING.name} width={96} height={96} className="h-20 w-20 object-contain" />
           </div>
           <div className="space-y-1.5">
             <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">

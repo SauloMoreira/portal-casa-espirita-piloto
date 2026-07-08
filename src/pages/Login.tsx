@@ -10,7 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Mail, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { traduzirErroAuth } from "@/lib/authErrors";
-import ferIcon from "@/assets/fer-icon.png";
+import brandIcon from "@/assets/portal-casa-espirita-icon.png";
+import { SAAS_BRANDING } from "@/config/saasBranding";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -67,8 +68,8 @@ export default function Login() {
         <header className="text-center space-y-4">
           <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-3xl bg-card/70 shadow-lg ring-1 ring-border/60 backdrop-blur-sm">
             <img
-              src={ferIcon}
-              alt="Tratamentos FER"
+              src={brandIcon}
+              alt={SAAS_BRANDING.name}
               width={112}
               height={112}
               className="h-24 w-24 object-contain"
@@ -76,13 +77,13 @@ export default function Login() {
           </div>
           <div className="space-y-1.5">
             <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
-              Tratamentos <span className="text-primary">FER</span>
+              {SAAS_BRANDING.prefix} <span className="text-primary">{SAAS_BRANDING.highlight}</span>
             </h1>
             <p className="text-sm text-muted-foreground">
-              Sistema de Gestão de Tratamentos e Acompanhamentos
+              {SAAS_BRANDING.subtitle}
             </p>
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-accent/90">
-              Harmonia · Equilíbrio · Renovação
+              {SAAS_BRANDING.tagline}
             </p>
           </div>
         </header>
@@ -176,11 +177,16 @@ export default function Login() {
         </Card>
 
         {/* Footer note */}
-        <div className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5 text-primary/70" />
-          <span>
-            Acesso restrito a usuários autorizados. Em caso de necessidade, contate a administração.
-          </span>
+        <div className="flex flex-col items-center justify-center gap-1 text-center text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary/70" />
+            <span>
+              Acesso restrito a usuários autorizados. Em caso de necessidade, contate a administração.
+            </span>
+          </div>
+          <p className="pt-1 text-[11px] font-medium tracking-wide text-muted-foreground/80">
+            {SAAS_BRANDING.signature}
+          </p>
         </div>
       </div>
     </div>

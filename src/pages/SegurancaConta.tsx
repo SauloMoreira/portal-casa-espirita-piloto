@@ -165,13 +165,13 @@ export default function SegurancaConta() {
   };
   const downloadCodes = () => {
     const blob = new Blob([
-      "Códigos de recuperação - Tratamentos FER\n",
+      "Códigos de recuperação - Portal Casa Espírita\n",
       "Guarde em local seguro. Cada código funciona uma única vez.\n\n",
       codes.map(formatRecoveryCode).join("\n"),
     ], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "codigos-recuperacao-fer.txt"; a.click();
+    a.href = url; a.download = "codigos-recuperacao.txt"; a.click();
     URL.revokeObjectURL(url);
   };
 
