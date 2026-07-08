@@ -20,8 +20,14 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
+vi.mock("@/lib/tenant/currentTenant", () => ({
+  requireInstituicaoId: () => "inst-e4",
+  getCurrentInstituicaoId: () => "inst-e4",
+}));
+
 import { fetchFaltasPorPeriodo, fetchFaltasParaExport } from "./faltas";
 import { EXPORT_PAGE_SIZE } from "./frequencia";
+
 
 const filtros = {
   dataInicio: "2025-05-01",
