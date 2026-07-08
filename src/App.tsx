@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PlatformAdminRoute } from "@/components/PlatformAdminRoute";
 import { RequireInstituicao } from "@/components/RequireInstituicao";
 import { AppLayout } from "@/components/AppLayout";
 import { withErrorBoundary as guard } from "@/components/ErrorBoundary";
@@ -171,8 +172,9 @@ const App = () => (
                  <Route path={ROUTES.portal} element={guard(<Portal />, "Portal SaaS")} />
                  <Route path={ROUTES.portalInstituicoes} element={guard(<PortalInstituicoes />, "Portal · Instituições")} />
                  <Route path={ROUTES.portalModulos} element={guard(<PortalModulos />, "Portal · Módulos")} />
-                 <Route path={ROUTES.portalAdmin} element={guard(<PortalAdmin />, "Portal · Administração")} />
-                 <Route path={ROUTES.portalAssinaturas} element={guard(<PortalAssinaturas />, "Portal · Assinaturas")} />
+                 <Route path={ROUTES.portalAdmin} element={<PlatformAdminRoute>{guard(<PortalAdmin />, "Portal · Administração")}</PlatformAdminRoute>} />
+                 <Route path={ROUTES.portalAssinaturas} element={<PlatformAdminRoute>{guard(<PortalAssinaturas />, "Portal · Assinaturas")}</PlatformAdminRoute>} />
+
 
                 </Route>
 

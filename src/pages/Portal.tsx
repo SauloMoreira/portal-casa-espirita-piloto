@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Building2, ShieldCheck, Boxes, ArrowRight, Loader2, AlertTriangle } fro
 import { useAuth } from "@/contexts/AuthContext";
 import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { ROUTES } from "@/constants";
+import { ROLE } from "@/constants/roles";
 import { InstituicaoSelector } from "@/components/portal/InstituicaoSelector";
 import { ModulosGrid } from "@/components/portal/ModulosGrid";
 import { PlanoResumo } from "@/components/portal/PlanoResumo";
@@ -13,7 +14,7 @@ import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { SAAS_BRANDING } from "@/config/saasBranding";
 
 export default function Portal() {
-  const { profile, user } = useAuth();
+  const { profile, user, role, roles } = useAuth();
   const {
     isLoading,
     isError,
@@ -37,6 +38,23 @@ export default function Portal() {
       </div>
     );
   }
+
+  // SAAS-06-A2 — Blindagem de experiência por perfil.
+  // Assistido puro (sem papel administrativo E sem ser platform_admin) é
+  // redirecionado ao seu dashboard: o Portal SaaS é uma superfície de gestão
+  // multi-instituição, não pertence à jornada do assistido.
+  const isAssistidoPuro =
+    !isPlatformAdmin &&
+    role === ROLE.ASSISTIDO &&
+    roles.every((r) => r === ROLE.ASSISTIDO);
+  if (isAssistidoPuro) {
+    return <Navigate to={ROUTES.dashboard} replace />;
+  }
+
+  // Defesa em profundidade: o card administrativo global só aparece para
+  // platform_admin/platform_owner reais. Admin local de instituição NÃO se
+  // qualifica (isPlatformAdmin já vem exclusivamente de platform_admins).
+  const podeVerCardAdminPlataforma = isPlatformAdmin && role !== ROLE.ASSISTIDO;
 
   return (
     <div className="space-y-6">
@@ -74,7 +92,7 @@ export default function Portal() {
         </Card>
       )}
 
-      {isPlatformAdmin && (
+      {podeVerCardAdminPlataforma && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="flex items-center justify-between gap-4 py-4">
             <div className="flex items-center gap-3">
