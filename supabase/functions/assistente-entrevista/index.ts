@@ -1,7 +1,12 @@
+// SAAS-05-E-EDGE-D — assistente-entrevista tenant-aware.
+// Resolve tenant via entrevista→assistido ou assistido; valida membership;
+// impede contexto cross-tenant no prompt; audita tenant_resolvido/origem_tenant.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { buildUserMessage } from "./payload.ts";
+
+
 
 
 interface TratamentoDisponivel {
