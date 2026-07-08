@@ -1,14 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 
 /**
  * Q1-C4 — Wrappers tipados para as RPCs sensíveis do novo modelo de agenda/plano
  * (presença, ausência, rollback e auditoria de homologação).
  *
- * Encapsula as chamadas `supabase.rpc` cujos payloads/retornos vinham sendo
- * forçados com `as never` / `as unknown as`, normalizando o retorno `jsonb` em
- * contratos explícitos e propagando o erro técnico do backend. Não altera
- * comportamento, RLS, grants, policies, schema nem as próprias RPCs.
+ * SAAS-05-E2 — Passa a chamar exclusivamente os overloads tenant-aware das RPCs
+ * `pts_*`, injetando `p_instituicao_id` obtido via `requireInstituicaoId()`
+ * (fail-closed). Nenhuma leitura de tenant a partir de localStorage.
  */
 
 export interface RollbackResult {
@@ -32,7 +32,6 @@ export interface AusenciaResult {
 /** Formato bruto do `jsonb` retornado pelas RPCs. */
 type RpcJson = Record<string, unknown>;
 
-/** Extrai o objeto `jsonb`, propagando o erro técnico do Supabase. */
 function unwrapJson(data: Json | null, error: { message: string } | null): RpcJson {
   if (error) throw new Error(error.message);
   const json = (data ?? {}) as RpcJson;
@@ -48,10 +47,11 @@ export interface RegistrarPresencaRpcArgs {
   proximaHorario?: string;
 }
 
-/** RPC transacional `pts_registrar_presenca` — retorno normalizado. */
+/** RPC transacional `pts_registrar_presenca` — overload tenant-aware. */
 export async function registrarPresencaRpc(
   args: RegistrarPresencaRpcArgs,
 ): Promise<PresencaResult> {
+  const instituicaoId = requireInstituicaoId();
   const { data, error } = await supabase.rpc("pts_registrar_presenca", {
     p_vinculo_id: args.vinculoId,
     p_data: args.data,
@@ -59,6 +59,7 @@ export async function registrarPresencaRpc(
     p_proxima_numero_etapa: args.proximaNumeroEtapa,
     p_proxima_data: args.proximaData,
     p_proxima_horario: args.proximaHorario,
+    p_instituicao_id: instituicaoId,
   });
   const json = unwrapJson(data, error);
   return {
@@ -76,16 +77,18 @@ export interface RegistrarAusenciaRpcArgs {
   novaHorario?: string;
 }
 
-/** RPC transacional `pts_registrar_ausencia` — retorno normalizado. */
+/** RPC transacional `pts_registrar_ausencia` — overload tenant-aware. */
 export async function registrarAusenciaRpc(
   args: RegistrarAusenciaRpcArgs,
 ): Promise<AusenciaResult> {
+  const instituicaoId = requireInstituicaoId();
   const { data, error } = await supabase.rpc("pts_registrar_ausencia", {
     p_vinculo_id: args.vinculoId,
     p_data: args.data,
     p_registrado_por: args.registradoPor,
     p_nova_data: args.novaData,
     p_nova_horario: args.novaHorario,
+    p_instituicao_id: instituicaoId,
   });
   const json = unwrapJson(data, error);
   return {
@@ -95,10 +98,12 @@ export async function registrarAusenciaRpc(
   };
 }
 
-/** RPC transacional `pts_rollback_piloto` — retorno normalizado. */
+/** RPC transacional `pts_rollback_piloto` — overload tenant-aware. */
 export async function rollbackPilotoRpc(assistidoId: string): Promise<RollbackResult> {
+  const instituicaoId = requireInstituicaoId();
   const { data, error } = await supabase.rpc("pts_rollback_piloto", {
     p_assistido_id: assistidoId,
+    p_instituicao_id: instituicaoId,
   });
   const json = unwrapJson(data, error);
   return {
@@ -108,16 +113,18 @@ export async function rollbackPilotoRpc(assistidoId: string): Promise<RollbackRe
   };
 }
 
-/** RPC de auditoria `pts_homologacao_auditar` (best-effort no chamador). */
+/** RPC de auditoria `pts_homologacao_auditar` — overload tenant-aware. */
 export async function homologacaoAuditarRpc(args: {
   assistidoId: string;
   acao: string;
   resultado?: Json;
 }): Promise<void> {
+  const instituicaoId = requireInstituicaoId();
   const { error } = await supabase.rpc("pts_homologacao_auditar", {
     p_assistido_id: args.assistidoId,
     p_acao: args.acao,
     p_resultado: args.resultado,
+    p_instituicao_id: instituicaoId,
   });
   if (error) throw new Error(error.message);
 }
