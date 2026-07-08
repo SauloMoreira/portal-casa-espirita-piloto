@@ -51,6 +51,7 @@ describe("fetchFaltasPorPeriodo", () => {
       p_coordenador_id: null,
       p_page: 1,
       p_page_size: 25,
+      p_instituicao_id: "inst-e4",
     });
   });
 
