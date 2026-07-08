@@ -70,7 +70,7 @@ describe("SAAS-05-I — migração de telemetria", () => {
 
   it("não revoga EXECUTE de nenhuma RPC de negócio (não-destrutiva)", () => {
     // A migração I não deve tocar em RPCs de negócio; só nos próprios helpers.
-    const revokes = Array.from(I_MIG_SRC.matchAll(/REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.([a-z_]+)/gi));
+    const revokes = Array.from(I_MIG_SRC.matchAll(/REVOKE\s+ALL\s+ON\s+FUNCTION\s+public\.([a-z0-9_]+)/gi));
     for (const m of revokes) {
       expect(m[1]).toMatch(/^fn_saas05_i_log_/);
     }
