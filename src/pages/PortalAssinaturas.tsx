@@ -962,6 +962,59 @@ export default function PortalAssinaturas() {
             </div>
           </div>
 
+          <div className="mt-6 border-t pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="text-sm font-semibold">Módulos habilitados para esta instituição</h3>
+                <p className="text-xs text-muted-foreground">
+                  O padrão vem do plano selecionado. Ative ou desative para
+                  sobrepor pontualmente por instituição — apenas administradores
+                  da plataforma podem alterar aqui.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {modulosCatalogo.map((m) => {
+                const padrao = modulosDoPlano(edit.form.plano_id)[m.id] ?? false;
+                const efetivo = edit.modulos[m.id] ?? padrao;
+                const overrideAtivo = efetivo !== padrao;
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between rounded-md border p-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium capitalize truncate">
+                        {m.nome}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Plano: {padrao ? "incluso" : "não incluso"}
+                        {overrideAtivo && (
+                          <span className="ml-1 text-amber-600">· override</span>
+                        )}
+                      </div>
+                    </div>
+                    <Switch
+                      checked={efetivo}
+                      onCheckedChange={(v) =>
+                        setEdit((s) => ({
+                          ...s,
+                          modulos: { ...s.modulos, [m.id]: Boolean(v) },
+                        }))
+                      }
+                    />
+                  </div>
+                );
+              })}
+              {modulosCatalogo.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum módulo cadastrado no catálogo.
+                </p>
+              )}
+            </div>
+          </div>
+
+
           <DialogFooter>
             <Button
               variant="outline"
