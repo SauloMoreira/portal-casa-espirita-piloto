@@ -83,10 +83,8 @@ Deno.serve(async (req) => {
     }
     if (tenantResolvido) {
       // Valida pertinência do atendente ao tenant (platform_admin passa livre).
-      const { data: platformAdmin } = await admin.rpc("is_platform_admin", { p_user_id: userId }).maybeSingle?.() ?? { data: null } as any;
-      const isPlatformAdmin = Array.isArray(platformAdmin)
-        ? Boolean(platformAdmin[0])
-        : Boolean(platformAdmin);
+      const { data: platformAdminData } = await admin.rpc("is_platform_admin", { p_user_id: userId });
+      const isPlatformAdmin = Boolean(platformAdminData);
       if (!isPlatformAdmin) {
         const { data: membership } = await admin
           .from("instituicao_usuarios")
