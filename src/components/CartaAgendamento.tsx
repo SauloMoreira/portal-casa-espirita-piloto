@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Printer, X } from "lucide-react";
@@ -74,7 +75,7 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
       if (entrevistaId) {
         // BUG-03: leitura via RPC operacional (sem conteúdo sigiloso); funciona
         // para tarefeiro, que não tem mais acesso direto à tabela de entrevistas.
-        const { data } = await supabase.rpc("fn_entrevistas_operacional", { _id: entrevistaId });
+        const { data } = await supabase.rpc("fn_entrevistas_operacional", { _start: null, _end: null, _id: entrevistaId, p_instituicao_id: requireInstituicaoId() });
         entData = Array.isArray(data) ? data[0] : data;
       }
 
