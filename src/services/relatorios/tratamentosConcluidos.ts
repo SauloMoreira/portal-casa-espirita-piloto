@@ -38,6 +38,7 @@ export async function fetchTratamentosConcluidos(
     p_coordenador_id: norm(filtros.coordenadorId),
     p_page: paginacao.page,
     p_page_size: paginacao.pageSize,
+    p_instituicao_id: requireInstituicaoId(),
   });
 
   if (error) throw error;
