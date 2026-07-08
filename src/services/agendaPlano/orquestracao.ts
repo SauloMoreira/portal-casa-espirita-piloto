@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import type { Json } from "@/integrations/supabase/types";
 import {
   construirPlanoConsolidado,
