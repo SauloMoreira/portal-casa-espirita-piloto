@@ -9,6 +9,8 @@ import { ROUTES } from "@/constants";
 import { InstituicaoSelector } from "@/components/portal/InstituicaoSelector";
 import { ModulosGrid } from "@/components/portal/ModulosGrid";
 import { PlanoResumo } from "@/components/portal/PlanoResumo";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
+import { SAAS_BRANDING } from "@/config/saasBranding";
 
 export default function Portal() {
   const { profile, user } = useAuth();
@@ -22,6 +24,7 @@ export default function Portal() {
     selectInstituicao,
   } = useInstituicaoAtiva();
 
+  const branding = useTenantBranding();
   void selectedInstituicaoId;
 
   const nomeExibicao = profile?.nome_completo || user?.email || "Bem-vindo";
@@ -37,11 +40,28 @@ export default function Portal() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">Plataforma Casa Espírita</p>
-        <h1 className="text-2xl font-semibold tracking-tight">Olá, {nomeExibicao}</h1>
+      <header className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          {branding.scope === "tenant" && branding.logoUrl && (
+            <img
+              src={branding.logoUrl}
+              alt=""
+              className="h-10 w-10 rounded-lg object-cover"
+            />
+          )}
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              {branding.scope === "tenant" ? SAAS_BRANDING.name : "Plataforma Casa Espírita"}
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight truncate">
+              {branding.scope === "tenant" ? branding.nome : `Olá, ${nomeExibicao}`}
+            </h1>
+          </div>
+        </div>
         <p className="text-sm text-muted-foreground">
-          Selecione uma instituição para acessar os módulos disponíveis conforme o plano contratado.
+          {branding.scope === "tenant"
+            ? branding.slogan
+            : "Selecione uma instituição para acessar os módulos disponíveis conforme o plano contratado."}
         </p>
       </header>
 
