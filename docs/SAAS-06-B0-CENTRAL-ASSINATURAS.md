@@ -26,6 +26,29 @@ casas clientes.
 - Botão **Central de Assinaturas** no cabeçalho de `PortalAdmin`, apontando
   para a nova rota `/portal/admin/assinaturas`.
 - Rota registrada em `ROUTES.portalAssinaturas` e no `App.tsx`.
+- Botão **+ Nova instituição/assinatura** no cabeçalho da Central, disponível
+  apenas para `platform_admin` (guard duplo cliente + RLS).
+
+### 1.1 Criação manual de instituição + assinatura
+
+O botão **Nova instituição/assinatura** abre um formulário único que:
+
+- cria uma linha em `instituicoes` (nome, nome_fantasia, slug, cidade/UF,
+  e-mail/telefone de contato, classificação comercial, `status='implantacao'`);
+- cria imediatamente a assinatura vinculada em `assinaturas`
+  (plano, status, data de início, trial até, próximo vencimento, valor mensal
+  em centavos, forma de cobrança, observações comerciais);
+- registra `Responsável` e `E-mail do administrador inicial` como observações
+  comerciais — o convite ao usuário admin continua no fluxo padrão
+  (`/solicitar-cadastro` + vínculo em `instituicao_usuarios`), fora do escopo
+  desta tela;
+- **nunca** cria assinatura solta: a inserção de `assinaturas` só ocorre
+  depois de o `INSERT` em `instituicoes` retornar sucesso, com o mesmo
+  `instituicao_id`;
+- exige `nome`, `slug` e `plano` — demais campos são opcionais.
+
+Módulos liberados continuam derivados do plano (`plano_modulos`); a Central
+não edita a composição de plano.
 
 ### 2. Nova página `PortalAssinaturas`
 
