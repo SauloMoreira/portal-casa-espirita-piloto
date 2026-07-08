@@ -83,18 +83,21 @@ describe("SAAS-05-E-EDGE-A — alertas-operacionais", () => {
 });
 
 describe("SAAS-05-E-EDGE-A — central-fila-alerta", () => {
-  it("documenta explicitamente que as RPCs subjacentes permanecem legadas", () => {
-    expect(centralFila).toMatch(/SAAS-05-E-EDGE-A/);
-    expect(centralFila).toMatch(/RPCs?[^\n]*legad/i);
+  it("marca o recorte EDGE-A no arquivo (pendência fechada em EDGE-A2)", () => {
+    // EDGE-A2 promoveu o arquivo a tenant-aware. O marcador EDGE-A2 substitui
+    // a nota original de pendência do EDGE-A.
+    expect(centralFila).toMatch(/SAAS-05-E-EDGE-A2?/);
   });
 
   it("restringe regras central_alerta_* a linhas globais (instituicao_id IS NULL)", () => {
     expect(centralFila).toMatch(/\.is\("instituicao_id", null\)/);
   });
 
-  it("audita cada envio com marcador de tenant e pendência EDGE-A", () => {
-    expect(centralFila).toMatch(/tenant_resolvido: null/);
-    expect(centralFila).toMatch(/saas05_e_edge_a_pendencia/);
+  it("audita cada envio com marcador de tenant (evoluído em EDGE-A2)", () => {
+    // EDGE-A gravava `tenant_resolvido: null` + `saas05_e_edge_a_pendencia`.
+    // EDGE-A2 evolui para `tenant_resolvido: tenantId` + `saas05_e_edge_a2`.
+    expect(centralFila).toMatch(/tenant_resolvido:/);
+    expect(centralFila).toMatch(/saas05_e_edge_a2?/);
   });
 
   it("não chama overloads tenant-aware inexistentes (assinatura legada preservada)", () => {
