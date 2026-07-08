@@ -441,17 +441,25 @@ export default function PortalAssinaturas() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <CreditCard className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Central de Assinaturas
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Controle comercial manual das casas em produção assistida. Nenhuma
-            cobrança automática é executada aqui.
-          </p>
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <CreditCard className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Central de Assinaturas
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Controle comercial manual das casas em produção assistida. Nenhuma
+              cobrança automática é executada aqui.
+            </p>
+          </div>
         </div>
+        <Button
+          onClick={() => setCreateOpen(true)}
+          data-testid="btn-nova-instituicao"
+        >
+          <Plus className="h-4 w-4 mr-1" /> Nova instituição/assinatura
+        </Button>
       </header>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
