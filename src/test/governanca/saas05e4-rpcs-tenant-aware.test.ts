@@ -202,9 +202,9 @@ describe("SAAS-05-E4 — Assinaturas legadas preservadas (backward-compat)", () 
   const all = readAllMigrations();
 
   it.each([
-    "dashboard_admin(date, date)",
-    "relatorio_tratamentos_concluidos(date, date, uuid, text, uuid, uuid, integer, integer)",
-    "relatorio_carga_tarefeiro(date, date, uuid, uuid, integer, integer)",
+    "dashboard_admin(p_inicio date, p_fim date)",
+    "relatorio_tratamentos_concluidos(p_data_inicio date, p_data_fim date, p_tratamento_id uuid DEFAULT NULL::uuid, p_tipo text DEFAULT NULL::text, p_tarefeiro_id uuid DEFAULT NULL::uuid, p_coordenador_id uuid DEFAULT NULL::uuid, p_page integer DEFAULT 1, p_page_size integer DEFAULT 25)",
+    "relatorio_carga_tarefeiro(p_data_inicio date, p_data_fim date, p_tratamento_id uuid DEFAULT NULL::uuid, p_tarefeiro_id uuid DEFAULT NULL::uuid, p_page integer DEFAULT 1, p_page_size integer DEFAULT 25)",
     "relatorio_frequencia_presenca(date, date, uuid, uuid, uuid, uuid, integer, integer)",
     "relatorio_faltas_periodo(date, date, uuid, uuid, uuid, uuid, integer, integer)",
     "fn_observabilidade_operacional(text)",
