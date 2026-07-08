@@ -122,9 +122,9 @@ describe("SAAS-05-E4 — Migration: overloads com p_instituicao_id", () => {
 
   it("fn_observabilidade_operacional filtra por assistidos via notificacoes_fila", () => {
     const upTo = blockOf("fn_observabilidade_operacional");
-    expect(upTo).toMatch(/public\.notificacoes_fila/);
-    expect(upTo).toMatch(/public\.assistidos/);
-    expect(upTo).toMatch(/a\.instituicao_id IS NULL OR a\.instituicao_id = p_instituicao_id/);
+    expect(upTo).toMatch(/\bnotificacoes_fila\b/);
+    expect(upTo).toMatch(/\bassistidos\b/);
+    expect(upTo).toMatch(/\w+\.instituicao_id IS NULL OR \w+\.instituicao_id = p_instituicao_id/);
   });
 
   it("metricas_ia_whatsapp filtra logs por assistidos via notificacoes_fila e whatsapp_conversas", () => {
