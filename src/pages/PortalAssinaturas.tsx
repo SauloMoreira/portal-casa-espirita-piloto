@@ -24,6 +24,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalHub } from "@/hooks/usePortalHub";
 import { toast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 import { ROUTES } from "@/constants";
 
 /**
@@ -92,6 +93,8 @@ type Row = {
 };
 
 type Plano = { id: string; codigo: string; nome: string; valor_mensal: number };
+type ModuloCatalogo = { id: string; codigo: string; nome: string; descricao: string | null; ativo: boolean };
+type PlanoModulo = { plano_id: string; modulo_id: string; ativo: boolean };
 
 interface EditState {
   open: boolean;
@@ -110,6 +113,10 @@ interface EditState {
     condicao_especial: string;
     classificacao_comercial: string;
   };
+  /** Estado efetivo por módulo (override ?? plano). Mapa moduloId -> ativo. */
+  modulos: Record<string, boolean>;
+  /** Snapshot dos overrides atualmente persistidos, para diffar no salvar. */
+  overridesOriginais: Record<string, boolean>;
   saving: boolean;
 }
 
@@ -154,8 +161,12 @@ export default function PortalAssinaturas() {
     open: false,
     row: null,
     form: EMPTY_FORM,
+    modulos: {},
+    overridesOriginais: {},
     saving: false,
   });
+  const [modulosCatalogo, setModulosCatalogo] = useState<ModuloCatalogo[]>([]);
+  const [planoModulos, setPlanoModulos] = useState<PlanoModulo[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState({
@@ -181,7 +192,7 @@ export default function PortalAssinaturas() {
 
   const carregar = async () => {
     setLoading(true);
-    const [instRes, asgRes, planosRes] = await Promise.all([
+    const [instRes, asgRes, planosRes, modRes, pmRes] = await Promise.all([
       supabase
         .from("instituicoes")
         .select(
@@ -193,11 +204,13 @@ export default function PortalAssinaturas() {
         .from("planos")
         .select("id, codigo, nome, valor_mensal")
         .order("valor_mensal"),
+      supabase.from("modulos").select("id, codigo, nome, descricao, ativo").order("nome"),
+      supabase.from("plano_modulos").select("plano_id, modulo_id, ativo"),
     ]);
-    if (instRes.error || asgRes.error || planosRes.error) {
+    if (instRes.error || asgRes.error || planosRes.error || modRes.error || pmRes.error) {
       toast({
         title: "Falha ao carregar assinaturas",
-        description: (instRes.error ?? asgRes.error ?? planosRes.error)?.message,
+        description: (instRes.error ?? asgRes.error ?? planosRes.error ?? modRes.error ?? pmRes.error)?.message,
         variant: "destructive",
       });
       setLoading(false);
@@ -213,7 +226,19 @@ export default function PortalAssinaturas() {
     }));
     setRows(list);
     setPlanos(planosRes.data as Plano[]);
+    setModulosCatalogo((modRes.data ?? []) as ModuloCatalogo[]);
+    setPlanoModulos((pmRes.data ?? []) as PlanoModulo[]);
     setLoading(false);
+  };
+
+  /** Mapa modulo_id -> ativo, calculado para um plano específico. */
+  const modulosDoPlano = (planoId: string): Record<string, boolean> => {
+    const map: Record<string, boolean> = {};
+    for (const m of modulosCatalogo) map[m.id] = false;
+    for (const pm of planoModulos) {
+      if (pm.plano_id === planoId) map[pm.modulo_id] = pm.ativo;
+    }
+    return map;
   };
 
   useEffect(() => {
@@ -221,13 +246,33 @@ export default function PortalAssinaturas() {
     void carregar();
   }, [isPlatformAdmin]);
 
-  const openEdit = (row: Row) => {
+  const openEdit = async (row: Row) => {
+    const planoId = row.assinatura?.plano_id ?? planos[0]?.id ?? "";
+    let overridesOriginais: Record<string, boolean> = {};
+    if (row.assinatura) {
+      const ov = await supabase
+        .from("assinatura_modulos")
+        .select("modulo_id, ativo")
+        .eq("assinatura_id", row.assinatura.id);
+      if (ov.error) {
+        toast({
+          title: "Falha ao carregar módulos da assinatura",
+          description: ov.error.message,
+          variant: "destructive",
+        });
+      } else {
+        for (const r of ov.data ?? []) overridesOriginais[r.modulo_id] = r.ativo;
+      }
+    }
+    const efetivo = { ...modulosDoPlano(planoId), ...overridesOriginais };
     setEdit({
       open: true,
       row,
       saving: false,
+      modulos: efetivo,
+      overridesOriginais,
       form: {
-        plano_id: row.assinatura?.plano_id ?? planos[0]?.id ?? "",
+        plano_id: planoId,
         status: row.assinatura?.status ?? "trial",
         data_inicio:
           row.assinatura?.data_inicio ?? new Date().toISOString().slice(0, 10),
@@ -245,6 +290,24 @@ export default function PortalAssinaturas() {
         classificacao_comercial:
           row.instituicao.classificacao_comercial ?? "demo",
       },
+    });
+  };
+
+  /** Ao trocar de plano, recalcula defaults preservando overrides do usuário. */
+  const onPlanoChange = (novoPlanoId: string) => {
+    setEdit((s) => {
+      const defaults = modulosDoPlano(novoPlanoId);
+      const efetivo = { ...defaults, ...s.overridesOriginais };
+      // preserva alterações locais ainda não salvas
+      for (const [modId, ativo] of Object.entries(s.modulos)) {
+        const planoAtivo = defaults[modId] ?? false;
+        const overrideAtual = s.overridesOriginais[modId];
+        // se o usuário havia mexido em algo diferente do plano/override antigo, preserva.
+        if (ativo !== planoAtivo && overrideAtual === undefined) {
+          efetivo[modId] = ativo;
+        }
+      }
+      return { ...s, form: { ...s.form, plano_id: novoPlanoId }, modulos: efetivo };
     });
   };
 
@@ -288,25 +351,96 @@ export default function PortalAssinaturas() {
       condicao_especial: f.condicao_especial || null,
     };
 
-    const res = edit.row.assinatura
-      ? await supabase
-          .from("assinaturas")
-          .update(payload as never)
-          .eq("id", edit.row.assinatura.id)
-      : await supabase.from("assinaturas").insert(payload as never);
-
-    if (res.error) {
-      toast({
-        title: "Erro ao salvar assinatura",
-        description: res.error.message,
-        variant: "destructive",
-      });
-      setEdit((s) => ({ ...s, saving: false }));
-      return;
+    let assinaturaId = edit.row.assinatura?.id ?? null;
+    if (assinaturaId) {
+      const res = await supabase
+        .from("assinaturas")
+        .update(payload as never)
+        .eq("id", assinaturaId);
+      if (res.error) {
+        toast({
+          title: "Erro ao salvar assinatura",
+          description: res.error.message,
+          variant: "destructive",
+        });
+        setEdit((s) => ({ ...s, saving: false }));
+        return;
+      }
+    } else {
+      const res = await supabase
+        .from("assinaturas")
+        .insert(payload as never)
+        .select("id")
+        .single();
+      if (res.error || !res.data) {
+        toast({
+          title: "Erro ao salvar assinatura",
+          description: res.error?.message,
+          variant: "destructive",
+        });
+        setEdit((s) => ({ ...s, saving: false }));
+        return;
+      }
+      assinaturaId = (res.data as { id: string }).id;
     }
 
-    toast({ title: "Assinatura atualizada" });
-    setEdit({ open: false, row: null, form: EMPTY_FORM, saving: false });
+    // 2) Sincroniza overrides de módulos por assinatura.
+    // Para cada módulo: se o efetivo diferir do padrão do plano, upsert override;
+    // se coincidir com o padrão, remove override existente.
+    const defaults = modulosDoPlano(f.plano_id);
+    const toUpsert: Array<{ assinatura_id: string; modulo_id: string; ativo: boolean }> = [];
+    const toDelete: string[] = [];
+    for (const m of modulosCatalogo) {
+      const efetivo = edit.modulos[m.id] ?? defaults[m.id] ?? false;
+      const padrao = defaults[m.id] ?? false;
+      const jaExisteOverride = edit.overridesOriginais[m.id] !== undefined;
+      if (efetivo !== padrao) {
+        toUpsert.push({ assinatura_id: assinaturaId, modulo_id: m.id, ativo: efetivo });
+      } else if (jaExisteOverride) {
+        toDelete.push(m.id);
+      }
+    }
+
+    if (toUpsert.length > 0) {
+      const up = await supabase
+        .from("assinatura_modulos")
+        .upsert(toUpsert as never, { onConflict: "assinatura_id,modulo_id" });
+      if (up.error) {
+        toast({
+          title: "Erro ao salvar módulos habilitados",
+          description: up.error.message,
+          variant: "destructive",
+        });
+        setEdit((s) => ({ ...s, saving: false }));
+        return;
+      }
+    }
+    if (toDelete.length > 0) {
+      const del = await supabase
+        .from("assinatura_modulos")
+        .delete()
+        .eq("assinatura_id", assinaturaId)
+        .in("modulo_id", toDelete);
+      if (del.error) {
+        toast({
+          title: "Erro ao limpar override de módulos",
+          description: del.error.message,
+          variant: "destructive",
+        });
+        setEdit((s) => ({ ...s, saving: false }));
+        return;
+      }
+    }
+
+    toast({ title: "Assinatura e módulos atualizados" });
+    setEdit({
+      open: false,
+      row: null,
+      form: EMPTY_FORM,
+      modulos: {},
+      overridesOriginais: {},
+      saving: false,
+    });
     await carregar();
   };
 
@@ -609,7 +743,7 @@ export default function PortalAssinaturas() {
           setEdit((s) => ({ ...s, open: o, row: o ? s.row : null }))
         }
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Editar assinatura — {edit.row?.instituicao.nome}
@@ -645,9 +779,7 @@ export default function PortalAssinaturas() {
               <Label>Plano</Label>
               <Select
                 value={edit.form.plano_id}
-                onValueChange={(v) =>
-                  setEdit((s) => ({ ...s, form: { ...s.form, plano_id: v } }))
-                }
+                onValueChange={onPlanoChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um plano" />
@@ -829,6 +961,59 @@ export default function PortalAssinaturas() {
               />
             </div>
           </div>
+
+          <div className="mt-6 border-t pt-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="text-sm font-semibold">Módulos habilitados para esta instituição</h3>
+                <p className="text-xs text-muted-foreground">
+                  O padrão vem do plano selecionado. Ative ou desative para
+                  sobrepor pontualmente por instituição — apenas administradores
+                  da plataforma podem alterar aqui.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {modulosCatalogo.map((m) => {
+                const padrao = modulosDoPlano(edit.form.plano_id)[m.id] ?? false;
+                const efetivo = edit.modulos[m.id] ?? padrao;
+                const overrideAtivo = efetivo !== padrao;
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between rounded-md border p-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium capitalize truncate">
+                        {m.nome}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Plano: {padrao ? "incluso" : "não incluso"}
+                        {overrideAtivo && (
+                          <span className="ml-1 text-amber-600">· override</span>
+                        )}
+                      </div>
+                    </div>
+                    <Switch
+                      checked={efetivo}
+                      onCheckedChange={(v) =>
+                        setEdit((s) => ({
+                          ...s,
+                          modulos: { ...s.modulos, [m.id]: Boolean(v) },
+                        }))
+                      }
+                    />
+                  </div>
+                );
+              })}
+              {modulosCatalogo.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum módulo cadastrado no catálogo.
+                </p>
+              )}
+            </div>
+          </div>
+
 
           <DialogFooter>
             <Button
