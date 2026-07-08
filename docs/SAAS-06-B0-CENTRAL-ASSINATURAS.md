@@ -299,3 +299,96 @@ Considerado concluído com:
 5. Nenhuma integração de gateway ativa;
 6. Documento presente (este arquivo);
 7. Suíte `saas06b0` verde.
+
+## Vinculação do administrador inicial da instituição (SAAS-06-B0.6)
+
+Após criar a instituição/assinatura, o `platform_admin` precisa vincular ao
+menos um usuário como administrador local. Isso é feito na própria Central de
+Assinaturas → **Editar** → seção **"Administrador inicial / Usuários da
+instituição"**.
+
+### Como funciona
+
+1. O `platform_admin` informa o e-mail do usuário e escolhe o papel local
+   (`admin_instituicao`, `coordenador`, `entrevistador`, `tarefeiro`,
+   `assistido` ou `leitor`).
+2. O clique em **Vincular** chama a RPC `fn_vincular_usuario_instituicao`
+   (`SECURITY DEFINER`) que:
+   - Verifica se o chamador é `platform_admin` **ou** admin_instituicao da
+     própria instituição;
+   - **Bloqueia** qualquer chamador que não seja `platform_admin` de conceder o
+     papel `admin_instituicao` (impede autopromoção de admin local em outra
+     instituição ou escalada horizontal);
+   - Consulta `auth.users` pelo e-mail (`lower(email)`);
+   - Se o usuário **existir**, faz `upsert` em `public.instituicao_usuarios`
+     com `status='ativo'` e registra `audit_logs.acao='VINCULAR_USUARIO'`;
+   - Se o usuário **não existir**, retorna `{status:'nao_encontrado'}` e a UI
+     orienta a pedir para o interessado se cadastrar em `/cadastro` antes.
+3. Uma tabela abaixo lista os vínculos atuais (via
+   `fn_listar_vinculos_instituicao`) com botão para **Ativar/Inativar** cada
+   vínculo (via `fn_definir_status_vinculo_instituicao`). Admin local não pode
+   alternar status de outro `admin_instituicao` — apenas `platform_admin`.
+
+### Fluxo para usuário existente
+
+- E-mail já cadastrado → vínculo criado imediatamente como `ativo`.
+- Ao fazer login, o usuário passa a enxergar a instituição no seletor do
+  Portal e acessa apenas os módulos habilitados por ela.
+
+### Fluxo para usuário novo (convite)
+
+- Não há criação silenciosa de conta pelo platform_admin. O usuário precisa
+  se cadastrar publicamente em `/cadastro` (fluxo autocadastro já auditado);
+- Após o cadastro, o platform_admin volta à Central e conclui o vínculo. Isso
+  evita conta órfã sem consentimento e mantém a trilha LGPD (o usuário aceita
+  os termos ao se cadastrar).
+
+### Papel `admin_instituicao` × platform_admin
+
+- **`platform_admin` / `platform_owner`**: papel global da plataforma, vê
+  todas as instituições, gerencia assinaturas e módulos. Concedido apenas via
+  `public.platform_admins`.
+- **`admin_instituicao`**: papel **local** de uma instituição específica.
+  Gerencia usuários e configurações apenas da sua instituição. Nunca ganha
+  acesso global só por ter admin local em algum tenant.
+
+### Primeiro acesso esperado
+
+Após o vínculo ativo, o usuário deve conseguir:
+
+1. Fazer login em `/login`;
+2. Ver a instituição no seletor de tenant do Portal;
+3. Selecionar o tenant e visualizar branding específico;
+4. Acessar apenas os módulos habilitados na assinatura (ex.: Tratamentos);
+5. Se `admin_instituicao`, acessar as configurações locais da instituição.
+
+### Piloto FER — vínculo aplicado
+
+- Instituição: **Fraternidade Espírita Ramatis — Piloto** (`slug: fer-piloto`);
+- Administrador local: `saulocmoreira@gmail.com` (também `platform_owner`);
+- Papel local: `admin_instituicao`, `status='ativo'`.
+
+### RPCs / superfícies
+
+- `fn_listar_vinculos_instituicao(p_instituicao_id)` → `SECURITY DEFINER`,
+  `GRANT EXECUTE` apenas a `authenticated`, valida acesso do chamador.
+- `fn_vincular_usuario_instituicao(p_instituicao_id, p_email, p_papel_local,
+  p_status)` → `SECURITY DEFINER`, mesma proteção; bloqueia conceder
+  `admin_instituicao` fora do `platform_admin`.
+- `fn_definir_status_vinculo_instituicao(p_vinculo_id, p_status)` →
+  `SECURITY DEFINER`; admin local não pode alterar `admin_instituicao`.
+- Índice único `instituicao_usuarios_inst_user_papel_uidx (instituicao_id,
+  user_id, papel_local)` habilita o `ON CONFLICT` sem duplicar vínculos.
+
+### Testes
+
+Suíte `src/test/governanca/saas06b06-vinculo-admin-instituicao.test.ts`
+cobre:
+
+- Somente `platform_admin` concede `admin_instituicao`;
+- E-mail inexistente retorna `nao_encontrado` sem criar vínculo nem conta;
+- `upsert` idempotente (não duplica vínculo com mesmo papel);
+- Admin local não altera status de outro `admin_instituicao`;
+- Assistido não acessa a superfície;
+- Projeto FER original **intocado** — vínculo aplicado apenas na instituição
+  piloto multitenant.
