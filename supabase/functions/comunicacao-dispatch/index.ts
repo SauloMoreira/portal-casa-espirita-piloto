@@ -132,8 +132,6 @@ Deno.serve(async (req) => {
         // precisa pertencer ao MESMO tenant. Envios legados (comunicacao ou
         // assistido sem instituicao_id) seguem no fluxo pré-cutover.
         const tenantComunicacao = (com.instituicao_id as string | null) ?? null;
-        let tenantResolvido: string | null = tenantComunicacao;
-        let origemTenant = tenantComunicacao ? "comunicacao" : "pre_cutover";
         if (tenantComunicacao) {
           const { data: aTenant } = await admin
             .from("assistidos")
@@ -159,8 +157,6 @@ Deno.serve(async (req) => {
             result.bloqueados++;
             continue;
           }
-          tenantResolvido = tenantComunicacao;
-          origemTenant = tenantAssistido ? "match_comunicacao_assistido" : "comunicacao";
         }
 
         // 1) Reconfirma consentimento e preferência de comunicação geral no
