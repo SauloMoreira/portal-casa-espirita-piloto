@@ -5,11 +5,13 @@
  * (fonte de verdade) e devolver o payload tipado. Sem lógica paralela.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { withRetry } from "@/lib/resilience";
 import type {
   JanelaObservabilidade,
   ObservabilidadePayload,
 } from "@/lib/observabilidade";
+
 
 export async function carregarObservabilidade(
   janela: JanelaObservabilidade,
