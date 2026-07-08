@@ -200,6 +200,35 @@ Ao salvar, para cada módulo do catálogo:
 Trocar o plano recalcula os padrões preservando alterações locais ainda não
 salvas.
 
+### Módulos na criação de nova instituição (B0.4)
+
+O formulário "Nova instituição/assinatura" inclui a seção
+**"Módulos habilitados para esta instituição"** com os mesmos módulos
+comerciais oficiais. Ao selecionar o plano, os padrões são pré-marcados; o
+`platform_admin` pode ajustar antes de salvar. Recomendação inicial:
+**Tratamentos ligado** por padrão quando disponível no catálogo.
+
+Ao salvar a criação:
+
+1. Insere a instituição (`instituicoes`).
+2. Insere a assinatura vinculada (`assinaturas`), retornando o `id`.
+3. Para cada módulo em que o valor efetivo diverge do padrão do plano,
+   grava override em `assinatura_modulos` via `upsert` idempotente
+   (`onConflict: assinatura_id,modulo_id`).
+
+Se algum passo falhar, os passos seguintes não executam — não há assinatura
+solta nem overrides sem assinatura. Edição posterior continua disponível em
+**Editar → Módulos habilitados para esta instituição**.
+
+#### Exemplo — FER Piloto
+
+- Plano: **Produção Assistida**
+- Status: `trial` ou `ativa`
+- Módulo habilitado: **Tratamentos**
+- Demais módulos (Caixa/Cantina, Biblioteca, Portal Institucional,
+  Financeiro): desligados ou "em breve"
+
+
 ### Testes
 
 Cobertura em `src/test/governanca/saas06b03-modulos-por-instituicao.test.ts`

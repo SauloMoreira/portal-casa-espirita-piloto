@@ -169,6 +169,7 @@ export default function PortalAssinaturas() {
   const [planoModulos, setPlanoModulos] = useState<PlanoModulo[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [createModulos, setCreateModulos] = useState<Record<string, boolean>>({});
   const [createForm, setCreateForm] = useState({
     nome: "",
     nome_fantasia: "",
@@ -510,16 +511,44 @@ export default function PortalAssinaturas() {
 
     const asgRes = await supabase
       .from("assinaturas")
-      .insert(asgPayload as never);
+      .insert(asgPayload as never)
+      .select("id")
+      .single();
 
-    if (asgRes.error) {
+    if (asgRes.error || !asgRes.data) {
       toast({
         title: "Instituição criada, mas falhou a assinatura",
-        description: asgRes.error.message,
+        description: asgRes.error?.message,
         variant: "destructive",
       });
       setCreating(false);
       return;
+    }
+
+    // Persiste módulos habilitados iniciais como overrides quando diferem do padrão do plano.
+    const assinaturaId = (asgRes.data as { id: string }).id;
+    const defaults = modulosDoPlano(f.plano_id);
+    const toUpsert: Array<{ assinatura_id: string; modulo_id: string; ativo: boolean }> = [];
+    for (const m of modulosCatalogo) {
+      const efetivo = createModulos[m.id] ?? defaults[m.id] ?? false;
+      const padrao = defaults[m.id] ?? false;
+      if (efetivo !== padrao) {
+        toUpsert.push({ assinatura_id: assinaturaId, modulo_id: m.id, ativo: efetivo });
+      }
+    }
+    if (toUpsert.length > 0) {
+      const up = await supabase
+        .from("assinatura_modulos")
+        .upsert(toUpsert as never, { onConflict: "assinatura_id,modulo_id" });
+      if (up.error) {
+        toast({
+          title: "Assinatura criada, mas falhou salvar módulos",
+          description: up.error.message,
+          variant: "destructive",
+        });
+        setCreating(false);
+        return;
+      }
     }
 
     toast({
@@ -529,6 +558,7 @@ export default function PortalAssinaturas() {
     });
     setCreateOpen(false);
     setCreating(false);
+    setCreateModulos({});
     setCreateForm((s) => ({
       ...s,
       nome: "",
@@ -1162,9 +1192,19 @@ export default function PortalAssinaturas() {
               <Label>Plano *</Label>
               <Select
                 value={createForm.plano_id}
-                onValueChange={(v) =>
-                  setCreateForm((s) => ({ ...s, plano_id: v }))
-                }
+                onValueChange={(v) => {
+                  setCreateForm((s) => ({ ...s, plano_id: v }));
+                  const defaults = modulosDoPlano(v);
+                  // Recomendação inicial: Tratamentos habilitado quando disponível no catálogo.
+                  const next: Record<string, boolean> = { ...defaults };
+                  const tratamentos = modulosCatalogo.find(
+                    (m) => m.codigo === "tratamentos",
+                  );
+                  if (tratamentos && next[tratamentos.id] === undefined) {
+                    next[tratamentos.id] = true;
+                  }
+                  setCreateModulos(next);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um plano" />
@@ -1178,7 +1218,7 @@ export default function PortalAssinaturas() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Módulos liberados são derivados automaticamente do plano.
+                O padrão de módulos vem do plano; ajuste abaixo se necessário.
               </p>
             </div>
             <div>
@@ -1287,6 +1327,59 @@ export default function PortalAssinaturas() {
                   }))
                 }
               />
+            </div>
+          </div>
+
+          <div
+            className="mt-4 border-t pt-4"
+            data-testid="criar-modulos-section"
+          >
+            <h3 className="text-sm font-semibold">
+              Módulos habilitados para esta instituição
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Selecione os módulos comerciais que ficarão liberados no
+              provisionamento inicial. Podem ser ajustados depois em Editar.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {modulosCatalogo.map((m) => {
+                const defaults = createForm.plano_id
+                  ? modulosDoPlano(createForm.plano_id)
+                  : {};
+                const padrao = defaults[m.id] ?? false;
+                const efetivo = createModulos[m.id] ?? padrao;
+                const overrideAtivo = efetivo !== padrao;
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between rounded-md border p-3"
+                    data-testid={`criar-modulo-item-${m.codigo}`}
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium capitalize truncate">
+                        {m.nome}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Plano: {padrao ? "incluso" : "não incluso"}
+                        {overrideAtivo && (
+                          <span className="ml-1 text-amber-600">· override</span>
+                        )}
+                      </div>
+                    </div>
+                    <Switch
+                      checked={efetivo}
+                      onCheckedChange={(v) =>
+                        setCreateModulos((s) => ({ ...s, [m.id]: Boolean(v) }))
+                      }
+                    />
+                  </div>
+                );
+              })}
+              {modulosCatalogo.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum módulo cadastrado no catálogo.
+                </p>
+              )}
             </div>
           </div>
 

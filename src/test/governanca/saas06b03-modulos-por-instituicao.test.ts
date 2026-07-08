@@ -100,6 +100,36 @@ describe("SAAS-06-B0.3 — Portal (visão do tenant)", () => {
   });
 });
 
+describe("SAAS-06-B0.4 — Módulos na criação de nova instituição", () => {
+  const src = read("src/pages/PortalAssinaturas.tsx");
+
+  it("formulário de criação renderiza seção de módulos habilitados", () => {
+    expect(src).toContain('data-testid="criar-modulos-section"');
+    expect(src).toContain("Módulos habilitados para esta instituição");
+  });
+
+  it("mantém estado próprio de módulos na criação (createModulos)", () => {
+    expect(src).toMatch(/createModulos/);
+    expect(src).toMatch(/setCreateModulos/);
+  });
+
+  it("recomenda Tratamentos habilitado por padrão ao escolher o plano", () => {
+    expect(src).toMatch(/codigo === "tratamentos"/);
+  });
+
+  it("persiste módulos selecionados em assinatura_modulos após criar assinatura", () => {
+    // insere assinatura, obtém id, faz upsert em assinatura_modulos
+    expect(src).toMatch(/\.from\("assinaturas"\)[\s\S]*?\.insert[\s\S]*?\.select\("id"\)[\s\S]*?\.single\(\)/);
+    expect(src).toMatch(/assinatura_modulos[\s\S]*?\.upsert[\s\S]*?onConflict:\s*"assinatura_id,modulo_id"/);
+  });
+
+  it("não cria overrides quando efetivo coincide com o padrão do plano", () => {
+    // guard de diff no criarInstituicao
+    expect(src).toMatch(/efetivo !== padrao/);
+  });
+});
+
+
 describe("SAAS-06-B0.3 — Sem cobrança automática", () => {
   const src = read("src/pages/PortalAssinaturas.tsx");
   it("não referencia gateway de cobrança", () => {
