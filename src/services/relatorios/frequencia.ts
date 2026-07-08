@@ -5,11 +5,13 @@
 // ============================================================================
 import { supabase } from "@/integrations/supabase/client";
 import { measureAsync } from "@/lib/perfMonitor";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import type {
   FrequenciaResult,
   PaginacaoParams,
   RelatorioPresencaFiltros,
 } from "@/types/relatorios";
+
 
 /** Normaliza "todos"/vazio para null (a RPC trata null como "sem filtro"). */
 function norm(v?: string | null): string | null {
@@ -34,6 +36,7 @@ export async function fetchFrequenciaPresenca(
       p_coordenador_id: norm(filtros.coordenadorId),
       p_page: paginacao.page,
       p_page_size: paginacao.pageSize,
+      p_instituicao_id: requireInstituicaoId(),
     }),
   );
 

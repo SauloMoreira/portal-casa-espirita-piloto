@@ -4,12 +4,14 @@
 // A função no banco aplica os mesmos filtros e a visão por perfil.
 // ============================================================================
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import type {
   CargaTarefeiroFiltros,
   CargaTarefeiroResult,
   PaginacaoParams,
 } from "@/types/relatorios";
 import { EXPORT_PAGE_SIZE } from "./frequencia";
+
 
 function norm(v?: string | null): string | null {
   if (!v || v === "todos") return null;
@@ -27,6 +29,7 @@ export async function fetchCargaTarefeiro(
     p_tarefeiro_id: norm(filtros.tarefeiroId),
     p_page: paginacao.page,
     p_page_size: paginacao.pageSize,
+    p_instituicao_id: requireInstituicaoId(),
   });
 
   if (error) throw error;

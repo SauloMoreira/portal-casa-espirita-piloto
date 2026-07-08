@@ -5,11 +5,13 @@
  * (fonte de verdade) e devolver o payload tipado. Sem lógica paralela.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { withRetry } from "@/lib/resilience";
 import type {
   JanelaObservabilidade,
   ObservabilidadePayload,
 } from "@/lib/observabilidade";
+
 
 export async function carregarObservabilidade(
   janela: JanelaObservabilidade,
@@ -17,6 +19,7 @@ export async function carregarObservabilidade(
   return withRetry(async () => {
     const { data, error } = await supabase.rpc("fn_observabilidade_operacional", {
       p_janela: janela,
+      p_instituicao_id: requireInstituicaoId(),
     });
     if (error) throw error;
     return data as unknown as ObservabilidadePayload;

@@ -3304,10 +3304,12 @@ export type Database = {
       count_active_masters: { Args: never; Returns: number }
       count_apt_admins: { Args: never; Returns: number }
       current_instituicao_id: { Args: never; Returns: string }
-      dashboard_admin: {
-        Args: { p_fim: string; p_inicio: string }
-        Returns: Json
-      }
+      dashboard_admin:
+        | { Args: { p_fim: string; p_inicio: string }; Returns: Json }
+        | {
+            Args: { p_fim: string; p_inicio: string; p_instituicao_id: string }
+            Returns: Json
+          }
       decidir_promocao_admin: {
         Args: { p_decision: string; p_motivo?: string; p_request_id: string }
         Returns: Json
@@ -3542,10 +3544,12 @@ export type Database = {
         | { Args: { p_desde: string; p_instituicao_id: string }; Returns: Json }
       fn_normalize_phone: { Args: { p: string }; Returns: string }
       fn_notif_ping: { Args: never; Returns: string }
-      fn_observabilidade_operacional: {
-        Args: { p_janela?: string }
-        Returns: Json
-      }
+      fn_observabilidade_operacional:
+        | { Args: { p_janela?: string }; Returns: Json }
+        | {
+            Args: { p_instituicao_id?: string; p_janela?: string }
+            Returns: Json
+          }
       fn_presenca_classificacao: { Args: { p_status: string }; Returns: Json }
       fn_processar_excecao_notificacoes:
         | { Args: { p_excecao_id: string }; Returns: Json }
@@ -3714,10 +3718,12 @@ export type Database = {
         Args: { p_comunicacao_id: string }
         Returns: Json
       }
-      metricas_ia_whatsapp: {
-        Args: { p_fim: string; p_inicio: string }
-        Returns: Json
-      }
+      metricas_ia_whatsapp:
+        | { Args: { p_fim: string; p_inicio: string }; Returns: Json }
+        | {
+            Args: { p_fim: string; p_inicio: string; p_instituicao_id?: string }
+            Returns: Json
+          }
       migrar_assistido_legado_tratamento: {
         Args: { p_assistido_id: string; p_tratamentos: Json }
         Returns: Json
@@ -3881,56 +3887,114 @@ export type Database = {
             }
             Returns: undefined
           }
-      relatorio_carga_tarefeiro: {
-        Args: {
-          p_data_fim: string
-          p_data_inicio: string
-          p_page?: number
-          p_page_size?: number
-          p_tarefeiro_id?: string
-          p_tratamento_id?: string
-        }
-        Returns: Json
-      }
-      relatorio_faltas_periodo: {
-        Args: {
-          p_assistido_id?: string
-          p_coordenador_id?: string
-          p_data_fim: string
-          p_data_inicio: string
-          p_page?: number
-          p_page_size?: number
-          p_tarefeiro_id?: string
-          p_tratamento_id?: string
-        }
-        Returns: Json
-      }
-      relatorio_frequencia_presenca: {
-        Args: {
-          p_assistido_id?: string
-          p_coordenador_id?: string
-          p_data_fim: string
-          p_data_inicio: string
-          p_page?: number
-          p_page_size?: number
-          p_tarefeiro_id?: string
-          p_tratamento_id?: string
-        }
-        Returns: Json
-      }
-      relatorio_tratamentos_concluidos: {
-        Args: {
-          p_coordenador_id?: string
-          p_data_fim: string
-          p_data_inicio: string
-          p_page?: number
-          p_page_size?: number
-          p_tarefeiro_id?: string
-          p_tipo?: string
-          p_tratamento_id?: string
-        }
-        Returns: Json
-      }
+      relatorio_carga_tarefeiro:
+        | {
+            Args: {
+              p_data_fim: string
+              p_data_inicio: string
+              p_page?: number
+              p_page_size?: number
+              p_tarefeiro_id?: string
+              p_tratamento_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_data_fim: string
+              p_data_inicio: string
+              p_instituicao_id?: string
+              p_page?: number
+              p_page_size?: number
+              p_tarefeiro_id?: string
+              p_tratamento_id?: string
+            }
+            Returns: Json
+          }
+      relatorio_faltas_periodo:
+        | {
+            Args: {
+              p_assistido_id?: string
+              p_coordenador_id?: string
+              p_data_fim: string
+              p_data_inicio: string
+              p_page?: number
+              p_page_size?: number
+              p_tarefeiro_id?: string
+              p_tratamento_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_assistido_id?: string
+              p_coordenador_id?: string
+              p_data_fim: string
+              p_data_inicio: string
+              p_instituicao_id?: string
+              p_page?: number
+              p_page_size?: number
+              p_tarefeiro_id?: string
+              p_tratamento_id?: string
+            }
+            Returns: Json
+          }
+      relatorio_frequencia_presenca:
+        | {
+            Args: {
+              p_assistido_id?: string
+              p_coordenador_id?: string
+              p_data_fim: string
+              p_data_inicio: string
+              p_page?: number
+              p_page_size?: number
+              p_tarefeiro_id?: string
+              p_tratamento_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_assistido_id?: string
+              p_coordenador_id?: string
+              p_data_fim: string
+              p_data_inicio: string
+              p_instituicao_id?: string
+              p_page?: number
+              p_page_size?: number
+              p_tarefeiro_id?: string
+              p_tratamento_id?: string
+            }
+            Returns: Json
+          }
+      relatorio_tratamentos_concluidos:
+        | {
+            Args: {
+              p_coordenador_id?: string
+              p_data_fim: string
+              p_data_inicio: string
+              p_page?: number
+              p_page_size?: number
+              p_tarefeiro_id?: string
+              p_tipo?: string
+              p_tratamento_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_coordenador_id?: string
+              p_data_fim: string
+              p_data_inicio: string
+              p_instituicao_id?: string
+              p_page?: number
+              p_page_size?: number
+              p_tarefeiro_id?: string
+              p_tipo?: string
+              p_tratamento_id?: string
+            }
+            Returns: Json
+          }
       solicitar_promocao_admin: {
         Args: {
           p_justificativa: string

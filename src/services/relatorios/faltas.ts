@@ -4,12 +4,14 @@
 // A função no banco aplica os mesmos filtros e a visão por perfil.
 // ============================================================================
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import type {
   FaltasResult,
   PaginacaoParams,
   RelatorioPresencaFiltros,
 } from "@/types/relatorios";
 import { EXPORT_PAGE_SIZE } from "./frequencia";
+
 
 function norm(v?: string | null): string | null {
   if (!v || v === "todos") return null;
@@ -29,6 +31,7 @@ export async function fetchFaltasPorPeriodo(
     p_coordenador_id: norm(filtros.coordenadorId),
     p_page: paginacao.page,
     p_page_size: paginacao.pageSize,
+    p_instituicao_id: requireInstituicaoId(),
   });
 
   if (error) throw error;

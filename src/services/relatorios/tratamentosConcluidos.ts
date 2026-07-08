@@ -4,12 +4,14 @@
 // A função no banco aplica os mesmos filtros e a visão por perfil.
 // ============================================================================
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import type {
   PaginacaoParams,
   TratamentosConcluidosFiltros,
   TratamentosConcluidosResult,
 } from "@/types/relatorios";
 import { EXPORT_PAGE_SIZE } from "./frequencia";
+
 
 /** Normaliza "todos"/vazio para null (a RPC trata null como "sem filtro"). */
 function norm(v?: string | null): string | null {
@@ -36,6 +38,7 @@ export async function fetchTratamentosConcluidos(
     p_coordenador_id: norm(filtros.coordenadorId),
     p_page: paginacao.page,
     p_page_size: paginacao.pageSize,
+    p_instituicao_id: requireInstituicaoId(),
   });
 
   if (error) throw error;

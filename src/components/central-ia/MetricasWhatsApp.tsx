@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import {
   agruparPadroesFalha, gerarBacklog,
   type PeriodoDias, type MetricasIaWhatsapp, type Delta, type Impacto,
 } from "@/lib/whatsappMetricas";
+
 
 const PERIODOS: { dias: PeriodoDias; label: string }[] = [
   { dias: 7, label: "7 dias" },
@@ -57,8 +59,8 @@ export default function MetricasWhatsApp() {
     try {
       const { atual: jAtual, anterior: jAnt } = calcularJanelas(d);
       const [r1, r2] = await Promise.all([
-        supabase.rpc("metricas_ia_whatsapp", { p_inicio: jAtual.inicio, p_fim: jAtual.fim }),
-        supabase.rpc("metricas_ia_whatsapp", { p_inicio: jAnt.inicio, p_fim: jAnt.fim }),
+        supabase.rpc("metricas_ia_whatsapp", { p_inicio: jAtual.inicio, p_fim: jAtual.fim, p_instituicao_id: requireInstituicaoId() }),
+        supabase.rpc("metricas_ia_whatsapp", { p_inicio: jAnt.inicio, p_fim: jAnt.fim, p_instituicao_id: requireInstituicaoId() }),
       ]);
       if (r1.error) throw r1.error;
       setAtual(r1.data as unknown as MetricasIaWhatsapp);

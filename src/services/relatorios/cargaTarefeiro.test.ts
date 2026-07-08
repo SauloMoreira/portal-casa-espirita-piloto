@@ -20,8 +20,14 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
+vi.mock("@/lib/tenant/currentTenant", () => ({
+  requireInstituicaoId: () => "inst-e4",
+  getCurrentInstituicaoId: () => "inst-e4",
+}));
+
 import { fetchCargaTarefeiro, fetchCargaTarefeiroParaExport } from "./cargaTarefeiro";
 import { EXPORT_PAGE_SIZE } from "./frequencia";
+
 
 const filtros = {
   dataInicio: "2025-05-01",
@@ -43,6 +49,7 @@ describe("fetchCargaTarefeiro", () => {
       p_tarefeiro_id: "u1",
       p_page: 1,
       p_page_size: 25,
+      p_instituicao_id: "inst-e4",
     });
   });
 

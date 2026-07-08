@@ -22,8 +22,14 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
+vi.mock("@/lib/tenant/currentTenant", () => ({
+  requireInstituicaoId: () => "inst-e4",
+  getCurrentInstituicaoId: () => "inst-e4",
+}));
+
 import { fetchTratamentosConcluidos, fetchTratamentosConcluidosParaExport } from "./tratamentosConcluidos";
 import { EXPORT_PAGE_SIZE } from "./frequencia";
+
 
 const filtros = {
   dataInicio: "2025-01-01",
@@ -49,6 +55,7 @@ describe("fetchTratamentosConcluidos", () => {
       p_coordenador_id: null,
       p_page: 2,
       p_page_size: 50,
+      p_instituicao_id: "inst-e4",
     });
   });
 

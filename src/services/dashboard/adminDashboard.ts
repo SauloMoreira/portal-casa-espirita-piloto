@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { measureAsync } from "@/lib/perfMonitor";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { format, subDays, startOfMonth, endOfMonth, startOfYear } from "date-fns";
 import type {
   AdminDashboardData,
@@ -7,6 +8,7 @@ import type {
   DateRange,
   PeriodKey,
 } from "@/types/adminDashboard";
+
 
 /** Resolve the date range for a given period key. */
 export function getPeriodRange(key: PeriodKey): DateRange {
@@ -62,6 +64,7 @@ export async function fetchAdminDashboard(
     supabase.rpc("dashboard_admin", {
       p_inicio: range.start,
       p_fim: range.end,
+      p_instituicao_id: requireInstituicaoId(),
     }),
   );
   if (error) throw error;
