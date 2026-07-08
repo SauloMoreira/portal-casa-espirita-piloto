@@ -266,7 +266,14 @@ Deno.serve(async (req) => {
           tabela: "comunicacoes_institucionais",
           acao: "ENVIO_CONCLUIDO",
           registro_id: com.id,
-          dados_novos: { enviados, falhas, bloqueados },
+          dados_novos: {
+            enviados,
+            falhas,
+            bloqueados,
+            // SAAS-05-E-EDGE-B: tenant_resolvido a partir da comunicação.
+            tenant_resolvido: (com.instituicao_id as string | null) ?? null,
+            marcador: "saas05_e_edge_b",
+          },
         });
       }
     }
