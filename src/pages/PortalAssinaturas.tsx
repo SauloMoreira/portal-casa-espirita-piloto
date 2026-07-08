@@ -779,9 +779,7 @@ export default function PortalAssinaturas() {
               <Label>Plano</Label>
               <Select
                 value={edit.form.plano_id}
-                onValueChange={(v) =>
-                  setEdit((s) => ({ ...s, form: { ...s.form, plano_id: v } }))
-                }
+                onValueChange={onPlanoChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um plano" />
