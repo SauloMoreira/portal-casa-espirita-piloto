@@ -152,6 +152,14 @@ Deno.serve(async (req) => {
       }
 
       // 2) Comunicadores elegíveis — overload tenant-aware quando tenantId != null.
+      // SAAS-05-I: registra uso legado da assinatura sem parâmetro.
+      if (!tenantId) {
+        await admin.rpc("fn_saas05_i_log_legacy_rpc", {
+          p_rpc: "comunicadores_elegiveis",
+          p_origem: "edge:central-fila-alerta:service_role",
+          p_overload_tenant_aware_existe: true,
+        });
+      }
       const elegCall = tenantId
         ? admin.rpc("comunicadores_elegiveis", { p_instituicao_id: tenantId })
         : admin.rpc("comunicadores_elegiveis");
