@@ -50,10 +50,7 @@ describe("SAAS-02-S4 — documento e classificação dos findings supabase_lov",
   it("documento declara controles compensatórios existentes", () => {
     const src = readFileSync(DOC, "utf8");
     expect(src).toMatch(/shadow_tenant_all_/);
-    expect(src).toMatch(/EDGE-A/);
-    expect(src).toMatch(/EDGE-B/);
-    expect(src).toMatch(/EDGE-C/);
-    expect(src).toMatch(/EDGE-D/);
+    expect(src).toMatch(/EDGE-A\/A2\/B\/C\/D/);
     expect(src).toMatch(/SAAS-05-E1\.\.E4/);
   });
 
