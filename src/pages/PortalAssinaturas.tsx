@@ -310,6 +310,108 @@ export default function PortalAssinaturas() {
     await carregar();
   };
 
+  const criarInstituicao = async () => {
+    const f = createForm;
+    if (!f.nome.trim() || !f.slug.trim() || !f.plano_id) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Informe nome, slug e plano.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreating(true);
+
+    const instPayload = {
+      nome: f.nome.trim(),
+      nome_fantasia: f.nome_fantasia.trim() || null,
+      slug: f.slug.trim().toLowerCase(),
+      cidade: f.cidade.trim() || null,
+      uf: f.uf.trim() ? f.uf.trim().toUpperCase().slice(0, 2) : null,
+      email_contato: f.email_contato.trim() || null,
+      telefone_contato: f.telefone_contato.trim() || null,
+      classificacao_comercial: f.classificacao_comercial,
+      status: "implantacao",
+    };
+
+    const instRes = await supabase
+      .from("instituicoes")
+      .insert(instPayload as never)
+      .select("id")
+      .single();
+
+    if (instRes.error || !instRes.data) {
+      toast({
+        title: "Erro ao criar instituição",
+        description: instRes.error?.message,
+        variant: "destructive",
+      });
+      setCreating(false);
+      return;
+    }
+
+    const instId = (instRes.data as { id: string }).id;
+
+    const obsExtras: string[] = [];
+    if (f.responsavel.trim()) obsExtras.push(`Responsável: ${f.responsavel.trim()}`);
+    if (f.email_admin_inicial.trim())
+      obsExtras.push(`E-mail do admin inicial: ${f.email_admin_inicial.trim()}`);
+    const observacoes = [obsExtras.join(" · "), f.observacoes_comerciais.trim()]
+      .filter(Boolean)
+      .join("\n");
+
+    const asgPayload = {
+      instituicao_id: instId,
+      plano_id: f.plano_id,
+      status: f.status,
+      data_inicio: f.data_inicio || new Date().toISOString().slice(0, 10),
+      trial_ate: f.trial_ate || null,
+      proximo_vencimento: f.proximo_vencimento || null,
+      valor_mensal_cents: f.valor_mensal_cents
+        ? Number(f.valor_mensal_cents)
+        : null,
+      forma_pagamento: f.forma_pagamento || null,
+      observacoes_comerciais: observacoes || null,
+    };
+
+    const asgRes = await supabase
+      .from("assinaturas")
+      .insert(asgPayload as never);
+
+    if (asgRes.error) {
+      toast({
+        title: "Instituição criada, mas falhou a assinatura",
+        description: asgRes.error.message,
+        variant: "destructive",
+      });
+      setCreating(false);
+      return;
+    }
+
+    toast({
+      title: "Instituição e assinatura criadas",
+      description:
+        "Convide o administrador inicial via fluxo de cadastro e vincule-o à instituição.",
+    });
+    setCreateOpen(false);
+    setCreating(false);
+    setCreateForm((s) => ({
+      ...s,
+      nome: "",
+      nome_fantasia: "",
+      slug: "",
+      cidade: "",
+      uf: "",
+      email_contato: "",
+      telefone_contato: "",
+      responsavel: "",
+      email_admin_inicial: "",
+      observacoes_comerciais: "",
+      valor_mensal_cents: "",
+    }));
+    await carregar();
+  };
+
   const resumo = useMemo(() => {
     const total = rows.length;
     const ativas = rows.filter(
