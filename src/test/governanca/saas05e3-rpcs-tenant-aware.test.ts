@@ -166,9 +166,9 @@ describe("SAAS-05-E3 — Frontend/services enviam p_instituicao_id (fail-closed)
   });
 
   it.each([
-    ["fn_registrar_aviso_ausencia", "avisosAusenciaService.ts"],
-    ["fn_tratar_aviso_ausencia", "avisosAusenciaService.ts"],
-    ["fn_avisos_ausencia_pendentes", "avisosAusenciaService.ts"],
+    "fn_registrar_aviso_ausencia",
+    "fn_tratar_aviso_ausencia",
+    "fn_avisos_ausencia_pendentes",
   ] as const)("RPC %s em avisosAusenciaService envia p_instituicao_id", (rpc) => {
     const re = new RegExp(
       `supabase\\.rpc\\(\\s*"${rpc}"[\\s\\S]{0,400}p_instituicao_id`,
