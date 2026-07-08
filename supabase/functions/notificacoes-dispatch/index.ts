@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
       if (motivoInelegivel) {
         await admin.from("notificacoes_fila")
           .update({ status: "cancelado", erro: motivoInelegivel }).eq("id", item.id);
-        await logFila(admin, item.id, "saida", null, null, "cancelado", String(motivoInelegivel));
+        await logFila(admin, item.id, "saida", null, null, "cancelado", String(motivoInelegivel), tenantCtx);
         result.ignorados++;
         continue;
       }
@@ -210,24 +210,24 @@ Deno.serve(async (req) => {
       // Classificação geral × operacional (fonte única compartilhada).
       const classe = classificarEvento(item.evento_origem);
 
-      // opt-out de canal (vale para qualquer mensagem)
+      // opt-out de canal (vale para qualquer mensagem) — respeitado antes de qualquer envio.
       if (!whatsappAtivo) {
         await admin.from("notificacoes_fila").update({ status: "cancelado", erro: "opt_out" }).eq("id", item.id);
-        await logFila(admin, item.id, "saida", null, null, "cancelado", "opt_out");
+        await logFila(admin, item.id, "saida", null, null, "cancelado", "opt_out", tenantCtx);
         result.ignorados++;
         continue;
       }
       // comunicações GERAIS respeitam a flag; operacionais NUNCA são bloqueadas por ela
       if (classe === "geral" && !comunicacaoGeralAtiva) {
         await admin.from("notificacoes_fila").update({ status: "cancelado", erro: "comunicacao_geral_desativada" }).eq("id", item.id);
-        await logFila(admin, item.id, "saida", null, null, "cancelado", "comunicacao_geral_desativada");
+        await logFila(admin, item.id, "saida", null, null, "cancelado", "comunicacao_geral_desativada", tenantCtx);
         result.ignorados++;
         continue;
       }
       // phone
       if (!item.telefone_normalizado) {
         await admin.from("notificacoes_fila").update({ status: "falha", erro: "sem_telefone" }).eq("id", item.id);
-        await logFila(admin, item.id, "saida", null, null, "falha", "sem_telefone");
+        await logFila(admin, item.id, "saida", null, null, "falha", "sem_telefone", tenantCtx);
         result.falhas++;
         continue;
       }
@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
         const texto = String((item.payload_json || {}).mensagem || "").trim();
         if (!texto) {
           await admin.from("notificacoes_fila").update({ status: "falha", erro: "mensagem_vazia" }).eq("id", item.id);
-          await logFila(admin, item.id, "saida", null, null, "falha", "mensagem_vazia");
+          await logFila(admin, item.id, "saida", null, null, "falha", "mensagem_vazia", tenantCtx);
           result.falhas++;
           continue;
         }
@@ -272,7 +272,7 @@ Deno.serve(async (req) => {
           .maybeSingle();
         if (!tpl || !tpl.ativo) {
           await admin.from("notificacoes_fila").update({ status: "falha", erro: "template_indisponivel" }).eq("id", item.id);
-          await logFila(admin, item.id, "saida", null, null, "falha", "template_indisponivel");
+          await logFila(admin, item.id, "saida", null, null, "falha", "template_indisponivel", tenantCtx);
           result.falhas++;
           continue;
         }
@@ -288,7 +288,7 @@ Deno.serve(async (req) => {
           // Do not send reminders for sessions that already started/passed.
           if (lembreteVencido(sessaoData, horario, agora)) {
             await admin.from("notificacoes_fila").update({ status: "cancelado", erro: "lembrete_vencido" }).eq("id", item.id);
-            await logFila(admin, item.id, "saida", null, null, "cancelado", "lembrete_vencido");
+            await logFila(admin, item.id, "saida", null, null, "cancelado", "lembrete_vencido", tenantCtx);
             result.ignorados++;
             continue;
           }
@@ -298,7 +298,16 @@ Deno.serve(async (req) => {
         mensagem = renderTemplate(tpl.corpo_template, payload);
       }
       const send = await adapter.send(item.telefone_normalizado, mensagem);
-      await logFila(admin, item.id, "saida", { telefone: item.telefone_normalizado, mensagem }, send.raw ?? null, send.ok ? "enviado" : "falha", send.error);
+      await logFila(
+        admin,
+        item.id,
+        "saida",
+        { telefone: item.telefone_normalizado, mensagem },
+        send.raw ?? null,
+        send.ok ? "enviado" : "falha",
+        send.error,
+        tenantCtx,
+      );
 
       if (send.ok) {
         await admin.from("notificacoes_fila").update({
