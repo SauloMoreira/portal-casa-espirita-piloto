@@ -28,7 +28,7 @@ function findMigration(): string {
     .filter((f) => f.endsWith(".sql"))
     .sort();
   for (const f of files) {
-    const c = read(join(ROOT, MIGRATIONS_DIR, f));
+    const c = read(join(MIGRATIONS_DIR, f));
     if (c.includes(MIGRATION_TAG)) return c;
   }
   throw new Error("Migration SAAS-05-E3 não encontrada");
