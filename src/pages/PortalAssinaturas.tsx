@@ -161,8 +161,12 @@ export default function PortalAssinaturas() {
     open: false,
     row: null,
     form: EMPTY_FORM,
+    modulos: {},
+    overridesOriginais: {},
     saving: false,
   });
+  const [modulosCatalogo, setModulosCatalogo] = useState<ModuloCatalogo[]>([]);
+  const [planoModulos, setPlanoModulos] = useState<PlanoModulo[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState({
