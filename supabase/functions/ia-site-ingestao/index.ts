@@ -1,6 +1,10 @@
+// SAAS-05-E-EDGE-D — ia-site-ingestao tenant-aware.
+// Exige p_instituicao_id no payload; valida membership admin no tenant;
+// tagueia preview e audita tenant_resolvido; sem indexação cross-tenant.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { guardCronOrStaff } from "../_shared/auth.ts";
+
 
 const ALLOW_HEADERS =
   "authorization, x-client-info, apikey, content-type, x-cron-secret";
