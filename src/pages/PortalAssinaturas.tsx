@@ -1068,6 +1068,13 @@ export default function PortalAssinaturas() {
             </div>
           </div>
 
+          {edit.row && (
+            <VinculosInstituicaoSection
+              instituicaoId={edit.row.instituicao.id}
+              nomeInstituicao={edit.row.instituicao.nome}
+            />
+          )}
+
           <div className="mt-6 border-t pt-4">
             <div className="flex items-center justify-between mb-2">
               <div>
