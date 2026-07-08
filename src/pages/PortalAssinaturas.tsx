@@ -1192,9 +1192,19 @@ export default function PortalAssinaturas() {
               <Label>Plano *</Label>
               <Select
                 value={createForm.plano_id}
-                onValueChange={(v) =>
-                  setCreateForm((s) => ({ ...s, plano_id: v }))
-                }
+                onValueChange={(v) => {
+                  setCreateForm((s) => ({ ...s, plano_id: v }));
+                  const defaults = modulosDoPlano(v);
+                  // Recomendação inicial: Tratamentos habilitado quando disponível no catálogo.
+                  const next: Record<string, boolean> = { ...defaults };
+                  const tratamentos = modulosCatalogo.find(
+                    (m) => m.codigo === "tratamentos",
+                  );
+                  if (tratamentos && next[tratamentos.id] === undefined) {
+                    next[tratamentos.id] = true;
+                  }
+                  setCreateModulos(next);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um plano" />
