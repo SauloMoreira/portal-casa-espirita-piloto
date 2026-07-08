@@ -743,7 +743,7 @@ export default function PortalAssinaturas() {
           setEdit((s) => ({ ...s, open: o, row: o ? s.row : null }))
         }
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Editar assinatura — {edit.row?.instituicao.nome}
