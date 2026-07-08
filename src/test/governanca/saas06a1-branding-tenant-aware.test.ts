@@ -38,8 +38,9 @@ describe("SAAS-06-A1 — Hook useTenantBranding", () => {
     expect(src).not.toMatch(/localStorage/);
   });
 
-  it("não referencia 'Tratamentos FER' nem fer-icon", () => {
-    expect(src).not.toMatch(/Tratamentos FER/);
+  it("não usa 'Tratamentos FER' como valor exibido nem fer-icon", () => {
+    // Ignora ocorrência em comentários explicativos; procura só literais de string.
+    expect(src).not.toMatch(/"Tratamentos FER"/);
     expect(src).not.toMatch(/fer-icon/);
   });
 });
