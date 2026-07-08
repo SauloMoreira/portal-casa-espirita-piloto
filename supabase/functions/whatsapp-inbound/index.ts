@@ -1418,6 +1418,14 @@ Deno.serve(async (req) => {
         },
       });
       origemTenant = "ambiguo_multi_tenant";
+      // SAAS-05-I: telemetria de fallback por ambiguidade multi-tenant.
+      await admin.rpc("fn_saas05_i_log_fallback", {
+        p_fallback: "whatsapp-inbound",
+        p_motivo: "tenant_ambiguo",
+        p_origem_tenant: "ambiguo_multi_tenant",
+        p_fail_closed: true,
+        p_contexto: { candidatos_count: candidatos.length, tenants_distintos: tenantsDistintos.length },
+      });
     } else if (candidatos.length > 1) {
       // Vários assistidos, mesmo tenant (ou todos pré-cutover). Mantém o
       // comportamento pré-EDGE-C: usa o primeiro match, sem escolha entre
