@@ -1,7 +1,11 @@
+// SAAS-05-E-EDGE-D — conteudo-imagem-ia tenant-aware.
+// Exige p_instituicao_id; valida membership; segrega storage por tenant;
+// audita tenant_resolvido/origem_tenant/marcador.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Image } from "https://deno.land/x/imagescript@1.2.17/mod.ts";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+
 
 const IMAGE_MODEL = "google/gemini-3-pro-image-preview";
 const BUCKET = "avatars";
