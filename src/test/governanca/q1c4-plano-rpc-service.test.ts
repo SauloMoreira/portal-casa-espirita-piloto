@@ -124,7 +124,7 @@ describe("Q1-C4 planoRpcService — pts_rollback_piloto", () => {
       error: null,
     });
     const r = await rollbackPilotoRpc("a1");
-    expect(rpcMock).toHaveBeenCalledWith("pts_rollback_piloto", { p_assistido_id: "a1" });
+    expect(rpcMock).toHaveBeenCalledWith("pts_rollback_piloto", { p_assistido_id: "a1", p_instituicao_id: TENANT });
     expect(r).toEqual({ sessoes_removidas: 4, sessoes_restauradas: 10, etapas_removidas: 2 });
   });
 
