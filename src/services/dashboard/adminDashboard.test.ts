@@ -49,7 +49,11 @@ describe("fetchAdminDashboard", () => {
     await fetchAdminDashboard("mes");
     const range = getPeriodRange("mes");
     expect(lastRpc?.fn).toBe("dashboard_admin");
-    expect(lastRpc?.args).toEqual({ p_inicio: range.start, p_fim: range.end });
+    expect(lastRpc?.args).toEqual({
+      p_inicio: range.start,
+      p_fim: range.end,
+      p_instituicao_id: "inst-e4",
+    });
   });
 
   it("mapeia cards, gráficos e listas do payload server-side", async () => {
