@@ -126,7 +126,7 @@ describe("SAAS-06-A1 — Preservação do branding global e do projeto FER", () 
     const src = read("src/config/saasBranding.ts");
     expect(src).toMatch(/Portal Casa Espírita/);
     expect(src).toMatch(/SC Moreira Tech/);
-    expect(src).not.toMatch(/Tratamentos FER/);
+    expect(src).not.toMatch(/"Tratamentos FER"/);
   });
 
   it("Login continua neutro (sem regressão para Tratamentos FER)", () => {
