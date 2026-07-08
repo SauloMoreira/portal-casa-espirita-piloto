@@ -228,6 +228,34 @@ solta nem overrides sem assinatura. Edição posterior continua disponível em
 - Demais módulos (Caixa/Cantina, Biblioteca, Portal Institucional,
   Financeiro): desligados ou "em breve"
 
+### Visualização dos módulos habilitados por instituição (B0.5)
+
+A listagem principal **"Assinaturas por instituição"** exibe a coluna
+**Módulos**, com badges compactas dos módulos comerciais efetivamente
+habilitados para cada casa — sem exigir abrir o diálogo Editar.
+
+- **Origem dos dados:** composição efetiva = padrão de `plano_modulos` +
+  override em `assinatura_modulos` (override prevalece). Módulos com
+  `modulos.ativo = false` no catálogo são omitidos (funcionalidades futuras
+  aparecem apenas quando ativadas comercialmente).
+- **Regra de exibição:** até 3 badges visíveis; extras condensados em `+N`
+  com tooltip contendo a lista completa.
+- **Estado bloqueado:** quando a assinatura está `suspensa`, `cancelada` ou
+  `encerrada`, as badges aparecem em variante `outline` e o tooltip começa
+  com "Bloqueada — …", refletindo o que o tenant vê no Portal.
+- **Sem módulo habilitado:** aparece `Nenhum módulo` em destaque âmbar,
+  sinalizando pendência de configuração.
+- **Módulo comercial vs interno:** apenas os 5 módulos comerciais oficiais
+  aparecem (Tratamentos, Caixa/Cantina, Biblioteca, Portal Institucional,
+  Financeiro). Agenda, entrevistas, presença, relatórios, comunicação
+  operacional e Central IA de tratamentos são funcionalidades internas de
+  Tratamentos e **não** aparecem como módulos comerciais.
+- **Atualização:** ao salvar mudanças em Editar, `carregar()` recarrega os
+  overrides e a listagem reflete o estado imediatamente.
+- **Acesso:** guard duplo (`isPlatformAdmin` + `<Navigate>`) e RLS
+  garantem que apenas `platform_admin`/`platform_owner` veem esta tela.
+
+
 
 ### Testes
 
