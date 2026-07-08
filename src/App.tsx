@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PlatformAdminRoute } from "@/components/PlatformAdminRoute";
 import { RequireInstituicao } from "@/components/RequireInstituicao";
 import { AppLayout } from "@/components/AppLayout";
 import { withErrorBoundary as guard } from "@/components/ErrorBoundary";
