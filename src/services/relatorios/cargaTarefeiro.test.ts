@@ -49,6 +49,7 @@ describe("fetchCargaTarefeiro", () => {
       p_tarefeiro_id: "u1",
       p_page: 1,
       p_page_size: 25,
+      p_instituicao_id: "inst-e4",
     });
   });
 
