@@ -65,6 +65,16 @@ describe("SAAS-06-B0 — Página PortalAssinaturas", () => {
     expect(src).toMatch(/from\("assinaturas"\)/);
     expect(src).toMatch(/from\("instituicoes"\)/);
   });
+
+  it("expõe botão para criar nova instituição/assinatura", () => {
+    expect(src).toMatch(/data-testid="btn-nova-instituicao"/);
+    expect(src).toMatch(/Nova instituição\/assinatura/);
+    expect(src).toMatch(/criarInstituicao/);
+  });
+
+  it("guardas de criação: exige nome, slug e plano", () => {
+    expect(src).toMatch(/nome.*slug.*plano/is);
+  });
 });
 
 describe("SAAS-06-B0 — Rota e navegação", () => {
@@ -136,6 +146,12 @@ describe("SAAS-06-B0 — Migração", () => {
 
   it("concede UPDATE em assinaturas para authenticated (RLS mantém autorização)", () => {
     expect(all).toMatch(/GRANT\s+UPDATE.*ON\s+public\.assinaturas\s+TO\s+authenticated/);
+  });
+
+  it("permite platform_admin criar instituições (INSERT policy + GRANT)", () => {
+    expect(all).toMatch(/GRANT\s+INSERT\s+ON\s+public\.instituicoes\s+TO\s+authenticated/);
+    expect(all).toMatch(/instituicoes_platform_insert/);
+    expect(all).toMatch(/instituicoes_platform_update/);
   });
 
   it("não cria integração com gateway", () => {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Loader2, CreditCard, Pencil } from "lucide-react";
+import { Loader2, CreditCard, Pencil, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -156,6 +156,28 @@ export default function PortalAssinaturas() {
     form: EMPTY_FORM,
     saving: false,
   });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    nome: "",
+    nome_fantasia: "",
+    slug: "",
+    cidade: "",
+    uf: "",
+    email_contato: "",
+    telefone_contato: "",
+    responsavel: "",
+    email_admin_inicial: "",
+    classificacao_comercial: "piloto",
+    plano_id: "",
+    status: "trial",
+    data_inicio: new Date().toISOString().slice(0, 10),
+    trial_ate: "",
+    proximo_vencimento: "",
+    valor_mensal_cents: "",
+    forma_pagamento: "",
+    observacoes_comerciais: "",
+  });
 
   const carregar = async () => {
     setLoading(true);
@@ -288,6 +310,108 @@ export default function PortalAssinaturas() {
     await carregar();
   };
 
+  const criarInstituicao = async () => {
+    const f = createForm;
+    if (!f.nome.trim() || !f.slug.trim() || !f.plano_id) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Informe nome, slug e plano.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreating(true);
+
+    const instPayload = {
+      nome: f.nome.trim(),
+      nome_fantasia: f.nome_fantasia.trim() || null,
+      slug: f.slug.trim().toLowerCase(),
+      cidade: f.cidade.trim() || null,
+      uf: f.uf.trim() ? f.uf.trim().toUpperCase().slice(0, 2) : null,
+      email_contato: f.email_contato.trim() || null,
+      telefone_contato: f.telefone_contato.trim() || null,
+      classificacao_comercial: f.classificacao_comercial,
+      status: "implantacao",
+    };
+
+    const instRes = await supabase
+      .from("instituicoes")
+      .insert(instPayload as never)
+      .select("id")
+      .single();
+
+    if (instRes.error || !instRes.data) {
+      toast({
+        title: "Erro ao criar instituição",
+        description: instRes.error?.message,
+        variant: "destructive",
+      });
+      setCreating(false);
+      return;
+    }
+
+    const instId = (instRes.data as { id: string }).id;
+
+    const obsExtras: string[] = [];
+    if (f.responsavel.trim()) obsExtras.push(`Responsável: ${f.responsavel.trim()}`);
+    if (f.email_admin_inicial.trim())
+      obsExtras.push(`E-mail do admin inicial: ${f.email_admin_inicial.trim()}`);
+    const observacoes = [obsExtras.join(" · "), f.observacoes_comerciais.trim()]
+      .filter(Boolean)
+      .join("\n");
+
+    const asgPayload = {
+      instituicao_id: instId,
+      plano_id: f.plano_id,
+      status: f.status,
+      data_inicio: f.data_inicio || new Date().toISOString().slice(0, 10),
+      trial_ate: f.trial_ate || null,
+      proximo_vencimento: f.proximo_vencimento || null,
+      valor_mensal_cents: f.valor_mensal_cents
+        ? Number(f.valor_mensal_cents)
+        : null,
+      forma_pagamento: f.forma_pagamento || null,
+      observacoes_comerciais: observacoes || null,
+    };
+
+    const asgRes = await supabase
+      .from("assinaturas")
+      .insert(asgPayload as never);
+
+    if (asgRes.error) {
+      toast({
+        title: "Instituição criada, mas falhou a assinatura",
+        description: asgRes.error.message,
+        variant: "destructive",
+      });
+      setCreating(false);
+      return;
+    }
+
+    toast({
+      title: "Instituição e assinatura criadas",
+      description:
+        "Convide o administrador inicial via fluxo de cadastro e vincule-o à instituição.",
+    });
+    setCreateOpen(false);
+    setCreating(false);
+    setCreateForm((s) => ({
+      ...s,
+      nome: "",
+      nome_fantasia: "",
+      slug: "",
+      cidade: "",
+      uf: "",
+      email_contato: "",
+      telefone_contato: "",
+      responsavel: "",
+      email_admin_inicial: "",
+      observacoes_comerciais: "",
+      valor_mensal_cents: "",
+    }));
+    await carregar();
+  };
+
   const resumo = useMemo(() => {
     const total = rows.length;
     const ativas = rows.filter(
@@ -317,17 +441,25 @@ export default function PortalAssinaturas() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center gap-3">
-        <CreditCard className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Central de Assinaturas
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Controle comercial manual das casas em produção assistida. Nenhuma
-            cobrança automática é executada aqui.
-          </p>
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <CreditCard className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Central de Assinaturas
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Controle comercial manual das casas em produção assistida. Nenhuma
+              cobrança automática é executada aqui.
+            </p>
+          </div>
         </div>
+        <Button
+          onClick={() => setCreateOpen(true)}
+          data-testid="btn-nova-instituicao"
+        >
+          <Plus className="h-4 w-4 mr-1" /> Nova instituição/assinatura
+        </Button>
       </header>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -713,6 +845,277 @@ export default function PortalAssinaturas() {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
               Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nova instituição/assinatura</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label>Nome da instituição *</Label>
+              <Input
+                value={createForm.nome}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, nome: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Nome de exibição</Label>
+              <Input
+                value={createForm.nome_fantasia}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, nome_fantasia: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Slug *</Label>
+              <Input
+                value={createForm.slug}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                  }))
+                }
+                placeholder="ex.: casa-espirita-piloto"
+              />
+            </div>
+            <div>
+              <Label>Cidade</Label>
+              <Input
+                value={createForm.cidade}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, cidade: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>UF</Label>
+              <Input
+                maxLength={2}
+                value={createForm.uf}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, uf: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Responsável</Label>
+              <Input
+                value={createForm.responsavel}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, responsavel: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Telefone</Label>
+              <Input
+                value={createForm.telefone_contato}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    telefone_contato: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <Label>E-mail da instituição</Label>
+              <Input
+                type="email"
+                value={createForm.email_contato}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, email_contato: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>E-mail do administrador inicial</Label>
+              <Input
+                type="email"
+                value={createForm.email_admin_inicial}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    email_admin_inicial: e.target.value,
+                  }))
+                }
+                placeholder="Será convidado separadamente"
+              />
+            </div>
+
+            <div>
+              <Label>Classificação</Label>
+              <Select
+                value={createForm.classificacao_comercial}
+                onValueChange={(v) =>
+                  setCreateForm((s) => ({ ...s, classificacao_comercial: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASSIFICACAO.map((c) => (
+                    <SelectItem key={c.key} value={c.key}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Plano *</Label>
+              <Select
+                value={createForm.plano_id}
+                onValueChange={(v) =>
+                  setCreateForm((s) => ({ ...s, plano_id: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um plano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {planos.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Módulos liberados são derivados automaticamente do plano.
+              </p>
+            </div>
+            <div>
+              <Label>Status da assinatura</Label>
+              <Select
+                value={createForm.status}
+                onValueChange={(v) =>
+                  setCreateForm((s) => ({ ...s, status: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_ASSINATURA.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Forma de cobrança</Label>
+              <Select
+                value={createForm.forma_pagamento || "__none__"}
+                onValueChange={(v) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    forma_pagamento: v === "__none__" ? "" : v,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {FORMA_PAGAMENTO.map((f) => (
+                    <SelectItem key={f.key} value={f.key}>
+                      {f.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Data de início</Label>
+              <Input
+                type="date"
+                value={createForm.data_inicio}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, data_inicio: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Trial até</Label>
+              <Input
+                type="date"
+                value={createForm.trial_ate}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, trial_ate: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Próximo vencimento</Label>
+              <Input
+                type="date"
+                value={createForm.proximo_vencimento}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    proximo_vencimento: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Valor mensal (em centavos)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={createForm.valor_mensal_cents}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    valor_mensal_cents: e.target.value,
+                  }))
+                }
+                placeholder="Ex.: 19900 = R$ 199,00"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <Label>Observações comerciais</Label>
+              <Textarea
+                rows={3}
+                value={createForm.observacoes_comerciais}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    observacoes_comerciais: e.target.value,
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateOpen(false)}
+              disabled={creating}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={criarInstituicao} disabled={creating}>
+              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Criar instituição e assinatura
             </Button>
           </DialogFooter>
         </DialogContent>
