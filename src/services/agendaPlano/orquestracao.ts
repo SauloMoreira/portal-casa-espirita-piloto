@@ -200,6 +200,7 @@ export async function converterAssistidoParaPlano(
   const { data, error } = await supabase.rpc("pts_converter_assistido", {
     p_assistido_id: assistidoId,
     p_planos: payload as unknown as Json,
+    p_instituicao_id: requireInstituicaoId(),
   });
   if (error) throw new Error(error.message);
   const r = (data ?? {}) as { planos?: number; sessoes_neutralizadas?: number };
