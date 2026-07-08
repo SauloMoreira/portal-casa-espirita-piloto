@@ -146,6 +146,69 @@ Editável pelo próprio dialog da Central de Assinaturas.
 
 Idempotente: pode rodar em ambientes que já receberam parte das colunas.
 
+## 8. Habilitação de módulos por instituição (B0.3)
+
+O `platform_admin` pode sobrepor, **por instituição**, quais módulos
+comerciais estão habilitados — sem alterar a composição do plano nem afetar
+outras casas.
+
+### Onde visualizar e habilitar
+
+| Onde | O quê |
+| --- | --- |
+| **Portal Admin → Central de Assinaturas → Editar instituição** | Bloco "Módulos habilitados para esta instituição" com toggle por módulo do catálogo. Mostra o padrão do plano e sinaliza `override` quando o valor difere. Única superfície de escrita. |
+| **Portal Admin → Instituições** (visão de leitura) | Lista instituições e plano vigente. |
+| **Portal (tenant) → Módulos** | Mostra ao usuário final o estado efetivo (`ativo_no_plano` já considera override). Módulos não habilitados aparecem como bloqueados ou "em breve" (regra do `ModulosGrid`). |
+| **Central IA / Planos** | Continua fora do escopo do B0 — a composição de plano (`plano_modulos`) só é editada por migração. |
+
+### Modelo
+
+Nova tabela `public.assinatura_modulos` (`assinatura_id`, `modulo_id`,
+`ativo`, `observacao`, unique `(assinatura_id, modulo_id)`):
+
+- Se existir linha para `(assinatura, módulo)`, o valor `ativo` prevalece
+  sobre `plano_modulos.ativo`.
+- Se não existir linha, vale o que o plano define.
+- RLS:
+  - Leitura: `platform_admin` (tudo) **ou** usuário com vínculo `ativo` na
+    instituição da assinatura (leitura restrita ao próprio tenant).
+  - Escrita: **apenas** `platform_admin` (`is_platform_admin(auth.uid())`),
+    tanto `USING` quanto `WITH CHECK`.
+
+### Regras comerciais consolidadas
+
+- Módulos comerciais oficiais: **Tratamentos**, **Caixa/Cantina**,
+  **Biblioteca**, **Portal Institucional**, **Financeiro** (ver
+  `docs/SAAS-06-B0.2-AUDITORIA-MODULOS-PERMISSOES.md`).
+- Funcionalidades internas de Tratamentos (agenda, entrevistas, presença,
+  relatórios, comunicação, IA de apoio, voluntários, palestras, sessões
+  públicas) **não** são módulos comerciais e **não** aparecem no toggle.
+- Para a **FER Piloto**, habilitar apenas Tratamentos; os demais permanecem
+  desativados até virarem produtos.
+- Admin local **não** pode alterar módulos contratados (RLS bloqueia).
+- Assistidos **não** veem nem o painel de administração nem o toggle.
+
+### Persistência da UI (Central de Assinaturas)
+
+Ao salvar, para cada módulo do catálogo:
+
+1. Compara o valor efetivo com o padrão do plano selecionado.
+2. Se diferente do padrão → `upsert` em `assinatura_modulos`.
+3. Se igual ao padrão e existia override → `delete` do override
+   (mantém a tabela enxuta e evita "override redundante").
+
+Trocar o plano recalcula os padrões preservando alterações locais ainda não
+salvas.
+
+### Testes
+
+Cobertura em `src/test/governanca/saas06b03-modulos-por-instituicao.test.ts`
+(13 testes): existência da tabela, GRANTs, RLS, unicidade, política de
+escrita restrita a `platform_admin`, política de leitura por vínculo,
+override aplicado pelo hub, UI com toggles + upsert + delete, recálculo ao
+trocar plano, e ausência de gateway de cobrança.
+
+
 ## Testes
 
 Cobertura em `src/test/governanca/saas06b0-central-assinaturas.test.ts`:
