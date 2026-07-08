@@ -148,6 +148,12 @@ describe("SAAS-06-B0 — Migração", () => {
     expect(all).toMatch(/GRANT\s+UPDATE.*ON\s+public\.assinaturas\s+TO\s+authenticated/);
   });
 
+  it("permite platform_admin criar instituições (INSERT policy + GRANT)", () => {
+    expect(all).toMatch(/GRANT\s+INSERT\s+ON\s+public\.instituicoes\s+TO\s+authenticated/);
+    expect(all).toMatch(/instituicoes_platform_insert/);
+    expect(all).toMatch(/instituicoes_platform_update/);
+  });
+
   it("não cria integração com gateway", () => {
     expect(all).not.toMatch(/stripe|paddle|mercadopago/i);
   });
