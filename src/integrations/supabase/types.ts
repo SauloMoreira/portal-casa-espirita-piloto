@@ -2798,6 +2798,75 @@ export type Database = {
           },
         ]
       }
+      saas05_i_fallback_events: {
+        Row: {
+          contexto: Json
+          created_at: string
+          fail_closed: boolean
+          fallback_nome: string
+          id: string
+          marcador: string
+          motivo: string
+          origem_tenant: string | null
+          tenant_resolvido: string | null
+        }
+        Insert: {
+          contexto?: Json
+          created_at?: string
+          fail_closed?: boolean
+          fallback_nome: string
+          id?: string
+          marcador?: string
+          motivo: string
+          origem_tenant?: string | null
+          tenant_resolvido?: string | null
+        }
+        Update: {
+          contexto?: Json
+          created_at?: string
+          fail_closed?: boolean
+          fallback_nome?: string
+          id?: string
+          marcador?: string
+          motivo?: string
+          origem_tenant?: string | null
+          tenant_resolvido?: string | null
+        }
+        Relationships: []
+      }
+      saas05_i_legacy_rpc_events: {
+        Row: {
+          contexto: Json
+          created_at: string
+          id: string
+          marcador: string
+          origem: string | null
+          overload_tenant_aware_existe: boolean
+          rpc_nome: string
+          tenant_recebido: string | null
+        }
+        Insert: {
+          contexto?: Json
+          created_at?: string
+          id?: string
+          marcador?: string
+          origem?: string | null
+          overload_tenant_aware_existe?: boolean
+          rpc_nome: string
+          tenant_recebido?: string | null
+        }
+        Update: {
+          contexto?: Json
+          created_at?: string
+          id?: string
+          marcador?: string
+          origem?: string | null
+          overload_tenant_aware_existe?: boolean
+          rpc_nome?: string
+          tenant_recebido?: string | null
+        }
+        Relationships: []
+      }
       sessoes_publicas: {
         Row: {
           created_at: string
@@ -3611,6 +3680,27 @@ export type Database = {
           p_target_user_id: string
         }
         Returns: Json
+      }
+      fn_saas05_i_log_fallback: {
+        Args: {
+          p_contexto?: Json
+          p_fail_closed?: boolean
+          p_fallback: string
+          p_motivo: string
+          p_origem_tenant?: string
+          p_tenant_resolvido?: string
+        }
+        Returns: undefined
+      }
+      fn_saas05_i_log_legacy_rpc: {
+        Args: {
+          p_contexto?: Json
+          p_origem?: string
+          p_overload_tenant_aware_existe?: boolean
+          p_rpc: string
+          p_tenant_recebido?: string
+        }
+        Returns: undefined
       }
       fn_sanear_fila_notificacoes: {
         Args: never
