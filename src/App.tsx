@@ -76,6 +76,7 @@ const Portal = lazy(() => import("./pages/Portal"));
 const PortalInstituicoes = lazy(() => import("./pages/PortalInstituicoes"));
 const PortalModulos = lazy(() => import("./pages/PortalModulos"));
 const PortalAdmin = lazy(() => import("./pages/PortalAdmin"));
+const PortalAssinaturas = lazy(() => import("./pages/PortalAssinaturas"));
 
 const queryClient = new QueryClient();
 
@@ -171,6 +172,7 @@ const App = () => (
                  <Route path={ROUTES.portalInstituicoes} element={guard(<PortalInstituicoes />, "Portal · Instituições")} />
                  <Route path={ROUTES.portalModulos} element={guard(<PortalModulos />, "Portal · Módulos")} />
                  <Route path={ROUTES.portalAdmin} element={guard(<PortalAdmin />, "Portal · Administração")} />
+                 <Route path={ROUTES.portalAssinaturas} element={guard(<PortalAssinaturas />, "Portal · Assinaturas")} />
 
                 </Route>
 

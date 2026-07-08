@@ -13,6 +13,7 @@ const STATUS_LABEL: Record<SaasAssinaturaStatus, string> = {
   suspensa: "Suspensa",
   cancelada: "Cancelada",
   inadimplente: "Inadimplente",
+  encerrada: "Encerrada",
 };
 
 const STATUS_VARIANT: Record<
@@ -24,6 +25,7 @@ const STATUS_VARIANT: Record<
   suspensa: "destructive",
   cancelada: "destructive",
   inadimplente: "destructive",
+  encerrada: "destructive",
 };
 
 function formatDate(iso: string | null) {

@@ -27,7 +27,8 @@ export type SaasAssinaturaStatus =
   | "ativa"
   | "suspensa"
   | "cancelada"
-  | "inadimplente";
+  | "inadimplente"
+  | "encerrada";
 
 export type SaasPapelLocal =
   | "admin_instituicao"
@@ -178,7 +179,8 @@ export function usePortalHub(): UsePortalHubResult {
           (inst.status === "ativa" || inst.status === "implantacao") &&
           assinatura !== null &&
           assinatura.status !== "cancelada" &&
-          assinatura.status !== "suspensa";
+          assinatura.status !== "suspensa" &&
+          assinatura.status !== "encerrada";
 
         return {
           id: inst.id,
