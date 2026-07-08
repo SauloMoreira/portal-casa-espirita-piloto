@@ -65,6 +65,16 @@ describe("SAAS-06-B0 — Página PortalAssinaturas", () => {
     expect(src).toMatch(/from\("assinaturas"\)/);
     expect(src).toMatch(/from\("instituicoes"\)/);
   });
+
+  it("expõe botão para criar nova instituição/assinatura", () => {
+    expect(src).toMatch(/data-testid="btn-nova-instituicao"/);
+    expect(src).toMatch(/Nova instituição\/assinatura/);
+    expect(src).toMatch(/criarInstituicao/);
+  });
+
+  it("guardas de criação: exige nome, slug e plano", () => {
+    expect(src).toMatch(/nome.*slug.*plano/is);
+  });
 });
 
 describe("SAAS-06-B0 — Rota e navegação", () => {
