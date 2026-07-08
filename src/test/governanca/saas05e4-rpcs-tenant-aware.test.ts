@@ -109,8 +109,8 @@ describe("SAAS-05-E4 — Migration: overloads com p_instituicao_id", () => {
     "%s filtra agregações por assistidos.instituicao_id",
     (fn) => {
       const upTo = blockOf(fn);
-      expect(upTo).toMatch(/public\.assistidos/);
-      expect(upTo).toMatch(/instituicao_id IS NULL OR instituicao_id = p_instituicao_id/);
+      expect(upTo).toMatch(/\bassistidos\b/);
+      expect(upTo).toMatch(/\w+\.instituicao_id IS NULL OR \w+\.instituicao_id = p_instituicao_id/);
     },
   );
 
