@@ -1879,11 +1879,14 @@ export type Database = {
       }
       instituicao_config: {
         Row: {
+          assinatura_rodape: string | null
           bairro: string | null
           cep: string | null
           cidade: string | null
           cnpj: string
           complemento: string | null
+          cor_primaria: string | null
+          cor_secundaria: string | null
           created_at: string
           email_institucional: string | null
           estado: string | null
@@ -1894,17 +1897,22 @@ export type Database = {
           numero: string | null
           observacoes: string | null
           razao_social: string
+          slogan: string | null
           telefone: string | null
+          texto_institucional: string | null
           updated_at: string
           updated_by: string | null
           whatsapp: string | null
         }
         Insert: {
+          assinatura_rodape?: string | null
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
           cnpj: string
           complemento?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
           created_at?: string
           email_institucional?: string | null
           estado?: string | null
@@ -1915,17 +1923,22 @@ export type Database = {
           numero?: string | null
           observacoes?: string | null
           razao_social: string
+          slogan?: string | null
           telefone?: string | null
+          texto_institucional?: string | null
           updated_at?: string
           updated_by?: string | null
           whatsapp?: string | null
         }
         Update: {
+          assinatura_rodape?: string | null
           bairro?: string | null
           cep?: string | null
           cidade?: string | null
           cnpj?: string
           complemento?: string | null
+          cor_primaria?: string | null
+          cor_secundaria?: string | null
           created_at?: string
           email_institucional?: string | null
           estado?: string | null
@@ -1936,7 +1949,9 @@ export type Database = {
           numero?: string | null
           observacoes?: string | null
           razao_social?: string
+          slogan?: string | null
           telefone?: string | null
+          texto_institucional?: string | null
           updated_at?: string
           updated_by?: string | null
           whatsapp?: string | null
