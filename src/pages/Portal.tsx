@@ -24,6 +24,7 @@ export default function Portal() {
     selectInstituicao,
   } = useInstituicaoAtiva();
 
+  const branding = useTenantBranding();
   void selectedInstituicaoId;
 
   const nomeExibicao = profile?.nome_completo || user?.email || "Bem-vindo";
