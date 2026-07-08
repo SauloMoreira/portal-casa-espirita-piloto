@@ -74,13 +74,11 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // SAAS-05-E-EDGE-A: as RPCs `fila_humana_pendente` e `comunicadores_elegiveis`
-    // permanecem legadas (single-tenant) neste recorte. A tenantização delas está
-    // enfileirada para SAAS-05-E-EDGE-B/C. Enquanto isso, a fila e comunicadores
-    // são globais — comportamento equivalente ao pré-SAAS-05. O carimbo do tenant
-    // resolvido é registrado na auditoria de cada envio (campo `tenant_resolvido`).
-    // Regras operacionais: consideramos apenas linhas globais nesta fase para
-    // evitar aplicar override de tenant sem RPC tenant-aware disponível.
+    // SAAS-05-E-EDGE-A2: fila_humana_pendente e comunicadores_elegiveis agora
+    // possuem overloads tenant-aware (p_instituicao_id uuid). A central passa
+    // a operar em loop por instituição — nenhum vazamento cross-tenant.
+    // Regras `central_alerta_*` seguem restritas às globais nesta fase
+    // (overrides por tenant ficam para recorte futuro).
     const { data: regrasRows } = await admin
       .from("regras_operacionais")
       .select("chave, valor, ativo, instituicao_id")
@@ -92,25 +90,13 @@ Deno.serve(async (req) => {
       return json({ ok: true, skipped: "alerta_desativado" });
     }
 
-    // 2) Estado oficial da fila humana (whatsapp_handoffs) — RPC legada,
-    // ver comentário SAAS-05-E-EDGE-A acima. Não passa p_instituicao_id.
-    const { data: filaRows, error: filaErr } = await admin.rpc("fila_humana_pendente");
-    if (filaErr) return json({ error: "fila_humana_pendente", detail: filaErr.message }, 500);
-    const filaRaw = Array.isArray(filaRows) ? filaRows[0] : filaRows;
-    const estado: EstadoFila = {
-      total_pendentes: Number(filaRaw?.total_pendentes ?? 0),
-      idade_mais_antiga_min: Number(filaRaw?.idade_mais_antiga_min ?? 0),
-    };
-
-    // 3) Validar gatilho global
-    const gatilho = avaliarGatilho(estado, regras);
-    if (!gatilho.disparar) {
-      return json({ ok: true, skipped: "sem_gatilho", estado });
-    }
-
-    // 4) Comunicadores elegíveis — RPC legada (ver comentário SAAS-05-E-EDGE-A acima).
-    const { data: elegiveis, error: elegErr } = await admin.rpc("comunicadores_elegiveis");
-    if (elegErr) return json({ error: "comunicadores_elegiveis", detail: elegErr.message }, 500);
+    // Enumerar instituições ativas. Se vazio, cai para modo legado single-tenant
+    // (chamando as assinaturas sem parâmetro) apenas até o cutover SAAS-05-F.
+    const { data: instituicoesRows } = await admin.from("instituicoes").select("id");
+    const tenantsIds: (string | null)[] =
+      (instituicoesRows || []).length > 0
+        ? (instituicoesRows || []).map((r: any) => r.id)
+        : [null];
 
     const adapter = getAdapter({
       ZAPI_INSTANCE_ID: Deno.env.get("ZAPI_INSTANCE_ID"),
@@ -120,76 +106,125 @@ Deno.serve(async (req) => {
     });
 
     const agora = new Date();
-    const mensagem = montarMensagem(estado);
-    let enviados = 0;
-    let pulados = 0;
-    const erros: string[] = [];
+    let enviadosTotal = 0;
+    let puladosTotal = 0;
+    const errosTotal: string[] = [];
+    const porTenant: Array<Record<string, unknown>> = [];
 
-    for (const c of (elegiveis || []) as Array<{ user_id: string; celular: string }>) {
-      const telefone = normalizePhone(c.celular);
-      if (!telefone) { pulados++; continue; }
+    for (const tenantId of tenantsIds) {
+      // 1) Estado da fila humana — overload tenant-aware quando tenantId != null.
+      const filaCall = tenantId
+        ? admin.rpc("fila_humana_pendente", { p_instituicao_id: tenantId })
+        : admin.rpc("fila_humana_pendente");
+      const { data: filaRows, error: filaErr } = await filaCall;
+      if (filaErr) {
+        errosTotal.push(`${tenantId ?? "legacy"}:fila_humana_pendente:${filaErr.message}`);
+        continue;
+      }
+      const filaRaw = Array.isArray(filaRows) ? filaRows[0] : filaRows;
+      const estado: EstadoFila = {
+        total_pendentes: Number(filaRaw?.total_pendentes ?? 0),
+        idade_mais_antiga_min: Number(filaRaw?.idade_mais_antiga_min ?? 0),
+      };
 
-      // Reler estado individual (cooldown/snapshot) imediatamente antes do envio (idempotência)
-      const { data: cfg } = await admin
-        .from("comunicador_alerta_config")
-        .select("ultimo_alerta_em, ultimo_snapshot, recebe_alertas_central, ativo")
-        .eq("user_id", c.user_id)
-        .maybeSingle();
-
-      if (!cfg || !cfg.recebe_alertas_central || !cfg.ativo) { pulados++; continue; }
-
-      const snapAnterior = (cfg.ultimo_snapshot as FilaSnapshot | null) ?? null;
-      if (!deveEnviar(estado, gatilho.disparar, cfg.ultimo_alerta_em ?? null, snapAnterior, regras, agora)) {
-        pulados++;
+      const gatilho = avaliarGatilho(estado, regras);
+      if (!gatilho.disparar) {
+        porTenant.push({ tenant: tenantId, skipped: "sem_gatilho", estado });
         continue;
       }
 
-      const snapNovo: FilaSnapshot = {
-        total_pendentes: estado.total_pendentes,
-        idade_mais_antiga_min: estado.idade_mais_antiga_min,
-        gerado_em: agora.toISOString(),
-        motivo_disparo: gatilho.motivo ?? undefined,
-      };
-
-      const res = await adapter.send(telefone, mensagem);
-
-      if (res.ok) {
-        // Atualiza estado de cooldown/snapshot apenas em envio bem-sucedido.
-        await admin
-          .from("comunicador_alerta_config")
-          .update({ ultimo_alerta_em: agora.toISOString(), ultimo_snapshot: snapNovo })
-          .eq("user_id", c.user_id);
-        enviados++;
-      } else {
-        erros.push(`${c.user_id}:${res.error ?? "erro"}`);
+      // 2) Comunicadores elegíveis — overload tenant-aware quando tenantId != null.
+      const elegCall = tenantId
+        ? admin.rpc("comunicadores_elegiveis", { p_instituicao_id: tenantId })
+        : admin.rpc("comunicadores_elegiveis");
+      const { data: elegiveis, error: elegErr } = await elegCall;
+      if (elegErr) {
+        errosTotal.push(`${tenantId ?? "legacy"}:comunicadores_elegiveis:${elegErr.message}`);
+        continue;
       }
 
-      // Auditoria do disparo (sucesso ou falha).
-      // SAAS-05-E-EDGE-A: registra `tenant_resolvido: null` explicitamente
-      // enquanto as RPCs subjacentes forem legadas (marcador para o backfill
-      // de auditoria pós-cutover).
-      await admin.from("audit_logs").insert({
-        tabela: "comunicador_alerta_config",
-        acao: "ALERTA_CENTRAL_ENVIADO",
-        registro_id: c.user_id,
-        dados_novos: {
-          comunicador_user_id: c.user_id,
-          telefone_destino_normalizado: telefone,
-          gatilho_acionado: gatilho.motivo,
+      const mensagem = montarMensagem(estado);
+      let enviadosTenant = 0;
+      let puladosTenant = 0;
+
+      for (const c of (elegiveis || []) as Array<{ user_id: string; celular: string }>) {
+        const telefone = normalizePhone(c.celular);
+        if (!telefone) { puladosTenant++; continue; }
+
+        const { data: cfg } = await admin
+          .from("comunicador_alerta_config")
+          .select("ultimo_alerta_em, ultimo_snapshot, recebe_alertas_central, ativo")
+          .eq("user_id", c.user_id)
+          .maybeSingle();
+
+        if (!cfg || !cfg.recebe_alertas_central || !cfg.ativo) { puladosTenant++; continue; }
+
+        const snapAnterior = (cfg.ultimo_snapshot as FilaSnapshot | null) ?? null;
+        if (!deveEnviar(estado, gatilho.disparar, cfg.ultimo_alerta_em ?? null, snapAnterior, regras, agora)) {
+          puladosTenant++;
+          continue;
+        }
+
+        const snapNovo: FilaSnapshot = {
           total_pendentes: estado.total_pendentes,
           idade_mais_antiga_min: estado.idade_mais_antiga_min,
-          snapshot_anterior: snapAnterior,
-          snapshot_novo: snapNovo,
-          consolidado: true,
-          enviado: res.ok,
-          erro: res.ok ? null : (res.error ?? "erro"),
-          tenant_resolvido: null,
-          saas05_e_edge_a_pendencia: "rpcs_legadas_fila_humana_pendente_e_comunicadores_elegiveis",
-        },
+          gerado_em: agora.toISOString(),
+          motivo_disparo: gatilho.motivo ?? undefined,
+        };
+
+        const res = await adapter.send(telefone, mensagem);
+
+        if (res.ok) {
+          await admin
+            .from("comunicador_alerta_config")
+            .update({ ultimo_alerta_em: agora.toISOString(), ultimo_snapshot: snapNovo })
+            .eq("user_id", c.user_id);
+          enviadosTenant++;
+        } else {
+          errosTotal.push(`${tenantId ?? "legacy"}:${c.user_id}:${res.error ?? "erro"}`);
+        }
+
+        // Auditoria com tenant resolvido (SAAS-05-E-EDGE-A2).
+        await admin.from("audit_logs").insert({
+          tabela: "comunicador_alerta_config",
+          acao: "ALERTA_CENTRAL_ENVIADO",
+          registro_id: c.user_id,
+          dados_novos: {
+            comunicador_user_id: c.user_id,
+            telefone_destino_normalizado: telefone,
+            gatilho_acionado: gatilho.motivo,
+            total_pendentes: estado.total_pendentes,
+            idade_mais_antiga_min: estado.idade_mais_antiga_min,
+            snapshot_anterior: snapAnterior,
+            snapshot_novo: snapNovo,
+            consolidado: true,
+            enviado: res.ok,
+            erro: res.ok ? null : (res.error ?? "erro"),
+            tenant_resolvido: tenantId,
+            saas05_e_edge_a2: tenantId ? "tenant_aware" : "fallback_legacy",
+          },
+        });
+      }
+
+      enviadosTotal += enviadosTenant;
+      puladosTotal += puladosTenant;
+      porTenant.push({
+        tenant: tenantId,
+        estado,
+        gatilho: gatilho.motivo,
+        enviados: enviadosTenant,
+        pulados: puladosTenant,
       });
     }
 
-    return json({ ok: true, estado, gatilho: gatilho.motivo, enviados, pulados, erros });
+    return json({
+      ok: true,
+      tenants_avaliados: tenantsIds.length,
+      enviados: enviadosTotal,
+      pulados: puladosTotal,
+      erros: errosTotal,
+      por_tenant: porTenant,
+    });
   } catch (e) {
     return json({ error: "internal", detail: String(e) }, 500);
   }
