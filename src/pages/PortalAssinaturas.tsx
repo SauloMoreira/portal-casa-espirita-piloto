@@ -849,6 +849,277 @@ export default function PortalAssinaturas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nova instituição/assinatura</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label>Nome da instituição *</Label>
+              <Input
+                value={createForm.nome}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, nome: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Nome de exibição</Label>
+              <Input
+                value={createForm.nome_fantasia}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, nome_fantasia: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Slug *</Label>
+              <Input
+                value={createForm.slug}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                  }))
+                }
+                placeholder="ex.: casa-espirita-piloto"
+              />
+            </div>
+            <div>
+              <Label>Cidade</Label>
+              <Input
+                value={createForm.cidade}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, cidade: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>UF</Label>
+              <Input
+                maxLength={2}
+                value={createForm.uf}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, uf: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Responsável</Label>
+              <Input
+                value={createForm.responsavel}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, responsavel: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Telefone</Label>
+              <Input
+                value={createForm.telefone_contato}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    telefone_contato: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <Label>E-mail da instituição</Label>
+              <Input
+                type="email"
+                value={createForm.email_contato}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, email_contato: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>E-mail do administrador inicial</Label>
+              <Input
+                type="email"
+                value={createForm.email_admin_inicial}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    email_admin_inicial: e.target.value,
+                  }))
+                }
+                placeholder="Será convidado separadamente"
+              />
+            </div>
+
+            <div>
+              <Label>Classificação</Label>
+              <Select
+                value={createForm.classificacao_comercial}
+                onValueChange={(v) =>
+                  setCreateForm((s) => ({ ...s, classificacao_comercial: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLASSIFICACAO.map((c) => (
+                    <SelectItem key={c.key} value={c.key}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Plano *</Label>
+              <Select
+                value={createForm.plano_id}
+                onValueChange={(v) =>
+                  setCreateForm((s) => ({ ...s, plano_id: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um plano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {planos.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Módulos liberados são derivados automaticamente do plano.
+              </p>
+            </div>
+            <div>
+              <Label>Status da assinatura</Label>
+              <Select
+                value={createForm.status}
+                onValueChange={(v) =>
+                  setCreateForm((s) => ({ ...s, status: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_ASSINATURA.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Forma de cobrança</Label>
+              <Select
+                value={createForm.forma_pagamento || "__none__"}
+                onValueChange={(v) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    forma_pagamento: v === "__none__" ? "" : v,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {FORMA_PAGAMENTO.map((f) => (
+                    <SelectItem key={f.key} value={f.key}>
+                      {f.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Data de início</Label>
+              <Input
+                type="date"
+                value={createForm.data_inicio}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, data_inicio: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Trial até</Label>
+              <Input
+                type="date"
+                value={createForm.trial_ate}
+                onChange={(e) =>
+                  setCreateForm((s) => ({ ...s, trial_ate: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Próximo vencimento</Label>
+              <Input
+                type="date"
+                value={createForm.proximo_vencimento}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    proximo_vencimento: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Valor mensal (em centavos)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={createForm.valor_mensal_cents}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    valor_mensal_cents: e.target.value,
+                  }))
+                }
+                placeholder="Ex.: 19900 = R$ 199,00"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <Label>Observações comerciais</Label>
+              <Textarea
+                rows={3}
+                value={createForm.observacoes_comerciais}
+                onChange={(e) =>
+                  setCreateForm((s) => ({
+                    ...s,
+                    observacoes_comerciais: e.target.value,
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateOpen(false)}
+              disabled={creating}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={criarInstituicao} disabled={creating}>
+              {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Criar instituição e assinatura
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
