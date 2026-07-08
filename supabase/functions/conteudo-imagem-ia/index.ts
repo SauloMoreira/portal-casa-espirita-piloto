@@ -115,13 +115,49 @@ serve(async (req) => {
     const prompt: string = (body.prompt ?? "").toString();
     const imagemUrl: string | null = body.imagemUrl ?? null;
     const formato = normalizarFormato(body.formato);
+    const tenantResolvido: string | null = body.p_instituicao_id ?? body.instituicao_id ?? null;
+    const origemTenant = "payload";
 
     if (modo !== "gerar" && modo !== "otimizar") return json({ error: "Modo inválido" }, 400);
     if (!prompt.trim()) return json({ error: "Prompt obrigatório" }, 400);
     if (modo === "otimizar" && !imagemUrl) return json({ error: "Imagem de origem obrigatória para otimizar" }, 400);
 
+    const serviceKeyEarly = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminEarly = createClient(supabaseUrl, serviceKeyEarly);
+
+    // ── SAAS-05-E-EDGE-D: tenant obrigatório + membership no tenant ──
+    if (!tenantResolvido) {
+      await adminEarly.from("audit_logs").insert({
+        user_id: user.id,
+        tabela: "conteudo_imagem_ia",
+        acao: "SAAS05_E_EDGE_D_TENANT_INDETERMINADO",
+        dados_novos: { marcador: "saas05_e_edge_d", modo, formato },
+      });
+      return json({ error: "p_instituicao_id obrigatório." }, 400);
+    }
+    const { data: isPa } = await adminEarly.rpc("is_platform_admin", { p_user_id: user.id });
+    if (!isPa) {
+      const { data: mem } = await adminEarly
+        .from("instituicao_usuarios")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("instituicao_id", tenantResolvido)
+        .eq("ativo", true)
+        .maybeSingle();
+      if (!mem) {
+        await adminEarly.from("audit_logs").insert({
+          user_id: user.id,
+          tabela: "conteudo_imagem_ia",
+          acao: "SAAS05_E_EDGE_D_TENANT_FORBIDDEN",
+          dados_novos: { tenant_resolvido: tenantResolvido, origem_tenant: origemTenant, marcador: "saas05_e_edge_d" },
+        });
+        return json({ error: "Usuário não pertence à instituição informada." }, 403);
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) return json({ error: "Serviço de IA indisponível" }, 500);
+
 
     const content: unknown[] = [{ type: "text", text: prompt }];
     if (modo === "otimizar" && imagemUrl) {
