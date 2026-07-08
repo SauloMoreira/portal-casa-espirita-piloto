@@ -135,19 +135,32 @@ export function usePortalHub(): UsePortalHubResult {
       if (asgRes.error) throw asgRes.error;
       const assinaturas = asgRes.data ?? [];
 
-      // 5) Catálogo global de módulos + planos + composição.
-      const [modRes, planosRes, pmRes] = await Promise.all([
+      // 5) Catálogo global de módulos + planos + composição + overrides por assinatura.
+      const asgIds = assinaturas.map((a) => a.id);
+      const [modRes, planosRes, pmRes, amRes] = await Promise.all([
         supabase.from("modulos").select("id, codigo, nome, descricao, ativo"),
         supabase.from("planos").select("id, codigo, nome, descricao"),
         supabase.from("plano_modulos").select("plano_id, modulo_id, ativo"),
+        asgIds.length > 0
+          ? supabase
+              .from("assinatura_modulos")
+              .select("assinatura_id, modulo_id, ativo")
+              .in("assinatura_id", asgIds)
+          : Promise.resolve({ data: [], error: null } as { data: Array<{ assinatura_id: string; modulo_id: string; ativo: boolean }>; error: null }),
       ]);
       if (modRes.error) throw modRes.error;
       if (planosRes.error) throw planosRes.error;
       if (pmRes.error) throw pmRes.error;
+      if (amRes.error) throw amRes.error;
 
       const modulos = modRes.data ?? [];
       const planos = planosRes.data ?? [];
       const planoModulos = pmRes.data ?? [];
+      const assinaturaModulos = (amRes.data ?? []) as Array<{
+        assinatura_id: string;
+        modulo_id: string;
+        ativo: boolean;
+      }>;
 
       // Monta a visão consolidada.
       const view: PortalInstituicaoView[] = instituicoes.map((inst) => {
