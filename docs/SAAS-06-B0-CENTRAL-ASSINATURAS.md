@@ -64,10 +64,10 @@ Para cada instituição, permite visualizar e editar:
 - forma de cobrança: `pix`, `boleto`, `link_manual`, `transferencia`, `outro`;
 - observações comerciais e condição especial (texto livre).
 
-Módulos liberados continuam sendo derivados do plano (`plano_modulos`) — a
-tela lista o plano vigente e as flags de acessibilidade são calculadas pelo
-`usePortalHub`. A alteração manual da composição de plano permanece fora do
-escopo do B0 (fica na tela **Planos**, quando existir).
+Módulos habilitados são calculados a partir do plano (`plano_modulos`) e podem
+ser **sobrepostos por instituição** pelo `platform_admin` — ver §8. A
+composição interna de plano (o que cada plano oferece por padrão) permanece
+fora do escopo do B0 (fica na tela **Planos**, quando existir).
 
 ### 3. Status da assinatura
 
