@@ -12,7 +12,13 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
+vi.mock("@/lib/tenant/currentTenant", () => ({
+  requireInstituicaoId: () => "inst-e4",
+  getCurrentInstituicaoId: () => "inst-e4",
+}));
+
 import { fetchAdminDashboard, getPeriodRange } from "./adminDashboard";
+
 
 const fullPayload = {
   autorizado: true,
