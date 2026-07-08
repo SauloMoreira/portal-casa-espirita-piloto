@@ -126,9 +126,10 @@ describe("SAAS-06-A1 — Documentação obrigatória", () => {
 describe("SAAS-06-A1 — Preservação do branding global e do projeto FER", () => {
   it("saasBranding.ts continua neutro (Portal Casa Espírita / SC Moreira Tech)", () => {
     const src = read("src/config/saasBranding.ts");
+    const code = stripComments(src);
     expect(src).toMatch(/Portal Casa Espírita/);
     expect(src).toMatch(/SC Moreira Tech/);
-    expect(src).not.toMatch(/"Tratamentos FER"/);
+    expect(code).not.toMatch(/Tratamentos FER/);
   });
 
   it("Login continua neutro (sem regressão para Tratamentos FER)", () => {
