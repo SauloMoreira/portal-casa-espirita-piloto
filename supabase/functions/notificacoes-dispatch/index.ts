@@ -105,6 +105,28 @@ function renderTemplate(corpo: string, payload: Record<string, unknown>): string
     .trim();
 }
 
+// SAAS-05-E-EDGE-B — dispatcher tenant-aware.
+// Resolve o tenant de cada item da fila via assistido (única âncora estável
+// pré-cutover, pois notificacoes_fila ainda não carrega instituicao_id).
+// Anota `tenant_resolvido` e a `origem_tenant` no notificacoes_log, mantendo
+// idempotência, retry_count, sent_at e external_message_id inalterados.
+// Fail-closed em ambiguidade cross-tenant; itens legados (assistido sem
+// instituicao_id) seguem o caminho antigo com marcador de pendência
+// (`saas05_e_edge_b_sem_tenant`) até o cutover.
+async function resolverTenantDoItem(
+  admin: ReturnType<typeof createClient>,
+  item: { assistido_id: string | null },
+): Promise<{ tenantId: string | null; origem: string }> {
+  if (!item.assistido_id) return { tenantId: null, origem: "sem_assistido" };
+  const { data } = await admin
+    .from("assistidos")
+    .select("instituicao_id")
+    .eq("id", item.assistido_id)
+    .maybeSingle();
+  const tenantId = (data?.instituicao_id as string | null) ?? null;
+  return { tenantId, origem: tenantId ? "assistido" : "assistido_sem_tenant" };
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req, "authorization, x-client-info, apikey, content-type, x-cron-secret");
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -151,6 +173,9 @@ Deno.serve(async (req) => {
     const result = { processados: 0, enviados: 0, ignorados: 0, falhas: 0, detalhes: [] as unknown[] };
 
     for (const item of itens || []) {
+      // SAAS-05-E-EDGE-B: resolver tenant ANTES de qualquer efeito colateral.
+      const { tenantId, origem: origemTenant } = await resolverTenantDoItem(admin, item);
+      const tenantCtx = { tenant_resolvido: tenantId, origem_tenant: origemTenant, marcador: "saas05_e_edge_b" };
       result.processados++;
       const agora = new Date();
 
@@ -165,7 +190,7 @@ Deno.serve(async (req) => {
       if (motivoInelegivel) {
         await admin.from("notificacoes_fila")
           .update({ status: "cancelado", erro: motivoInelegivel }).eq("id", item.id);
-        await logFila(admin, item.id, "saida", null, null, "cancelado", String(motivoInelegivel));
+        await logFila(admin, item.id, "saida", null, null, "cancelado", String(motivoInelegivel), tenantCtx);
         result.ignorados++;
         continue;
       }
@@ -185,24 +210,24 @@ Deno.serve(async (req) => {
       // Classificação geral × operacional (fonte única compartilhada).
       const classe = classificarEvento(item.evento_origem);
 
-      // opt-out de canal (vale para qualquer mensagem)
+      // opt-out de canal (vale para qualquer mensagem) — respeitado antes de qualquer envio.
       if (!whatsappAtivo) {
         await admin.from("notificacoes_fila").update({ status: "cancelado", erro: "opt_out" }).eq("id", item.id);
-        await logFila(admin, item.id, "saida", null, null, "cancelado", "opt_out");
+        await logFila(admin, item.id, "saida", null, null, "cancelado", "opt_out", tenantCtx);
         result.ignorados++;
         continue;
       }
       // comunicações GERAIS respeitam a flag; operacionais NUNCA são bloqueadas por ela
       if (classe === "geral" && !comunicacaoGeralAtiva) {
         await admin.from("notificacoes_fila").update({ status: "cancelado", erro: "comunicacao_geral_desativada" }).eq("id", item.id);
-        await logFila(admin, item.id, "saida", null, null, "cancelado", "comunicacao_geral_desativada");
+        await logFila(admin, item.id, "saida", null, null, "cancelado", "comunicacao_geral_desativada", tenantCtx);
         result.ignorados++;
         continue;
       }
       // phone
       if (!item.telefone_normalizado) {
         await admin.from("notificacoes_fila").update({ status: "falha", erro: "sem_telefone" }).eq("id", item.id);
-        await logFila(admin, item.id, "saida", null, null, "falha", "sem_telefone");
+        await logFila(admin, item.id, "saida", null, null, "falha", "sem_telefone", tenantCtx);
         result.falhas++;
         continue;
       }
@@ -233,7 +258,7 @@ Deno.serve(async (req) => {
         const texto = String((item.payload_json || {}).mensagem || "").trim();
         if (!texto) {
           await admin.from("notificacoes_fila").update({ status: "falha", erro: "mensagem_vazia" }).eq("id", item.id);
-          await logFila(admin, item.id, "saida", null, null, "falha", "mensagem_vazia");
+          await logFila(admin, item.id, "saida", null, null, "falha", "mensagem_vazia", tenantCtx);
           result.falhas++;
           continue;
         }
@@ -247,7 +272,7 @@ Deno.serve(async (req) => {
           .maybeSingle();
         if (!tpl || !tpl.ativo) {
           await admin.from("notificacoes_fila").update({ status: "falha", erro: "template_indisponivel" }).eq("id", item.id);
-          await logFila(admin, item.id, "saida", null, null, "falha", "template_indisponivel");
+          await logFila(admin, item.id, "saida", null, null, "falha", "template_indisponivel", tenantCtx);
           result.falhas++;
           continue;
         }
@@ -263,7 +288,7 @@ Deno.serve(async (req) => {
           // Do not send reminders for sessions that already started/passed.
           if (lembreteVencido(sessaoData, horario, agora)) {
             await admin.from("notificacoes_fila").update({ status: "cancelado", erro: "lembrete_vencido" }).eq("id", item.id);
-            await logFila(admin, item.id, "saida", null, null, "cancelado", "lembrete_vencido");
+            await logFila(admin, item.id, "saida", null, null, "cancelado", "lembrete_vencido", tenantCtx);
             result.ignorados++;
             continue;
           }
@@ -273,7 +298,16 @@ Deno.serve(async (req) => {
         mensagem = renderTemplate(tpl.corpo_template, payload);
       }
       const send = await adapter.send(item.telefone_normalizado, mensagem);
-      await logFila(admin, item.id, "saida", { telefone: item.telefone_normalizado, mensagem }, send.raw ?? null, send.ok ? "enviado" : "falha", send.error);
+      await logFila(
+        admin,
+        item.id,
+        "saida",
+        { telefone: item.telefone_normalizado, mensagem },
+        send.raw ?? null,
+        send.ok ? "enviado" : "falha",
+        send.error,
+        tenantCtx,
+      );
 
       if (send.ok) {
         await admin.from("notificacoes_fila").update({
@@ -311,11 +345,20 @@ async function logFila(
   recebido: unknown,
   status: string,
   erro?: string,
+  tenantCtx?: { tenant_resolvido: string | null; origem_tenant: string; marcador: string },
 ) {
+  // SAAS-05-E-EDGE-B: injeta tenant_resolvido/origem_tenant no payload de saída
+  // para rastreabilidade sem alterar o schema de notificacoes_log.
+  const enviadoComTenant =
+    tenantCtx && enviado && typeof enviado === "object"
+      ? { ...(enviado as Record<string, unknown>), ...tenantCtx }
+      : tenantCtx
+        ? { ...tenantCtx }
+        : enviado ?? null;
   await admin.from("notificacoes_log").insert({
     fila_id: filaId,
     direcao,
-    payload_enviado: enviado ?? null,
+    payload_enviado: enviadoComTenant,
     payload_recebido: recebido ?? null,
     status,
     erro: erro ?? null,

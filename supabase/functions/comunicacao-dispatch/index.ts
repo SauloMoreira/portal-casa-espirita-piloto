@@ -72,15 +72,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Quais comunicações processar: a indicada (se válida) ou todas em andamento/preparadas.
+    // SAAS-05-E-EDGE-B: cada comunicacao já é ancorada em instituicao_id.
+    // Selecionamos o tenant a partir da comunicação e validamos, na iteração
+    // dos envios, que o assistido pertence ao mesmo tenant (fail-closed).
     let comQuery = admin
       .from("comunicacoes_institucionais")
-      .select("id, mensagem, status, envio_status")
+      .select("id, mensagem, status, envio_status, instituicao_id")
       .eq("status", "aprovada")
       .in("envio_status", ["preparado", "em_andamento"]);
     if (comunicacaoId) comQuery = admin
       .from("comunicacoes_institucionais")
-      .select("id, mensagem, status, envio_status")
+      .select("id, mensagem, status, envio_status, instituicao_id")
       .eq("id", comunicacaoId)
       .eq("status", "aprovada")
       .in("envio_status", ["preparado", "em_andamento"]);
@@ -124,6 +126,38 @@ Deno.serve(async (req) => {
         if (restante <= 0) break;
         restante--;
         result.processados++;
+
+        // SAAS-05-E-EDGE-B: fail-closed em ambiguidade cross-tenant.
+        // Quando a comunicacao carrega instituicao_id, o assistido destinatário
+        // precisa pertencer ao MESMO tenant. Envios legados (comunicacao ou
+        // assistido sem instituicao_id) seguem no fluxo pré-cutover.
+        const tenantComunicacao = (com.instituicao_id as string | null) ?? null;
+        if (tenantComunicacao) {
+          const { data: aTenant } = await admin
+            .from("assistidos")
+            .select("instituicao_id")
+            .eq("id", env.assistido_id)
+            .maybeSingle();
+          const tenantAssistido = (aTenant?.instituicao_id as string | null) ?? null;
+          if (tenantAssistido && tenantAssistido !== tenantComunicacao) {
+            await admin
+              .from("comunicacoes_institucionais_envios")
+              .update({ status: "bloqueado", motivo: "tenant_mismatch" })
+              .eq("id", env.id);
+            await admin.from("audit_logs").insert({
+              tabela: "comunicacoes_institucionais_envios",
+              acao: "SAAS05_E_EDGE_B_TENANT_MISMATCH",
+              registro_id: env.id,
+              dados_novos: {
+                tenant_comunicacao: tenantComunicacao,
+                tenant_assistido: tenantAssistido,
+                marcador: "saas05_e_edge_b",
+              },
+            });
+            result.bloqueados++;
+            continue;
+          }
+        }
 
         // 1) Reconfirma consentimento e preferência de comunicação geral no
         //    momento do envio. Comunicações institucionais são SEMPRE "geral",
@@ -228,7 +262,14 @@ Deno.serve(async (req) => {
           tabela: "comunicacoes_institucionais",
           acao: "ENVIO_CONCLUIDO",
           registro_id: com.id,
-          dados_novos: { enviados, falhas, bloqueados },
+          dados_novos: {
+            enviados,
+            falhas,
+            bloqueados,
+            // SAAS-05-E-EDGE-B: tenant_resolvido a partir da comunicação.
+            tenant_resolvido: (com.instituicao_id as string | null) ?? null,
+            marcador: "saas05_e_edge_b",
+          },
         });
       }
     }
