@@ -256,6 +256,20 @@ Deno.serve(async (req) => {
     situacao = existente.hash === hash ? "sem_mudanca" : "atualizado";
   }
 
+  // SAAS-05-E-EDGE-D: audita ingestão bem-sucedida com tenant_resolvido.
+  await adminGuard.from("audit_logs").insert({
+    user_id: guardUserId,
+    tabela: "ia_site_documentos",
+    acao: "SAAS05_E_EDGE_D_SITE_INGESTAO",
+    dados_novos: {
+      tenant_resolvido: tenantResolvido,
+      origem_tenant: origemTenant,
+      marcador: "saas05_e_edge_d",
+      url: parsed.toString(),
+      situacao,
+    },
+  });
+
   // Retorna a prévia extraída SEM salvar — o admin revisa e ajusta antes de gravar.
   return new Response(
     JSON.stringify({
@@ -269,12 +283,15 @@ Deno.serve(async (req) => {
         temporal,
         data_conteudo: null,
         hash,
+        instituicao_id: tenantResolvido,
       },
       existente: existente
         ? { id: existente.id, status: existente.status, usar_na_ia: existente.usar_na_ia }
         : null,
       situacao,
+      tenant_resolvido: tenantResolvido,
     }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
+
