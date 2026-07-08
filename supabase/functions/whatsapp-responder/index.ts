@@ -54,12 +54,63 @@ Deno.serve(async (req) => {
       });
     }
 
+    // SAAS-05-E-EDGE-C: carrega conversa + tenant do assistido vinculado.
+    // O responder só envia dentro do tenant da conversa. Se o vínculo com
+    // assistido resolver um tenant, o atendente humano precisa pertencer ao
+    // mesmo tenant (ou ser platform_admin). Conversas sem tenant resolvível
+    // seguem o fluxo pré-cutover, sem bloqueio automático.
     const { data: conversa } = await admin
-      .from("whatsapp_conversas").select("id, telefone").eq("id", conversaId).maybeSingle();
+      .from("whatsapp_conversas")
+      .select("id, telefone, assistido_id")
+      .eq("id", conversaId)
+      .maybeSingle();
     if (!conversa) {
       return new Response(JSON.stringify({ error: "Conversa não encontrada" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    let tenantResolvido: string | null = null;
+    let origemTenant = "conversa_sem_assistido";
+    if (conversa.assistido_id) {
+      const { data: aTenant } = await admin
+        .from("assistidos")
+        .select("instituicao_id")
+        .eq("id", conversa.assistido_id)
+        .maybeSingle();
+      tenantResolvido = (aTenant?.instituicao_id as string | null) ?? null;
+      origemTenant = tenantResolvido ? "assistido" : "assistido_sem_tenant";
+    }
+    if (tenantResolvido) {
+      // Valida pertinência do atendente ao tenant (platform_admin passa livre).
+      const { data: platformAdmin } = await admin.rpc("is_platform_admin", { p_user_id: userId }).maybeSingle?.() ?? { data: null } as any;
+      const isPlatformAdmin = Array.isArray(platformAdmin)
+        ? Boolean(platformAdmin[0])
+        : Boolean(platformAdmin);
+      if (!isPlatformAdmin) {
+        const { data: membership } = await admin
+          .from("instituicao_usuarios")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("instituicao_id", tenantResolvido)
+          .maybeSingle();
+        if (!membership) {
+          await admin.from("audit_logs").insert({
+            tabela: "whatsapp_conversas",
+            acao: "SAAS05_E_EDGE_C_RESPONDER_TENANT_MISMATCH",
+            registro_id: conversa.id,
+            dados_novos: {
+              tenant_resolvido: tenantResolvido,
+              origem_tenant: origemTenant,
+              atendente_id: userId,
+              marcador: "saas05_e_edge_c",
+            },
+          });
+          return new Response(JSON.stringify({ error: "Atendente sem acesso à instituição da conversa" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
     }
 
     const telefone = normalizePhone(conversa.telefone);
@@ -73,9 +124,18 @@ Deno.serve(async (req) => {
     const send = await adapter.send(telefone, mensagem);
 
     // Audit the human reply (tagged autor=humano so the UI can distinguish it).
+    // SAAS-05-E-EDGE-C: registra tenant_resolvido e marcador na trilha.
     await admin.from("notificacoes_log").insert({
       fila_id: null, direcao: "saida",
-      payload_enviado: { telefone, mensagem, autor: "humano", atendente_id: userId },
+      payload_enviado: {
+        telefone,
+        mensagem,
+        autor: "humano",
+        atendente_id: userId,
+        tenant_resolvido: tenantResolvido,
+        origem_tenant: origemTenant,
+        marcador: "saas05_e_edge_c",
+      },
       payload_recebido: send.raw ?? null,
       status: send.ok ? "enviado" : "falha", erro: send.error ?? null,
     });
