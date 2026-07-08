@@ -3596,6 +3596,13 @@ export type Database = {
         Args: { _tratamento_id: string; _user_id: string }
         Returns: boolean
       }
+      fn_definir_status_vinculo_instituicao: {
+        Args: {
+          p_status: Database["public"]["Enums"]["saas_vinculo_status"]
+          p_vinculo_id: string
+        }
+        Returns: undefined
+      }
       fn_designar_coordenador: {
         Args: { p_coordenador_id: string; p_tratamento_id: string }
         Returns: undefined
@@ -3708,6 +3715,19 @@ export type Database = {
           valor_padrao: string
         }[]
       }
+      fn_listar_vinculos_instituicao: {
+        Args: { p_instituicao_id: string }
+        Returns: {
+          created_at: string
+          email: string
+          nome_completo: string
+          papel_local: Database["public"]["Enums"]["saas_papel_local"]
+          status: Database["public"]["Enums"]["saas_vinculo_status"]
+          updated_at: string
+          user_id: string
+          vinculo_id: string
+        }[]
+      }
       fn_monitor_excecao_notificacoes:
         | { Args: { p_desde?: string }; Returns: Json }
         | { Args: { p_desde: string; p_instituicao_id: string }; Returns: Json }
@@ -3815,6 +3835,15 @@ export type Database = {
             }
             Returns: Json
           }
+      fn_vincular_usuario_instituicao: {
+        Args: {
+          p_email: string
+          p_instituicao_id: string
+          p_papel_local?: Database["public"]["Enums"]["saas_papel_local"]
+          p_status?: Database["public"]["Enums"]["saas_vinculo_status"]
+        }
+        Returns: Json
+      }
       fn_voluntario_cadastro_completo: {
         Args: {
           p_bairro: string

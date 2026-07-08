@@ -26,6 +26,7 @@ import { usePortalHub } from "@/hooks/usePortalHub";
 import { toast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { ROUTES } from "@/constants";
+import { VinculosInstituicaoSection } from "@/components/portal/VinculosInstituicaoSection";
 
 /**
  * SAAS-06-B0 — Central de Assinaturas.
@@ -1067,6 +1068,13 @@ export default function PortalAssinaturas() {
               />
             </div>
           </div>
+
+          {edit.row && (
+            <VinculosInstituicaoSection
+              instituicaoId={edit.row.instituicao.id}
+              nomeInstituicao={edit.row.instituicao.nome}
+            />
+          )}
 
           <div className="mt-6 border-t pt-4">
             <div className="flex items-center justify-between mb-2">
