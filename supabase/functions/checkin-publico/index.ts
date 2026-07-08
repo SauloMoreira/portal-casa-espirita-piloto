@@ -87,7 +87,9 @@ Deno.serve(async (req) => {
       return await reject(400, "Token da sessão é obrigatório", null);
     }
 
-    // Fetch session by token (only open sessions)
+    // Fetch session by token (only open sessions).
+    // SAAS-05-E-EDGE-A: a sessão pública é a âncora tenant; instituicao_id
+    // é resolvido a partir dela — nunca a partir do payload do cliente.
     const { data: sessao } = await supabase
       .from("sessoes_publicas")
       .select("*, tipos_tratamento:tratamento_id(nome, trabalho_publico, permite_cadastro_rapido)")
@@ -98,6 +100,9 @@ Deno.serve(async (req) => {
     if (!sessao) {
       return await reject(404, "Sessão não encontrada ou encerrada", token);
     }
+
+    // Tenant resolvido pela sessão. Pode ser NULL em linhas legadas pré-cutover.
+    const sessaoInstituicaoId: string | null = (sessao as any).instituicao_id ?? null;
 
     // Token/QR expiration: the QR is valid only for the session day.
     const today = new Date().toISOString().slice(0, 10);
@@ -124,6 +129,25 @@ Deno.serve(async (req) => {
 
     // Known assistido path
     if (assistido_id) {
+      // SAAS-05-E-EDGE-A: se a sessão tem tenant resolvido, garantir que o
+      // assistido informado pertence à MESMA instituição — jamais permitir
+      // que um código do tenant A registre presença para assistido do tenant B.
+      if (sessaoInstituicaoId) {
+        const { data: assistidoTenant } = await supabase
+          .from("assistidos")
+          .select("id, instituicao_id")
+          .eq("id", assistido_id)
+          .maybeSingle();
+        if (!assistidoTenant) {
+          return await reject(404, "Assistido não encontrado", token);
+        }
+        const aInst = (assistidoTenant as any).instituicao_id ?? null;
+        // Fail-closed apenas quando o assistido também está tenantizado e o tenant difere.
+        if (aInst && aInst !== sessaoInstituicaoId) {
+          return await reject(403, "Assistido não pertence à instituição desta sessão", token);
+        }
+      }
+
       const { data: existing } = await supabase
         .from("checkins_publicos")
         .select("id")
@@ -163,12 +187,19 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (existing) return await dupResponse();
 
-      // Try matching an existing assistido by normalized phone (digits only, sanitized)
-      const { data: foundAssistido } = await supabase
+      // Try matching an existing assistido by normalized phone.
+      // SAAS-05-E-EDGE-A: se a sessão tem tenant resolvido, restringir a busca
+      // ao tenant da sessão para não cruzar assistidos de outra instituição.
+      let assistidoQuery = supabase
         .from("assistidos")
-        .select("id, nome, celular")
-        .eq("celular", celular)
-        .maybeSingle();
+        .select("id, nome, celular, instituicao_id")
+        .eq("celular", celular);
+      if (sessaoInstituicaoId) {
+        assistidoQuery = assistidoQuery.or(
+          `instituicao_id.eq.${sessaoInstituicaoId},instituicao_id.is.null`
+        );
+      }
+      const { data: foundAssistido } = await assistidoQuery.maybeSingle();
 
       if (foundAssistido) {
         const { data: existingById } = await supabase

@@ -74,18 +74,26 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // 1) Regras operacionais
+    // SAAS-05-E-EDGE-A: as RPCs `fila_humana_pendente` e `comunicadores_elegiveis`
+    // permanecem legadas (single-tenant) neste recorte. A tenantização delas está
+    // enfileirada para SAAS-05-E-EDGE-B/C. Enquanto isso, a fila e comunicadores
+    // são globais — comportamento equivalente ao pré-SAAS-05. O carimbo do tenant
+    // resolvido é registrado na auditoria de cada envio (campo `tenant_resolvido`).
+    // Regras operacionais: consideramos apenas linhas globais nesta fase para
+    // evitar aplicar override de tenant sem RPC tenant-aware disponível.
     const { data: regrasRows } = await admin
       .from("regras_operacionais")
-      .select("chave, valor, ativo")
-      .like("chave", "central_alerta_%");
+      .select("chave, valor, ativo, instituicao_id")
+      .like("chave", "central_alerta_%")
+      .is("instituicao_id", null);
     const regras = parseRegras(regrasRows || []);
 
     if (!regras.ativo) {
       return json({ ok: true, skipped: "alerta_desativado" });
     }
 
-    // 2) Estado oficial da fila humana (whatsapp_handoffs)
+    // 2) Estado oficial da fila humana (whatsapp_handoffs) — RPC legada,
+    // ver comentário SAAS-05-E-EDGE-A acima. Não passa p_instituicao_id.
     const { data: filaRows, error: filaErr } = await admin.rpc("fila_humana_pendente");
     if (filaErr) return json({ error: "fila_humana_pendente", detail: filaErr.message }, 500);
     const filaRaw = Array.isArray(filaRows) ? filaRows[0] : filaRows;
@@ -100,7 +108,7 @@ Deno.serve(async (req) => {
       return json({ ok: true, skipped: "sem_gatilho", estado });
     }
 
-    // 4) Comunicadores elegíveis
+    // 4) Comunicadores elegíveis — RPC legada (ver comentário SAAS-05-E-EDGE-A acima).
     const { data: elegiveis, error: elegErr } = await admin.rpc("comunicadores_elegiveis");
     if (elegErr) return json({ error: "comunicadores_elegiveis", detail: elegErr.message }, 500);
 
@@ -156,7 +164,10 @@ Deno.serve(async (req) => {
         erros.push(`${c.user_id}:${res.error ?? "erro"}`);
       }
 
-      // Auditoria do disparo (sucesso ou falha)
+      // Auditoria do disparo (sucesso ou falha).
+      // SAAS-05-E-EDGE-A: registra `tenant_resolvido: null` explicitamente
+      // enquanto as RPCs subjacentes forem legadas (marcador para o backfill
+      // de auditoria pós-cutover).
       await admin.from("audit_logs").insert({
         tabela: "comunicador_alerta_config",
         acao: "ALERTA_CENTRAL_ENVIADO",
@@ -172,6 +183,8 @@ Deno.serve(async (req) => {
           consolidado: true,
           enviado: res.ok,
           erro: res.ok ? null : (res.error ?? "erro"),
+          tenant_resolvido: null,
+          saas05_e_edge_a_pendencia: "rpcs_legadas_fila_humana_pendente_e_comunicadores_elegiveis",
         },
       });
     }
