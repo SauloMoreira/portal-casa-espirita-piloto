@@ -55,6 +55,7 @@ describe("fetchTratamentosConcluidos", () => {
       p_coordenador_id: null,
       p_page: 2,
       p_page_size: 50,
+      p_instituicao_id: "inst-e4",
     });
   });
 
