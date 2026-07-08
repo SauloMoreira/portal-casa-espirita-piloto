@@ -87,7 +87,9 @@ Deno.serve(async (req) => {
       return await reject(400, "Token da sessão é obrigatório", null);
     }
 
-    // Fetch session by token (only open sessions)
+    // Fetch session by token (only open sessions).
+    // SAAS-05-E-EDGE-A: a sessão pública é a âncora tenant; instituicao_id
+    // é resolvido a partir dela — nunca a partir do payload do cliente.
     const { data: sessao } = await supabase
       .from("sessoes_publicas")
       .select("*, tipos_tratamento:tratamento_id(nome, trabalho_publico, permite_cadastro_rapido)")
@@ -98,6 +100,9 @@ Deno.serve(async (req) => {
     if (!sessao) {
       return await reject(404, "Sessão não encontrada ou encerrada", token);
     }
+
+    // Tenant resolvido pela sessão. Pode ser NULL em linhas legadas pré-cutover.
+    const sessaoInstituicaoId: string | null = (sessao as any).instituicao_id ?? null;
 
     // Token/QR expiration: the QR is valid only for the session day.
     const today = new Date().toISOString().slice(0, 10);
