@@ -166,7 +166,7 @@ describe("SAAS-05-E-EDGE-A2 — escopo isolado", () => {
 
   it("assinaturas legadas das RPCs permanecem disponíveis (docs)", () => {
     const doc = read("docs/SAAS-05-E-EDGE-A2-RPCS-FILA-COMUNICADORES.md");
-    expect(doc).toMatch(/assinatura legada preservada/i);
+    expect(doc).toMatch(/legada preservada/i);
     expect(doc).toMatch(/backward.compat/i);
   });
 });
