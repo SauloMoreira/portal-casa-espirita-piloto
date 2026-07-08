@@ -192,7 +192,7 @@ export default function PortalAssinaturas() {
 
   const carregar = async () => {
     setLoading(true);
-    const [instRes, asgRes, planosRes] = await Promise.all([
+    const [instRes, asgRes, planosRes, modRes, pmRes] = await Promise.all([
       supabase
         .from("instituicoes")
         .select(
@@ -204,11 +204,13 @@ export default function PortalAssinaturas() {
         .from("planos")
         .select("id, codigo, nome, valor_mensal")
         .order("valor_mensal"),
+      supabase.from("modulos").select("id, codigo, nome, descricao, ativo").order("nome"),
+      supabase.from("plano_modulos").select("plano_id, modulo_id, ativo"),
     ]);
-    if (instRes.error || asgRes.error || planosRes.error) {
+    if (instRes.error || asgRes.error || planosRes.error || modRes.error || pmRes.error) {
       toast({
         title: "Falha ao carregar assinaturas",
-        description: (instRes.error ?? asgRes.error ?? planosRes.error)?.message,
+        description: (instRes.error ?? asgRes.error ?? planosRes.error ?? modRes.error ?? pmRes.error)?.message,
         variant: "destructive",
       });
       setLoading(false);
@@ -224,7 +226,19 @@ export default function PortalAssinaturas() {
     }));
     setRows(list);
     setPlanos(planosRes.data as Plano[]);
+    setModulosCatalogo((modRes.data ?? []) as ModuloCatalogo[]);
+    setPlanoModulos((pmRes.data ?? []) as PlanoModulo[]);
     setLoading(false);
+  };
+
+  /** Mapa modulo_id -> ativo, calculado para um plano específico. */
+  const modulosDoPlano = (planoId: string): Record<string, boolean> => {
+    const map: Record<string, boolean> = {};
+    for (const m of modulosCatalogo) map[m.id] = false;
+    for (const pm of planoModulos) {
+      if (pm.plano_id === planoId) map[pm.modulo_id] = pm.ativo;
+    }
+    return map;
   };
 
   useEffect(() => {
