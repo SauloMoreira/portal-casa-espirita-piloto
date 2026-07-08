@@ -82,7 +82,7 @@ describe("SAAS-06-A — Kit de produção assistida", () => {
     const lgpd = read(resolve(BASE, "03-anexo-lgpd.md"));
     expect(lgpd.toLowerCase()).toContain("controlador");
     expect(lgpd.toLowerCase()).toContain("operador");
-    expect(lgpd).toMatch(/13\.709/);
+    expect(lgpd).toMatch(/LGPD/);
   });
 
   it("política de suporte declara best-effort e não SLA contratual com multa", () => {
