@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
       })
       .select("id")
       .single();
-    if (solErr) return await rollback("não foi possível registrar a solicitação");
+    if (solErr) return await rollback("Não foi possível registrar a solicitação", solErr);
 
     await admin.from("audit_logs").insert({
       user_id: userId,
