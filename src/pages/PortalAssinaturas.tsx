@@ -1218,7 +1218,7 @@ export default function PortalAssinaturas() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Módulos liberados são derivados automaticamente do plano.
+                O padrão de módulos vem do plano; ajuste abaixo se necessário.
               </p>
             </div>
             <div>
