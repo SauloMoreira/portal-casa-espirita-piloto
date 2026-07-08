@@ -156,6 +156,28 @@ export default function PortalAssinaturas() {
     form: EMPTY_FORM,
     saving: false,
   });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    nome: "",
+    nome_fantasia: "",
+    slug: "",
+    cidade: "",
+    uf: "",
+    email_contato: "",
+    telefone_contato: "",
+    responsavel: "",
+    email_admin_inicial: "",
+    classificacao_comercial: "piloto",
+    plano_id: "",
+    status: "trial",
+    data_inicio: new Date().toISOString().slice(0, 10),
+    trial_ate: "",
+    proximo_vencimento: "",
+    valor_mensal_cents: "",
+    forma_pagamento: "",
+    observacoes_comerciais: "",
+  });
 
   const carregar = async () => {
     setLoading(true);
