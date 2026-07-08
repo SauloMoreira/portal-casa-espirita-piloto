@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -138,6 +139,7 @@ export default function GestaoCores() {
           valor: hsl,
           descricao: `Cor personalizada: ${key}`,
           updated_by: user?.id,
+          instituicao_id: requireInstituicaoId(),
         });
       }
     }

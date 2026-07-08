@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Evento } from "@/lib/eventos";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 
 export type EventoInput = {
   titulo: string;
@@ -53,7 +54,7 @@ export async function listEventosVigentes(): Promise<Evento[]> {
 }
 
 export async function createEvento(input: EventoInput): Promise<void> {
-  const { error } = await supabase.from(TABLE).insert(input);
+  const { error } = await supabase.from(TABLE).insert({ ...input, instituicao_id: requireInstituicaoId() });
   if (error) throw error;
 }
 

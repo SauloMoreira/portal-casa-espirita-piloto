@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AlimentoAcaoSocial, AcaoSocialConfig } from "@/lib/acaoSocial";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 
 export type AlimentoInput = {
   nome: string;
@@ -38,7 +39,7 @@ export async function listAlimentosAtivos(): Promise<AlimentoAcaoSocial[]> {
 }
 
 export async function createAlimento(input: AlimentoInput): Promise<void> {
-  const { error } = await supabase.from(TABLE).insert(input);
+  const { error } = await supabase.from(TABLE).insert({ ...input, instituicao_id: requireInstituicaoId() });
   if (error) throw error;
 }
 

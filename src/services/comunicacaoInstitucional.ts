@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { VERSAO_TERMO_CONSENTIMENTO } from "@/lib/consentimento";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 import type {
   ComunicacaoInstitucional,
   ComunicacaoStatus,
@@ -28,7 +29,7 @@ export async function listComunicacoes(): Promise<ComunicacaoInstitucional[]> {
 }
 
 export async function createComunicacao(payload: ComunicacaoSavePayload): Promise<void> {
-  const { error } = await supabase.from(TABLE).insert(payload);
+  const { error } = await supabase.from(TABLE).insert({ ...payload, instituicao_id: requireInstituicaoId() });
   if (error) throw error;
 }
 
