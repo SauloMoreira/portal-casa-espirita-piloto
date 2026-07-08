@@ -121,12 +121,15 @@ Responda APENAS com JSON válido no formato:
   ]
 }`;
 
-    const userPrompt = `Analise os seguintes dados operacionais do período e gere insights e recomendações:
+    // SAAS-05-E-EDGE-D: marca o tenant no prompt para não haver contexto cross-tenant implícito.
+    const userPrompt = `Analise os seguintes dados operacionais do período e gere insights e recomendações.
+INSTITUICAO (tenant escopo obrigatório): ${tenantResolvido}
 
 DADOS DO DASHBOARD:
 ${JSON.stringify(dashboardData, null, 2)}
 
 Gere insights focados em identificar públicos com baixa demanda, oportunidades de melhoria e ações práticas.`;
+
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
