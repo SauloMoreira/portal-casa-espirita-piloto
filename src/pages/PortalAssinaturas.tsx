@@ -246,13 +246,33 @@ export default function PortalAssinaturas() {
     void carregar();
   }, [isPlatformAdmin]);
 
-  const openEdit = (row: Row) => {
+  const openEdit = async (row: Row) => {
+    const planoId = row.assinatura?.plano_id ?? planos[0]?.id ?? "";
+    let overridesOriginais: Record<string, boolean> = {};
+    if (row.assinatura) {
+      const ov = await supabase
+        .from("assinatura_modulos")
+        .select("modulo_id, ativo")
+        .eq("assinatura_id", row.assinatura.id);
+      if (ov.error) {
+        toast({
+          title: "Falha ao carregar módulos da assinatura",
+          description: ov.error.message,
+          variant: "destructive",
+        });
+      } else {
+        for (const r of ov.data ?? []) overridesOriginais[r.modulo_id] = r.ativo;
+      }
+    }
+    const efetivo = { ...modulosDoPlano(planoId), ...overridesOriginais };
     setEdit({
       open: true,
       row,
       saving: false,
+      modulos: efetivo,
+      overridesOriginais,
       form: {
-        plano_id: row.assinatura?.plano_id ?? planos[0]?.id ?? "",
+        plano_id: planoId,
         status: row.assinatura?.status ?? "trial",
         data_inicio:
           row.assinatura?.data_inicio ?? new Date().toISOString().slice(0, 10),
@@ -270,6 +290,24 @@ export default function PortalAssinaturas() {
         classificacao_comercial:
           row.instituicao.classificacao_comercial ?? "demo",
       },
+    });
+  };
+
+  /** Ao trocar de plano, recalcula defaults preservando overrides do usuário. */
+  const onPlanoChange = (novoPlanoId: string) => {
+    setEdit((s) => {
+      const defaults = modulosDoPlano(novoPlanoId);
+      const efetivo = { ...defaults, ...s.overridesOriginais };
+      // preserva alterações locais ainda não salvas
+      for (const [modId, ativo] of Object.entries(s.modulos)) {
+        const planoAtivo = defaults[modId] ?? false;
+        const overrideAtual = s.overridesOriginais[modId];
+        // se o usuário havia mexido em algo diferente do plano/override antigo, preserva.
+        if (ativo !== planoAtivo && overrideAtual === undefined) {
+          efetivo[modId] = ativo;
+        }
+      }
+      return { ...s, form: { ...s.form, plano_id: novoPlanoId }, modulos: efetivo };
     });
   };
 
@@ -313,25 +351,96 @@ export default function PortalAssinaturas() {
       condicao_especial: f.condicao_especial || null,
     };
 
-    const res = edit.row.assinatura
-      ? await supabase
-          .from("assinaturas")
-          .update(payload as never)
-          .eq("id", edit.row.assinatura.id)
-      : await supabase.from("assinaturas").insert(payload as never);
-
-    if (res.error) {
-      toast({
-        title: "Erro ao salvar assinatura",
-        description: res.error.message,
-        variant: "destructive",
-      });
-      setEdit((s) => ({ ...s, saving: false }));
-      return;
+    let assinaturaId = edit.row.assinatura?.id ?? null;
+    if (assinaturaId) {
+      const res = await supabase
+        .from("assinaturas")
+        .update(payload as never)
+        .eq("id", assinaturaId);
+      if (res.error) {
+        toast({
+          title: "Erro ao salvar assinatura",
+          description: res.error.message,
+          variant: "destructive",
+        });
+        setEdit((s) => ({ ...s, saving: false }));
+        return;
+      }
+    } else {
+      const res = await supabase
+        .from("assinaturas")
+        .insert(payload as never)
+        .select("id")
+        .single();
+      if (res.error || !res.data) {
+        toast({
+          title: "Erro ao salvar assinatura",
+          description: res.error?.message,
+          variant: "destructive",
+        });
+        setEdit((s) => ({ ...s, saving: false }));
+        return;
+      }
+      assinaturaId = (res.data as { id: string }).id;
     }
 
-    toast({ title: "Assinatura atualizada" });
-    setEdit({ open: false, row: null, form: EMPTY_FORM, saving: false });
+    // 2) Sincroniza overrides de módulos por assinatura.
+    // Para cada módulo: se o efetivo diferir do padrão do plano, upsert override;
+    // se coincidir com o padrão, remove override existente.
+    const defaults = modulosDoPlano(f.plano_id);
+    const toUpsert: Array<{ assinatura_id: string; modulo_id: string; ativo: boolean }> = [];
+    const toDelete: string[] = [];
+    for (const m of modulosCatalogo) {
+      const efetivo = edit.modulos[m.id] ?? defaults[m.id] ?? false;
+      const padrao = defaults[m.id] ?? false;
+      const jaExisteOverride = edit.overridesOriginais[m.id] !== undefined;
+      if (efetivo !== padrao) {
+        toUpsert.push({ assinatura_id: assinaturaId, modulo_id: m.id, ativo: efetivo });
+      } else if (jaExisteOverride) {
+        toDelete.push(m.id);
+      }
+    }
+
+    if (toUpsert.length > 0) {
+      const up = await supabase
+        .from("assinatura_modulos")
+        .upsert(toUpsert as never, { onConflict: "assinatura_id,modulo_id" });
+      if (up.error) {
+        toast({
+          title: "Erro ao salvar módulos habilitados",
+          description: up.error.message,
+          variant: "destructive",
+        });
+        setEdit((s) => ({ ...s, saving: false }));
+        return;
+      }
+    }
+    if (toDelete.length > 0) {
+      const del = await supabase
+        .from("assinatura_modulos")
+        .delete()
+        .eq("assinatura_id", assinaturaId)
+        .in("modulo_id", toDelete);
+      if (del.error) {
+        toast({
+          title: "Erro ao limpar override de módulos",
+          description: del.error.message,
+          variant: "destructive",
+        });
+        setEdit((s) => ({ ...s, saving: false }));
+        return;
+      }
+    }
+
+    toast({ title: "Assinatura e módulos atualizados" });
+    setEdit({
+      open: false,
+      row: null,
+      form: EMPTY_FORM,
+      modulos: {},
+      overridesOriginais: {},
+      saving: false,
+    });
     await carregar();
   };
 
