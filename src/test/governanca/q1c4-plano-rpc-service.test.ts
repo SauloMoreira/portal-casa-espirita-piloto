@@ -20,10 +20,14 @@ import {
   getComunicacaoGeralAtiva,
   setComunicacaoGeralAtiva,
 } from "@/services/notificacoes/notificacoesService";
+import { _setCurrentInstituicaoId } from "@/lib/tenant/currentTenant";
+
+const TENANT = "00000000-0000-0000-0000-0000000000e2";
 
 beforeEach(() => {
   rpcMock.mockReset();
   fromMock.mockReset();
+  _setCurrentInstituicaoId(TENANT);
 });
 
 describe("Q1-C4 planoRpcService — pts_registrar_presenca", () => {
