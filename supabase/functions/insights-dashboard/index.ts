@@ -1,6 +1,10 @@
+// SAAS-05-E-EDGE-D — insights-dashboard tenant-aware.
+// Exige p_instituicao_id no payload; valida membership; audita tenant_resolvido.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+
+
 
 
 serve(async (req) => {
@@ -36,9 +40,59 @@ serve(async (req) => {
       });
     }
 
-    const { dashboardData } = await req.json();
+    const reqBody = await req.json();
+    const dashboardData = reqBody?.dashboardData;
+    const pInstituicaoId: string | null = reqBody?.p_instituicao_id ?? reqBody?.instituicao_id ?? null;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    // ── SAAS-05-E-EDGE-D: tenant obrigatório + membership ──
+    const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    if (!pInstituicaoId) {
+      await serviceClient.from("audit_logs").insert({
+        user_id: user.id,
+        tabela: "insights_dashboard",
+        acao: "SAAS05_E_EDGE_D_TENANT_INDETERMINADO",
+        dados_novos: { marcador: "saas05_e_edge_d" },
+      });
+      return new Response(
+        JSON.stringify({ error: "p_instituicao_id obrigatório." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const tenantResolvido = pInstituicaoId;
+    const origemTenant = "payload";
+
+    const { data: isPa } = await serviceClient.rpc("is_platform_admin", { p_user_id: user.id });
+    if (!isPa) {
+      const { data: mem } = await serviceClient
+        .from("instituicao_usuarios")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("instituicao_id", tenantResolvido)
+        .eq("ativo", true)
+        .maybeSingle();
+      if (!mem) {
+        await serviceClient.from("audit_logs").insert({
+          user_id: user.id,
+          tabela: "insights_dashboard",
+          acao: "SAAS05_E_EDGE_D_TENANT_FORBIDDEN",
+          dados_novos: { tenant_resolvido: tenantResolvido, origem_tenant: origemTenant, marcador: "saas05_e_edge_d" },
+        });
+        return new Response(
+          JSON.stringify({ error: "Usuário não pertence à instituição informada." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    await serviceClient.from("audit_logs").insert({
+      user_id: user.id,
+      tabela: "insights_dashboard",
+      acao: "SAAS05_E_EDGE_D_INSIGHTS",
+      dados_novos: { tenant_resolvido: tenantResolvido, origem_tenant: origemTenant, marcador: "saas05_e_edge_d" },
+    });
+
 
     const systemPrompt = `Você é um analista de dados de uma instituição espírita que oferece tratamentos espirituais e assistência a pessoas. Seu papel é analisar dados operacionais e gerar insights práticos e recomendações para a administração.
 
@@ -67,12 +121,15 @@ Responda APENAS com JSON válido no formato:
   ]
 }`;
 
-    const userPrompt = `Analise os seguintes dados operacionais do período e gere insights e recomendações:
+    // SAAS-05-E-EDGE-D: marca o tenant no prompt para não haver contexto cross-tenant implícito.
+    const userPrompt = `Analise os seguintes dados operacionais do período e gere insights e recomendações.
+INSTITUICAO (tenant escopo obrigatório): ${tenantResolvido}
 
 DADOS DO DASHBOARD:
 ${JSON.stringify(dashboardData, null, 2)}
 
 Gere insights focados em identificar públicos com baixa demanda, oportunidades de melhoria e ações práticas.`;
+
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

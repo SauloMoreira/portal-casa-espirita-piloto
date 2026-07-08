@@ -1,6 +1,10 @@
+// SAAS-05-E-EDGE-D — ia-site-ingestao tenant-aware.
+// Exige p_instituicao_id no payload; valida membership admin no tenant;
+// tagueia preview e audita tenant_resolvido; sem indexação cross-tenant.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { guardCronOrStaff } from "../_shared/auth.ts";
+
 
 const ALLOW_HEADERS =
   "authorization, x-client-info, apikey, content-type, x-cron-secret";
@@ -120,7 +124,7 @@ Deno.serve(async (req) => {
   const guard = await guardCronOrStaff(req, ["admin"]);
   if (!guard.ok) return guard.response!;
 
-  let body: { url?: string };
+  let body: { url?: string; p_instituicao_id?: string; instituicao_id?: string };
   try {
     body = await req.json();
   } catch {
@@ -128,6 +132,61 @@ Deno.serve(async (req) => {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  // ── SAAS-05-E-EDGE-D: tenant obrigatório + membership admin no tenant ──
+  const supabaseUrlEnv = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKeyEnv = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const adminGuard = createClient(supabaseUrlEnv, serviceRoleKeyEnv);
+  const tenantResolvido: string | null = body.p_instituicao_id ?? body.instituicao_id ?? null;
+  const origemTenant = "payload";
+
+  // recuperar user (quando não for cron)
+  let guardUserId: string | null = null;
+  const _authHeader = req.headers.get("Authorization");
+  if (_authHeader) {
+    const _uc = createClient(supabaseUrlEnv, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: _authHeader } } });
+    const { data: _u } = await _uc.auth.getUser();
+    guardUserId = _u?.user?.id ?? null;
+  }
+
+  if (!tenantResolvido) {
+    await adminGuard.from("audit_logs").insert({
+      user_id: guardUserId,
+      tabela: "ia_site_documentos",
+      acao: "SAAS05_E_EDGE_D_TENANT_INDETERMINADO",
+      dados_novos: { marcador: "saas05_e_edge_d", url: body.url ?? null },
+    });
+    return new Response(
+      JSON.stringify({ error: "p_instituicao_id obrigatório." }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  if (guardUserId) {
+    const { data: isPa } = await adminGuard.rpc("is_platform_admin", { p_user_id: guardUserId });
+    if (!isPa) {
+      const { data: mem } = await adminGuard
+        .from("instituicao_usuarios")
+        .select("id")
+        .eq("user_id", guardUserId)
+        .eq("instituicao_id", tenantResolvido)
+        .eq("ativo", true)
+        .maybeSingle();
+      if (!mem) {
+        await adminGuard.from("audit_logs").insert({
+          user_id: guardUserId,
+          tabela: "ia_site_documentos",
+          acao: "SAAS05_E_EDGE_D_TENANT_FORBIDDEN",
+          dados_novos: { tenant_resolvido: tenantResolvido, origem_tenant: origemTenant, marcador: "saas05_e_edge_d" },
+        });
+        return new Response(
+          JSON.stringify({ error: "Usuário não pertence à instituição informada." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+  }
+
 
   const rawUrl = (body.url || "").trim();
   let parsed: URL;
@@ -197,6 +256,20 @@ Deno.serve(async (req) => {
     situacao = existente.hash === hash ? "sem_mudanca" : "atualizado";
   }
 
+  // SAAS-05-E-EDGE-D: audita ingestão bem-sucedida com tenant_resolvido.
+  await adminGuard.from("audit_logs").insert({
+    user_id: guardUserId,
+    tabela: "ia_site_documentos",
+    acao: "SAAS05_E_EDGE_D_SITE_INGESTAO",
+    dados_novos: {
+      tenant_resolvido: tenantResolvido,
+      origem_tenant: origemTenant,
+      marcador: "saas05_e_edge_d",
+      url: parsed.toString(),
+      situacao,
+    },
+  });
+
   // Retorna a prévia extraída SEM salvar — o admin revisa e ajusta antes de gravar.
   return new Response(
     JSON.stringify({
@@ -210,12 +283,15 @@ Deno.serve(async (req) => {
         temporal,
         data_conteudo: null,
         hash,
+        instituicao_id: tenantResolvido,
       },
       existente: existente
         ? { id: existente.id, status: existente.status, usar_na_ia: existente.usar_na_ia }
         : null,
       situacao,
+      tenant_resolvido: tenantResolvido,
     }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
+

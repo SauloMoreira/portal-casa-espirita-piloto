@@ -1,7 +1,12 @@
+// SAAS-05-E-EDGE-D — assistente-entrevista tenant-aware.
+// Resolve tenant via entrevista→assistido ou assistido; valida membership;
+// impede contexto cross-tenant no prompt; audita tenant_resolvido/origem_tenant.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 import { buildUserMessage } from "./payload.ts";
+
+
 
 
 interface TratamentoDisponivel {
@@ -55,12 +60,80 @@ serve(async (req) => {
     // ── Consultar base de conhecimento da Central de IA ──
     const serviceClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+    // ── SAAS-05-E-EDGE-D: resolver tenant (entrevista → assistido → instituicao) ──
+    let tenantResolvido: string | null = null;
+    let origemTenant: "entrevista" | "assistido" | null = null;
+    let assistidoParaTenant: string | null = assistido_id;
+
+    if (entrevista_id) {
+      const { data: ent } = await serviceClient
+        .from("entrevistas_fraternas")
+        .select("assistido_id")
+        .eq("id", entrevista_id)
+        .maybeSingle();
+      if (ent?.assistido_id) {
+        assistidoParaTenant = ent.assistido_id;
+        origemTenant = "entrevista";
+      }
+    }
+    if (assistidoParaTenant) {
+      const { data: ass } = await serviceClient
+        .from("assistidos")
+        .select("instituicao_id")
+        .eq("id", assistidoParaTenant)
+        .maybeSingle();
+      tenantResolvido = (ass?.instituicao_id as string | null) ?? null;
+      if (!origemTenant) origemTenant = "assistido";
+    }
+
+    if (!tenantResolvido) {
+      await serviceClient.from("audit_logs").insert({
+        user_id: user.id,
+        tabela: "ia_sugestoes",
+        acao: "SAAS05_E_EDGE_D_TENANT_INDETERMINADO",
+        dados_novos: { entrevista_id, assistido_id, marcador: "saas05_e_edge_d" },
+      });
+      return new Response(
+        JSON.stringify({ error: "Não foi possível resolver a instituição do contexto." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Validar membership no tenant (ou platform_admin)
+    const { data: isPa } = await serviceClient.rpc("is_platform_admin", { p_user_id: user.id });
+    if (!isPa) {
+      const { data: mem } = await serviceClient
+        .from("instituicao_usuarios")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("instituicao_id", tenantResolvido)
+        .eq("ativo", true)
+        .maybeSingle();
+      if (!mem) {
+        await serviceClient.from("audit_logs").insert({
+          user_id: user.id,
+          tabela: "ia_sugestoes",
+          acao: "SAAS05_E_EDGE_D_TENANT_FORBIDDEN",
+          dados_novos: {
+            tenant_resolvido: tenantResolvido,
+            origem_tenant: origemTenant,
+            marcador: "saas05_e_edge_d",
+          },
+        });
+        return new Response(
+          JSON.stringify({ error: "Usuário não pertence à instituição do contexto." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     const { data: configRows } = await serviceClient.from("ia_configuracoes").select("*").limit(1);
     const config = configRows?.[0] || null;
 
     const { data: queixas } = await serviceClient.from("ia_queixas").select("id, nome_queixa, categoria, descricao, palavras_chave, sinonimos, nivel_relevancia").eq("status", "ativo").order("nivel_relevancia");
 
     const { data: vinculos } = await serviceClient.from("ia_queixa_tratamento").select("queixa_id, tratamento_id, prioridade, peso, tipo_relacao, observacao_operacional, observacao_doutrinaria").eq("status", "ativo");
+
 
     let bibliotecaTexto = "";
     const materiaisConsultados: Array<{ titulo: string; tipo_material?: string | null }> = [];
@@ -222,14 +295,23 @@ Para cada tratamento, "quantidade" é o número de sessões recomendado (inteiro
       sugestaoId = inserted?.id ?? null;
     }
 
-    // Log audit
+    // Log audit — SAAS-05-E-EDGE-D
     await serviceClient.from("audit_logs").insert({
       user_id: user.id,
       tabela: "ia_sugestoes",
-      acao: "ASSISTENTE_IA",
+      acao: "SAAS05_E_EDGE_D_ASSISTENTE",
       registro_id: sugestaoId,
-      dados_novos: { assistido_nome, observacoes_length: observacoes.length, queixas_consultadas: queixas?.length || 0, biblioteca_consultada: config?.usar_base_doutrinaria || false },
+      dados_novos: {
+        assistido_nome,
+        observacoes_length: observacoes.length,
+        queixas_consultadas: queixas?.length || 0,
+        biblioteca_consultada: config?.usar_base_doutrinaria || false,
+        tenant_resolvido: tenantResolvido,
+        origem_tenant: origemTenant,
+        marcador: "saas05_e_edge_d",
+      },
     });
+
 
     return new Response(JSON.stringify({
       sugestao_id: sugestaoId,
