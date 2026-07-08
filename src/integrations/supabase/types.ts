@@ -3293,13 +3293,21 @@ export type Database = {
         Args: { _assistido_id: string; _coordinator_id: string }
         Returns: boolean
       }
-      comunicadores_elegiveis: {
-        Args: never
-        Returns: {
-          celular: string
-          user_id: string
-        }[]
-      }
+      comunicadores_elegiveis:
+        | {
+            Args: never
+            Returns: {
+              celular: string
+              user_id: string
+            }[]
+          }
+        | {
+            Args: { p_instituicao_id: string }
+            Returns: {
+              celular: string
+              user_id: string
+            }[]
+          }
       contar_publico_elegivel: { Args: { p_versao: string }; Returns: number }
       count_active_masters: { Args: never; Returns: number }
       count_apt_admins: { Args: never; Returns: number }
@@ -3318,13 +3326,21 @@ export type Database = {
         Args: { _assistido_id: string; _coordinator_id: string }
         Returns: boolean
       }
-      fila_humana_pendente: {
-        Args: never
-        Returns: {
-          idade_mais_antiga_min: number
-          total_pendentes: number
-        }[]
-      }
+      fila_humana_pendente:
+        | {
+            Args: never
+            Returns: {
+              idade_mais_antiga_min: number
+              total_pendentes: number
+            }[]
+          }
+        | {
+            Args: { p_instituicao_id: string }
+            Returns: {
+              idade_mais_antiga_min: number
+              total_pendentes: number
+            }[]
+          }
       fn_assistido_cadastro_esta_completo: {
         Args: { a: Database["public"]["Tables"]["assistidos"]["Row"] }
         Returns: boolean
