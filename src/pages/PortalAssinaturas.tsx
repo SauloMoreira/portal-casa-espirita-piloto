@@ -466,7 +466,7 @@ export default function PortalAssinaturas() {
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        Cobrança automática (Stripe/Paddle/Mercado Pago) intencionalmente não
+        Cobrança automática por gateway intencionalmente não
         integrada nesta fase. Ver{" "}
         <code>docs/SAAS-06-B0-CENTRAL-ASSINATURAS.md</code>.
       </p>
