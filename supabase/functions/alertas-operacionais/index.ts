@@ -49,6 +49,17 @@ Deno.serve(async (req) => {
         ? (instituicoesRows || []).map((r: any) => r.id)
         : [null];
 
+    // SAAS-05-I: telemetria de fallback quando instituicoesIds é [null].
+    if (instituicoesIds.length === 1 && instituicoesIds[0] === null) {
+      await adminClient.rpc("fn_saas05_i_log_fallback", {
+        p_fallback: "alertas-operacionais",
+        p_motivo: "tenants_ids_vazio",
+        p_fail_closed: true,
+        p_contexto: { origem: "cron_service_role" },
+      });
+    }
+
+
     const today = new Date().toISOString().split("T")[0];
     let insertedTotal = 0;
 
