@@ -17,9 +17,13 @@ import {
   listarAvisosAusenciaPendentes,
 } from "@/services/avisos/avisosAusenciaService";
 import { listConversasEnriquecidas } from "@/services/notificacoes/notificacoesService";
+import { _setCurrentInstituicaoId } from "@/lib/tenant/currentTenant";
+
+const TENANT = "11111111-1111-1111-1111-111111111111";
 
 beforeEach(() => {
   rpcMock.mockReset();
+  _setCurrentInstituicaoId(TENANT);
 });
 
 describe("Q1-C3 comunicadorService — sou_comunicador_elegivel", () => {
@@ -53,6 +57,7 @@ describe("Q1-C3 avisosAusenciaService — payloads e retornos", () => {
       p_tipo_compromisso: "sessao",
       p_compromisso_id: "c1",
       p_motivo: "não posso",
+      p_instituicao_id: TENANT,
     });
     expect(r).toEqual({ id: "a1", status: "aberto" });
   });
@@ -64,6 +69,7 @@ describe("Q1-C3 avisosAusenciaService — payloads e retornos", () => {
       p_tipo_compromisso: "entrevista",
       p_compromisso_id: "c2",
       p_motivo: null,
+      p_instituicao_id: TENANT,
     });
   });
 
@@ -78,6 +84,7 @@ describe("Q1-C3 avisosAusenciaService — payloads e retornos", () => {
       p_aviso_id: "a1",
       p_novo_status: "resolvido",
       p_resolucao: "ok",
+      p_instituicao_id: TENANT,
     });
     expect(r.status).toBe("resolvido");
   });
@@ -95,6 +102,7 @@ describe("Q1-C3 avisosAusenciaService — payloads e retornos", () => {
     const r = await listarAvisosAusenciaPendentes(true);
     expect(rpcMock).toHaveBeenCalledWith("fn_avisos_ausencia_pendentes", {
       p_incluir_resolvidos: true,
+      p_instituicao_id: TENANT,
     });
     expect(r).toHaveLength(1);
   });
