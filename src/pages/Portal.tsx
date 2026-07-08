@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Building2, ShieldCheck, Boxes, ArrowRight, Loader2, AlertTriangle } fro
 import { useAuth } from "@/contexts/AuthContext";
 import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { ROUTES } from "@/constants";
+import { ROLE } from "@/constants/roles";
 import { InstituicaoSelector } from "@/components/portal/InstituicaoSelector";
 import { ModulosGrid } from "@/components/portal/ModulosGrid";
 import { PlanoResumo } from "@/components/portal/PlanoResumo";
@@ -13,7 +14,7 @@ import { useTenantBranding } from "@/hooks/useTenantBranding";
 import { SAAS_BRANDING } from "@/config/saasBranding";
 
 export default function Portal() {
-  const { profile, user } = useAuth();
+  const { profile, user, role, roles } = useAuth();
   const {
     isLoading,
     isError,
