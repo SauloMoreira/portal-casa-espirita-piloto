@@ -83,10 +83,15 @@ Deno.serve(async (req) => {
 
     const userId = created.user.id;
 
-    const rollback = async (reason: string) => {
+    const rollback = async (reason: string, detail?: unknown) => {
       await admin.auth.admin.deleteUser(userId).catch(() => {});
-      log.error("request_signup_rolled_back", { reason, userId });
-      return json({ error: `Falha ao registrar a solicitação: ${reason}.` }, 500);
+      log.error("request_signup_rolled_back", { reason, detail, userId });
+      const detailMsg = detail && typeof detail === "object" && "message" in (detail as any)
+        ? String((detail as any).message)
+        : detail ? String(detail) : "";
+      return json({
+        error: detailMsg ? `${reason}: ${detailMsg}` : reason,
+      }, 500);
     };
 
     // Profile is created as ATIVO. The AFTER INSERT trigger on public.profiles
@@ -99,7 +104,7 @@ Deno.serve(async (req) => {
       celular,
       status: "ativo",
     });
-    if (profErr) return await rollback("não foi possível gravar o perfil");
+    if (profErr) return await rollback("Não foi possível gravar o perfil", profErr);
 
     // Keep an audited self-registration record, already resolved (auto-approved
     // for base access). No elevated role is ever assigned by this flow.
