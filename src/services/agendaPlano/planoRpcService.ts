@@ -8,7 +8,7 @@ import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
  *
  * SAAS-05-E2 — Passa a chamar exclusivamente os overloads tenant-aware das RPCs
  * `pts_*`, injetando `p_instituicao_id` obtido via `requireInstituicaoId()`
- * (fail-closed). Nenhuma leitura de tenant a partir de localStorage.
+ * (fail-closed). Sem leitura de tenant a partir de armazenamento persistente.
  */
 
 export interface RollbackResult {
