@@ -3269,15 +3269,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      agendar_entrevista_fraterna: {
-        Args: {
-          _assistido_id: string
-          _data: string
-          _observacoes: string
-          _tipo: string
-        }
-        Returns: string
-      }
+      agendar_entrevista_fraterna:
+        | {
+            Args: {
+              _assistido_id: string
+              _data: string
+              _observacoes: string
+              _tipo: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _assistido_id: string
+              _data: string
+              _observacoes: string
+              _tipo: string
+              p_instituicao_id: string
+            }
+            Returns: string
+          }
       assistido_belongs_to_coordinator: {
         Args: { _assistido_id: string; _coordinator_id: string }
         Returns: boolean
@@ -3320,23 +3331,41 @@ export type Database = {
         Args: { p_chave: string; p_observacao?: string; p_valor: string }
         Returns: Json
       }
-      fn_avisos_ausencia_pendentes: {
-        Args: { p_incluir_resolvidos?: boolean }
-        Returns: {
-          assistido_id: string
-          assistido_nome: string
-          created_at: string
-          data_compromisso: string
-          id: string
-          motivo: string
-          pode_ver_conteudo: boolean
-          resolucao: string
-          status: string
-          tipo_compromisso: string
-          tratado_em: string
-          tratado_por: string
-        }[]
-      }
+      fn_avisos_ausencia_pendentes:
+        | {
+            Args: { p_incluir_resolvidos?: boolean }
+            Returns: {
+              assistido_id: string
+              assistido_nome: string
+              created_at: string
+              data_compromisso: string
+              id: string
+              motivo: string
+              pode_ver_conteudo: boolean
+              resolucao: string
+              status: string
+              tipo_compromisso: string
+              tratado_em: string
+              tratado_por: string
+            }[]
+          }
+        | {
+            Args: { p_incluir_resolvidos: boolean; p_instituicao_id: string }
+            Returns: {
+              assistido_id: string
+              assistido_nome: string
+              created_at: string
+              data_compromisso: string
+              id: string
+              motivo: string
+              pode_ver_conteudo: boolean
+              resolucao: string
+              status: string
+              tipo_compromisso: string
+              tratado_em: string
+              tratado_por: string
+            }[]
+          }
       fn_buscar_pessoa_para_voluntario:
         | {
             Args: { p_termo: string }
@@ -3430,17 +3459,34 @@ export type Database = {
         }
         Returns: undefined
       }
-      fn_entrevistas_operacional: {
-        Args: { _end?: string; _id?: string; _start?: string }
-        Returns: {
-          assistido_id: string
-          data: string
-          entrevistador_id: string
-          id: string
-          status: string
-          tipo_entrevista: string
-        }[]
-      }
+      fn_entrevistas_operacional:
+        | {
+            Args: { _end?: string; _id?: string; _start?: string }
+            Returns: {
+              assistido_id: string
+              data: string
+              entrevistador_id: string
+              id: string
+              status: string
+              tipo_entrevista: string
+            }[]
+          }
+        | {
+            Args: {
+              _end: string
+              _id: string
+              _start: string
+              p_instituicao_id: string
+            }
+            Returns: {
+              assistido_id: string
+              data: string
+              entrevistador_id: string
+              id: string
+              status: string
+              tipo_entrevista: string
+            }[]
+          }
       fn_excecao_alvos: {
         Args: { p_excecao_id: string }
         Returns: {
@@ -3516,14 +3562,24 @@ export type Database = {
         Returns: string
       }
       fn_reconciliar_excecoes_notificacoes: { Args: never; Returns: Json }
-      fn_registrar_aviso_ausencia: {
-        Args: {
-          p_compromisso_id: string
-          p_motivo?: string
-          p_tipo_compromisso: string
-        }
-        Returns: Json
-      }
+      fn_registrar_aviso_ausencia:
+        | {
+            Args: {
+              p_compromisso_id: string
+              p_motivo?: string
+              p_tipo_compromisso: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_compromisso_id: string
+              p_instituicao_id: string
+              p_motivo: string
+              p_tipo_compromisso: string
+            }
+            Returns: Json
+          }
       fn_remover_coordenador: {
         Args: { p_coordenador_id: string; p_tratamento_id: string }
         Returns: undefined
@@ -3547,14 +3603,24 @@ export type Database = {
         Args: { _user_id?: string }
         Returns: string[]
       }
-      fn_tratar_aviso_ausencia: {
-        Args: {
-          p_aviso_id: string
-          p_novo_status: string
-          p_resolucao?: string
-        }
-        Returns: Json
-      }
+      fn_tratar_aviso_ausencia:
+        | {
+            Args: {
+              p_aviso_id: string
+              p_novo_status: string
+              p_resolucao?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_aviso_id: string
+              p_instituicao_id: string
+              p_novo_status: string
+              p_resolucao: string
+            }
+            Returns: Json
+          }
       fn_voluntario_cadastro_completo: {
         Args: {
           p_bairro: string
