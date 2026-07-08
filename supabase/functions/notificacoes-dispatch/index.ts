@@ -345,11 +345,20 @@ async function logFila(
   recebido: unknown,
   status: string,
   erro?: string,
+  tenantCtx?: { tenant_resolvido: string | null; origem_tenant: string; marcador: string },
 ) {
+  // SAAS-05-E-EDGE-B: injeta tenant_resolvido/origem_tenant no payload de saída
+  // para rastreabilidade sem alterar o schema de notificacoes_log.
+  const enviadoComTenant =
+    tenantCtx && enviado && typeof enviado === "object"
+      ? { ...(enviado as Record<string, unknown>), ...tenantCtx }
+      : tenantCtx
+        ? { ...tenantCtx }
+        : enviado ?? null;
   await admin.from("notificacoes_log").insert({
     fila_id: filaId,
     direcao,
-    payload_enviado: enviado ?? null,
+    payload_enviado: enviadoComTenant,
     payload_recebido: recebido ?? null,
     status,
     erro: erro ?? null,
