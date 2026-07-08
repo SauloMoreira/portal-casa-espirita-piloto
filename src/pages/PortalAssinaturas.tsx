@@ -167,6 +167,10 @@ export default function PortalAssinaturas() {
   });
   const [modulosCatalogo, setModulosCatalogo] = useState<ModuloCatalogo[]>([]);
   const [planoModulos, setPlanoModulos] = useState<PlanoModulo[]>([]);
+  /** Overrides por assinatura: assinaturaId -> { moduloId: ativo }. */
+  const [overridesPorAssinatura, setOverridesPorAssinatura] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createModulos, setCreateModulos] = useState<Record<string, boolean>>({});
