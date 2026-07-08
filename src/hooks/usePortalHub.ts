@@ -27,7 +27,8 @@ export type SaasAssinaturaStatus =
   | "ativa"
   | "suspensa"
   | "cancelada"
-  | "inadimplente";
+  | "inadimplente"
+  | "encerrada";
 
 export type SaasPapelLocal =
   | "admin_instituicao"
