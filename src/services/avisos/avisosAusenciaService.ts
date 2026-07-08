@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 
 /**
  * MELHORIA-01 — Fluxo oficial de "não poderei comparecer".
@@ -49,6 +50,7 @@ export async function registrarAvisoAusencia(params: {
     p_tipo_compromisso: params.tipoCompromisso,
     p_compromisso_id: params.compromissoId,
     p_motivo: params.motivo ?? null,
+    p_instituicao_id: requireInstituicaoId(),
   });
   if (error) throw error;
   return data as { id: string; status: string };
@@ -67,6 +69,7 @@ export async function tratarAvisoAusencia(params: {
     p_aviso_id: params.avisoId,
     p_novo_status: params.novoStatus,
     p_resolucao: params.resolucao ?? null,
+    p_instituicao_id: requireInstituicaoId(),
   });
   if (error) throw error;
   return data as { id: string; status: string };
@@ -78,6 +81,7 @@ export async function listarAvisosAusenciaPendentes(
 ): Promise<AvisoAusenciaPendente[]> {
   const { data, error } = await supabase.rpc("fn_avisos_ausencia_pendentes", {
     p_incluir_resolvidos: incluirResolvidos,
+    p_instituicao_id: requireInstituicaoId(),
   });
   if (error) throw error;
   return (data ?? []) as AvisoAusenciaPendente[];
