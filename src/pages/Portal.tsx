@@ -39,6 +39,23 @@ export default function Portal() {
     );
   }
 
+  // SAAS-06-A2 — Blindagem de experiência por perfil.
+  // Assistido puro (sem papel administrativo E sem ser platform_admin) é
+  // redirecionado ao seu dashboard: o Portal SaaS é uma superfície de gestão
+  // multi-instituição, não pertence à jornada do assistido.
+  const isAssistidoPuro =
+    !isPlatformAdmin &&
+    role === ROLE.ASSISTIDO &&
+    roles.every((r) => r === ROLE.ASSISTIDO);
+  if (isAssistidoPuro) {
+    return <Navigate to={ROUTES.dashboard} replace />;
+  }
+
+  // Defesa em profundidade: o card administrativo global só aparece para
+  // platform_admin/platform_owner reais. Admin local de instituição NÃO se
+  // qualifica (isPlatformAdmin já vem exclusivamente de platform_admins).
+  const podeVerCardAdminPlataforma = isPlatformAdmin && role !== ROLE.ASSISTIDO;
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-2">
