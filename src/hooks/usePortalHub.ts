@@ -234,9 +234,19 @@ export function usePortalHub(): UsePortalHubResult {
 /**
  * Rotas alvo do CTA "acessar módulo" (SAAS-03: sem tenantização real ainda).
  */
+/**
+ * Rotas alvo do CTA "acessar módulo" da Central de Assinaturas / Portal.
+ *
+ * SAAS-06-B0.2: Tratamentos é o único módulo comercial atualmente construído.
+ * Os demais (Caixa/Cantina, Biblioteca, Portal Institucional, Financeiro) são
+ * módulos comerciais futuros — não têm rota e devem aparecer como "em breve".
+ * O autoatendimento do assistido é uma funcionalidade INTERNA de Tratamentos
+ * e não um módulo comercial.
+ */
 export const MODULO_ROTA: Record<string, string | null> = {
   tratamentos: "/tratamentos",
-  biblioteca: null, // em breve
-  caixa: null, // em breve
-  portal: "/portal",
+  biblioteca: null, // futuro módulo
+  caixa: null, // futuro módulo (Caixa / Cantina)
+  portal: null, // futuro módulo (Portal Institucional — site da casa)
+  financeiro: null, // futuro módulo
 };
