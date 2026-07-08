@@ -261,37 +261,55 @@ export type Database = {
       }
       assinaturas: {
         Row: {
+          condicao_especial: string | null
           created_at: string
           data_fim: string | null
           data_inicio: string
+          forma_pagamento: string | null
           id: string
           instituicao_id: string
+          observacoes_comerciais: string | null
           plano_id: string
+          proximo_vencimento: string | null
           status: Database["public"]["Enums"]["saas_assinatura_status"]
           trial_ate: string | null
+          ultimo_pagamento_em: string | null
           updated_at: string
+          valor_mensal_cents: number | null
         }
         Insert: {
+          condicao_especial?: string | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string
+          forma_pagamento?: string | null
           id?: string
           instituicao_id: string
+          observacoes_comerciais?: string | null
           plano_id: string
+          proximo_vencimento?: string | null
           status?: Database["public"]["Enums"]["saas_assinatura_status"]
           trial_ate?: string | null
+          ultimo_pagamento_em?: string | null
           updated_at?: string
+          valor_mensal_cents?: number | null
         }
         Update: {
+          condicao_especial?: string | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string
+          forma_pagamento?: string | null
           id?: string
           instituicao_id?: string
+          observacoes_comerciais?: string | null
           plano_id?: string
+          proximo_vencimento?: string | null
           status?: Database["public"]["Enums"]["saas_assinatura_status"]
           trial_ate?: string | null
+          ultimo_pagamento_em?: string | null
           updated_at?: string
+          valor_mensal_cents?: number | null
         }
         Relationships: [
           {
@@ -1999,6 +2017,7 @@ export type Database = {
       instituicoes: {
         Row: {
           cidade: string | null
+          classificacao_comercial: Database["public"]["Enums"]["saas_classificacao_comercial"]
           cnpj: string | null
           created_at: string
           email_contato: string | null
@@ -2013,6 +2032,7 @@ export type Database = {
         }
         Insert: {
           cidade?: string | null
+          classificacao_comercial?: Database["public"]["Enums"]["saas_classificacao_comercial"]
           cnpj?: string | null
           created_at?: string
           email_contato?: string | null
@@ -2027,6 +2047,7 @@ export type Database = {
         }
         Update: {
           cidade?: string | null
+          classificacao_comercial?: Database["public"]["Enums"]["saas_classificacao_comercial"]
           cnpj?: string | null
           created_at?: string
           email_contato?: string | null
@@ -4184,6 +4205,12 @@ export type Database = {
         | "suspensa"
         | "cancelada"
         | "inadimplente"
+        | "encerrada"
+      saas_classificacao_comercial:
+        | "demo"
+        | "piloto"
+        | "producao_assistida"
+        | "cliente_ativo"
       saas_instituicao_status: "implantacao" | "ativa" | "inativa" | "suspensa"
       saas_papel_global:
         | "platform_owner"
@@ -4371,6 +4398,13 @@ export const Constants = {
         "suspensa",
         "cancelada",
         "inadimplente",
+        "encerrada",
+      ],
+      saas_classificacao_comercial: [
+        "demo",
+        "piloto",
+        "producao_assistida",
+        "cliente_ativo",
       ],
       saas_instituicao_status: ["implantacao", "ativa", "inativa", "suspensa"],
       saas_papel_global: [
