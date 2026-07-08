@@ -66,6 +66,7 @@ describe("Q1-C4 planoRpcService — pts_registrar_presenca", () => {
       p_proxima_numero_etapa: undefined,
       p_proxima_data: undefined,
       p_proxima_horario: undefined,
+      p_instituicao_id: TENANT,
     });
     expect(r).toEqual({ concluido: false, quantidade_realizada: 0, quantidade_total: 0 });
   });
