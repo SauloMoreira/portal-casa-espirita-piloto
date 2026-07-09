@@ -85,6 +85,13 @@ export function FichaVoluntario({ open, onClose, voluntario, funcoesNomes }: Fic
             </div>
           </div>
 
+          <div className="rounded-lg border bg-muted/30 p-2 text-xs text-muted-foreground mb-3">
+            Tipo de voluntário não equivale a acesso ao sistema. Gerencie permissões em Acesso e
+            Segurança → Permissões de Acesso.
+          </div>
+
+
+
           <div>
             <div style={{ fontSize: "11pt", fontWeight: 600, color: "hsl(174 42% 35%)", borderBottom: "1px solid #ddd", paddingBottom: 4, margin: "16px 0 8px" }}>Dados Pessoais</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 20px" }}>
