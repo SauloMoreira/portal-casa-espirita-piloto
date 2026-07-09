@@ -24,6 +24,39 @@ export async function fetchVoluntarios(): Promise<VoluntarioListItem[]> {
   return (data ?? []) as VoluntarioListItem[];
 }
 
+/**
+ * SAAS-06-C1-FIX05 — retorna o conjunto de IDs de voluntários que já possuem
+ * acesso operacional ao sistema (via user_roles). Somente informativo para a UI
+ * de coerência atuação × acesso; NUNCA concede/altera papéis.
+ */
+export async function fetchVoluntariosComAcessoOperacional(
+  voluntarios: Pick<VoluntarioListItem, "id" | "origem_user_id">[],
+): Promise<Set<string>> {
+  const userIdPorVoluntario = new Map<string, string>();
+  voluntarios.forEach((v) => {
+    if (v.origem_user_id) userIdPorVoluntario.set(v.origem_user_id, v.id);
+  });
+  if (userIdPorVoluntario.size === 0) return new Set();
+  const OPERATIONAL = [
+    "tarefeiro",
+    "entrevistador",
+    "coordenador_de_tratamento",
+    "admin",
+    "administrador_master",
+  ];
+  const { data } = await supabase
+    .from("user_roles")
+    .select("user_id, role")
+    .in("user_id", Array.from(userIdPorVoluntario.keys()))
+    .in("role", OPERATIONAL);
+  const result = new Set<string>();
+  (data ?? []).forEach((r) => {
+    const volId = userIdPorVoluntario.get(r.user_id as string);
+    if (volId) result.add(volId);
+  });
+  return result;
+}
+
 export async function fetchFuncoesAtivas(): Promise<FuncaoVoluntariado[]> {
   const { data } = await supabase
     .from("funcoes_voluntariado")
