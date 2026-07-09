@@ -40,11 +40,12 @@ describe("Q1-C2 acessoService — payloads enviados", () => {
 
   it("concederAcessoOperacional envia chaves esperadas", async () => {
     rpcMock.mockResolvedValue({ data: { success: true, status: "concedido", role: "entrevistador" }, error: null });
-    await concederAcessoOperacional({ targetUserId: "u2", role: "entrevistador", motivo: "x" });
+    await concederAcessoOperacional({ targetUserId: "u2", role: "entrevistador", motivo: "x", instituicaoId: "inst1" });
     expect(rpcMock).toHaveBeenCalledWith("fn_conceder_acesso_operacional", {
       p_target_user_id: "u2",
       p_role: "entrevistador",
       p_motivo: "x",
+      p_instituicao_id: "inst1",
     });
   });
 
