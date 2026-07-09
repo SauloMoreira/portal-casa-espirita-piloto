@@ -114,38 +114,13 @@ const CLASSIFICACAO_LABEL: Record<string, string> = {
   cliente: "Cliente",
 };
 
-const TIPO_SOLICITACAO_LABEL: Record<string, string> = {
-  novo_modulo: "Solicitar novo módulo",
-  desabilitar_modulo: "Solicitar desabilitação de módulo",
-  alterar_plano: "Solicitar alteração de plano",
-  segunda_via_cobranca: "Solicitar segunda via de cobrança",
-  cancelamento: "Solicitar cancelamento",
-  contato_comercial: "Solicitar contato comercial",
-  outro: "Outro",
-};
-
-const STATUS_SOLICITACAO_VARIANT: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  pendente: "secondary",
-  em_analise: "secondary",
-  aguardando_pagamento: "secondary",
-  aprovada: "default",
-  concluida: "default",
-  recusada: "destructive",
-  cancelada: "outline",
-};
-
-const STATUS_SOLICITACAO_LABEL: Record<string, string> = {
-  pendente: "Pendente",
-  em_analise: "Em análise",
-  aguardando_pagamento: "Aguardando pagamento",
-  aprovada: "Aprovada",
-  recusada: "Recusada",
-  concluida: "Concluída",
-  cancelada: "Cancelada",
-};
+// Tipos, status e labels centralizados em `constants/solicitacoesComerciais`.
+import {
+  TIPO_SOLICITACAO_LABEL,
+  TIPOS_ATIVOS_UI,
+  STATUS_LABEL as STATUS_SOLICITACAO_LABEL,
+  STATUS_VARIANT as STATUS_SOLICITACAO_VARIANT,
+} from "@/constants/solicitacoesComerciais";
 
 const DOCUMENTOS_PADRAO: Array<{ titulo: string; caminho: string }> = [
   { titulo: "Proposta comercial", caminho: "docs/saas-06-a/01-proposta-comercial.md" },
@@ -523,7 +498,7 @@ function NovaSolicitacaoDialog({
   onCriada: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [tipo, setTipo] = useState<string>("contato_comercial");
+  const [tipo, setTipo] = useState<string>("falar_com_comercial");
   const [moduloCodigo, setModuloCodigo] = useState<string>("");
   const [mensagem, setMensagem] = useState("");
   const qc = useQueryClient();
@@ -546,7 +521,7 @@ function NovaSolicitacaoDialog({
     onSuccess: () => {
       toast.success("Solicitação enviada. A equipe do Portal analisará em breve.");
       setOpen(false);
-      setTipo("contato_comercial");
+      setTipo("falar_com_comercial");
       setModuloCodigo("");
       setMensagem("");
       qc.invalidateQueries({ queryKey: ["portal-cliente", "solicitacoes"] });
@@ -555,7 +530,8 @@ function NovaSolicitacaoDialog({
     onError: (e: Error) => toast.error(e.message ?? "Falha ao enviar solicitação."),
   });
 
-  const precisaModulo = tipo === "novo_modulo" || tipo === "desabilitar_modulo";
+  const precisaModulo =
+    tipo === "solicitar_novo_modulo" || tipo === "solicitar_desabilitar_modulo";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -576,9 +552,9 @@ function NovaSolicitacaoDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(TIPO_SOLICITACAO_LABEL).map(([k, v]) => (
+                {TIPOS_ATIVOS_UI.map((k) => (
                   <SelectItem key={k} value={k}>
-                    {v}
+                    {TIPO_SOLICITACAO_LABEL[k]}
                   </SelectItem>
                 ))}
               </SelectContent>

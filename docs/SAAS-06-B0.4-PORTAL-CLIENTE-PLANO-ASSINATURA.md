@@ -215,3 +215,142 @@ mesmo modelo `admin local + platform_admin`.
 - **0029:** +2 (mesma justificativa; escopo explícito por `_user_id` no
   primeiro caso e por `platform_admins` no segundo).
 - **0025:** +0.
+
+---
+
+## 12. Notificações comerciais e repetição até atendimento
+
+Esta extensão do recorte SAAS-06-B0.4 adiciona **alertas persistentes** ao
+platform_admin sempre que uma solicitação for aberta e permanecer pendente.
+
+### Tipos de solicitação (extensão)
+
+Além dos históricos (`novo_modulo`, `desabilitar_modulo`, `alterar_plano`,
+`segunda_via_cobranca`, `cancelamento`, `contato_comercial`, `outro`), o
+formulário atual do admin local usa:
+
+- `solicitar_novo_modulo`
+- `solicitar_desabilitar_modulo`
+- `alterar_plano`
+- `segunda_via_cobranca`
+- `informar_pagamento`
+- `solicitar_cancelamento`
+- `falar_com_comercial`
+- `suporte_comercial`
+
+### Status
+
+`pendente`, `em_analise`, `aguardando_cliente`, `aguardando_pagamento`,
+`aprovada`, `recusada`, `concluida`, `cancelada`.
+
+### Prazos de alerta (horas úteis, pulando sábados e domingos)
+
+Centralizados em `src/constants/solicitacoesComerciais.ts` e espelhados na
+função `public.fn_solicitacao_proximo_alerta`:
+
+| Alerta | Momento |
+|---|---|
+| 1º (imediato) | ao criar |
+| 2º | +2h úteis |
+| 3º | +24h úteis |
+| 4º | +48h úteis |
+| 5º em diante | +72h úteis e **prioridade crítica** |
+
+A partir do 3º alerta a prioridade sobe para **alta**; a partir do 4º vira
+**crítica**.
+
+### Critérios de parada
+
+O `proximo_alerta_em` é limpo (e o ciclo é interrompido) quando:
+
+- o status muda de `pendente` para qualquer outro valor
+  (`em_analise`, `aguardando_cliente`, `aguardando_pagamento`, `aprovada`,
+  `recusada`, `concluida`, `cancelada`);
+- um `platform_admin` executa a RPC
+  `fn_assumir_solicitacao_comercial(_id)` — o responsável é registrado, a
+  hora de assunção é gravada e (se estava pendente) o status vira
+  `em_analise`.
+
+### Canais
+
+- **Central do platform_admin** (`/portal/admin/solicitacoes`): alertas
+  atrasados aparecem em vermelho no campo "Próximo", com contador de
+  alertas emitidos, badge de prioridade e resumo (pendentes / atrasadas /
+  críticas) no topo da página.
+- **Auditoria persistente** em `audit_logs` com o marcador
+  `saas06_b04_solicitacao_comercial_alerta` para cada evento:
+  `solicitacao_criada`, `alerta_enviado`, `atendimento_assumido`,
+  `status_alterado`. É a fonte de verdade histórica dos disparos.
+- E-mail e WhatsApp ficam como extensão futura (o dispatcher institucional
+  existente pode ser ligado sem alterar o modelo de dados).
+
+### Idempotência
+
+Cada disparo usa `dedupe_key = <solicitacao_id>:<quantidade_alertas>`. A
+função `fn_processar_alertas_comerciais`:
+
+- Bloqueia com `FOR UPDATE SKIP LOCKED`.
+- Verifica se já existe um `audit_logs` com o mesmo `dedupe_key`; se sim,
+  apenas reagenda o próximo alerta sem duplicar.
+- Só então incrementa o contador, atualiza `ultimo_alerta_em`,
+  `proximo_alerta_em`, `prioridade` e grava o audit log.
+
+### Cron
+
+Agendado via `pg_cron` como `saas06_b04_alertas_comerciais`, executa
+`SELECT public.fn_processar_alertas_comerciais();` a cada 15 minutos (sem
+HTTP externo — chamada direta no banco).
+
+### Responsabilidades do platform_admin
+
+- Visualizar solicitações pendentes, em análise, atrasadas e críticas.
+- **Assumir atendimento** (RPC): registra responsável, para a repetição e
+  move o status para `em_analise` se estava pendente.
+- Alterar `status` e `observacao_interna`.
+- Nunca há habilitação, cobrança, aprovação ou cancelamento
+  **automáticos**: a habilitação real segue em Central de Assinaturas.
+
+### Visão do admin local
+
+- Abre a solicitação pelo botão "Nova solicitação".
+- Acompanha `status` e `concluida_em` na tabela.
+- Não altera `status`, `observacao_interna`, plano, assinatura nem
+  módulos — tudo bloqueado por RLS (`UPDATE` restrito a platform_admin).
+
+### Auditoria
+
+Toda mudança relevante gera linha em `public.audit_logs` com
+`acao = 'saas06_b04_solicitacao_comercial_alerta:<evento>'`:
+
+- `solicitacao_criada`
+- `alerta_enviado`
+- `atendimento_assumido`
+- `status_alterado`
+
+### Ausência de automação de venda (reafirmado)
+
+Nada nesta extensão automatiza venda, cobrança, ativação de módulo,
+aprovação de solicitação, cancelamento de assinatura ou integração com
+gateway de pagamento. Todo movimento comercial continua sendo executado
+manualmente pelo platform_admin.
+
+### Testes executados
+
+Suíte `src/test/governanca/saas06b04-notificacoes-comerciais.test.ts`
+cobre:
+
+- ampliação de tipos e status;
+- colunas de notificação/atendimento presentes;
+- intervalos 2h/24h/48h/72h úteis e prioridade crítica no 4º alerta;
+- trigger de criação agenda alerta imediato e audita;
+- trigger de update limpa `proximo_alerta_em` ao sair de `pendente`;
+- `fn_processar_alertas_comerciais` idempotente com dedupe_key e
+  `FOR UPDATE SKIP LOCKED`;
+- RPC `fn_assumir_solicitacao_comercial` `SECURITY DEFINER`, restrita a
+  `platform_admin` e revogada de `anon`, interrompendo a repetição;
+- UI do platform_admin exibe prioridade, próximo alerta, contador,
+  responsável e botão Assumir;
+- UI do admin local usa apenas `INSERT` em `solicitacoes_comerciais` e
+  **não** altera plano/assinaturas/módulos;
+- documento cobre a seção "Notificações comerciais e repetição até
+  atendimento".

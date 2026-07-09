@@ -3019,42 +3019,66 @@ export type Database = {
       }
       solicitacoes_comerciais: {
         Row: {
+          atendimento_assumido_em: string | null
           concluida_em: string | null
           created_at: string
+          dedupe_key: string | null
           id: string
           instituicao_id: string
           mensagem: string
           modulo_codigo: string | null
           observacao_interna: string | null
+          primeiro_alerta_em: string | null
+          prioridade: string
+          proximo_alerta_em: string | null
+          quantidade_alertas: number
+          responsavel_user_id: string | null
           solicitante_user_id: string
           status: string
           tipo: string
+          ultimo_alerta_em: string | null
           updated_at: string
         }
         Insert: {
+          atendimento_assumido_em?: string | null
           concluida_em?: string | null
           created_at?: string
+          dedupe_key?: string | null
           id?: string
           instituicao_id: string
           mensagem: string
           modulo_codigo?: string | null
           observacao_interna?: string | null
+          primeiro_alerta_em?: string | null
+          prioridade?: string
+          proximo_alerta_em?: string | null
+          quantidade_alertas?: number
+          responsavel_user_id?: string | null
           solicitante_user_id: string
           status?: string
           tipo: string
+          ultimo_alerta_em?: string | null
           updated_at?: string
         }
         Update: {
+          atendimento_assumido_em?: string | null
           concluida_em?: string | null
           created_at?: string
+          dedupe_key?: string | null
           id?: string
           instituicao_id?: string
           mensagem?: string
           modulo_codigo?: string | null
           observacao_interna?: string | null
+          primeiro_alerta_em?: string | null
+          prioridade?: string
+          proximo_alerta_em?: string | null
+          quantidade_alertas?: number
+          responsavel_user_id?: string | null
           solicitante_user_id?: string
           status?: string
           tipo?: string
+          ultimo_alerta_em?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3550,9 +3574,17 @@ export type Database = {
               total_pendentes: number
             }[]
           }
+      fn_add_business_hours: {
+        Args: { _base: string; _hours: number }
+        Returns: string
+      }
       fn_assistido_cadastro_esta_completo: {
         Args: { a: Database["public"]["Tables"]["assistidos"]["Row"] }
         Returns: boolean
+      }
+      fn_assumir_solicitacao_comercial: {
+        Args: { _id: string }
+        Returns: undefined
       }
       fn_atualizar_parametro_operacional: {
         Args: { p_chave: string; p_observacao?: string; p_valor: string }
@@ -3801,6 +3833,14 @@ export type Database = {
             Returns: Json
           }
       fn_presenca_classificacao: { Args: { p_status: string }; Returns: Json }
+      fn_processar_alertas_comerciais: {
+        Args: never
+        Returns: {
+          id: string
+          prioridade: string
+          quantidade_alertas: number
+        }[]
+      }
       fn_processar_excecao_notificacoes:
         | { Args: { p_excecao_id: string }; Returns: Json }
         | {
@@ -3873,6 +3913,10 @@ export type Database = {
           r_fila_id: string
           r_motivo: string
         }[]
+      }
+      fn_solicitacao_proximo_alerta: {
+        Args: { _base: string; _qtd: number }
+        Returns: string
       }
       fn_tratamentos_do_coordenador: {
         Args: { _user_id?: string }
