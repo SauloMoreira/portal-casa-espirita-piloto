@@ -455,3 +455,43 @@ admin > coordenador_de_tratamento > entrevistador > tarefeiro > assistido
 
 - `src/test/governanca/saas06c1-fix07-prioridade-role-operacional.test.ts` — 3/3 ✅.
 - Suítes anteriores da homologação C1 (FIX01..FIX06) permanecem verdes — a correção é escopo `AuthContext` e não altera contratos de dados/rotas.
+
+---
+
+## Checkpoint anti-regressão pós-Fase 3 (pré-Fase 4)
+
+**Data:** 2026-07-09
+**Escopo:** confirmação da suíte cumulativa SAAS-06-C1 antes de avançar para a Fase 4 da homologação manual.
+
+### Suítes verdes (governança C1)
+
+| Fase | Suíte | Resultado |
+| --- | --- | --- |
+| 1 | `saas06c1-homologacao-fer-piloto.test.ts` (branding, tenant switcher, RequireInstituicao, guards operacionais, isolamento) | ✅ 19/19 |
+| 1 | `saas06c1-fix01-tenant-header-clareza.test.ts` | ✅ 12/12 |
+| 2 | `saas06c1-fix03-solicitacoes-comerciais-visual.test.ts` (Plano e Assinatura, módulos, solicitações comerciais) | ✅ 12/12 |
+| 3 | `saas06c1-3-2b-bloqueio-rotas-globais.test.ts` (admin local não acessa rotas globais) | ✅ 9/9 |
+| 3 | `saas06c1-3-3b-sem-vinculo-nao-acessa.test.ts` (usuário sem vínculo ativo não entra no tenant) | ✅ 12/12 |
+| 3 | `saas06c1-fix04-voluntario-errors.test.ts` | ✅ 6/6 |
+| 3 | `saas06c1-fix05-atuacao-acesso.test.ts` | ✅ 6/6 |
+| 3 | `saas06c1-fix06-vinculo-institucional.test.ts` | ✅ 6/6 |
+| 3 | `saas06c1-fix07-prioridade-role-operacional.test.ts` (tarefeiro operacional) | ✅ 3/3 |
+
+**Total C1:** 9 arquivos · 85/85 testes ✅.
+
+### Verificações globais
+
+- **Suíte completa do projeto:** `vitest run` → **144 arquivos · 1949/1949 ✅** (nenhuma regressão em Tratamentos FER, governança, RLS, contratos, IA, notificações, agenda ou relatórios).
+- **Typecheck:** `tsgo --noEmit` → **exit 0**, sem diagnóstico.
+- **Build:** não requerido neste checkpoint (mudanças anteriores já validadas pelo pipeline padrão do sandbox); nenhuma alteração de código neste ciclo.
+
+### Preservação do projeto Tratamentos FER original
+
+- Nenhuma migração de banco criada neste checkpoint.
+- Nenhum dado real migrado; base do piloto continua com o dataset fictício da homologação.
+- Nenhuma assinatura, plano ou módulo alterado indevidamente: matriz atual de `assinatura_modulos` da FER Piloto permanece a mesma registrada em FIX01–FIX07.
+- Guards `PlatformAdminRoute`, `RequireInstituicao`, `allowedIds` e prioridade determinística de role (`admin > coordenador > entrevistador > tarefeiro > assistido`) seguem íntegros.
+
+### Decisão
+
+**Checkpoint anti-regressão aprovado.** Autorizado avançar para a **Fase 4** da homologação manual da FER Piloto. Nenhuma correção adicional é necessária antes do próximo ciclo.
