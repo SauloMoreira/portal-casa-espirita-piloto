@@ -88,11 +88,13 @@ export async function concederAcessoOperacional(params: {
   targetUserId: string;
   role: OperationalAccessRole;
   motivo?: string | null;
+  instituicaoId?: string | null;
 }): Promise<AcessoOperacionalResult> {
   const { data, error } = await supabase.rpc("fn_conceder_acesso_operacional", {
     p_target_user_id: params.targetUserId,
     p_role: params.role,
     p_motivo: params.motivo ?? null,
+    p_instituicao_id: params.instituicaoId ?? null,
   });
   const json = unwrap(data, error);
   return {
