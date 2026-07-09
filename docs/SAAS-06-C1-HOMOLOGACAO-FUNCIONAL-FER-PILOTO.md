@@ -495,3 +495,40 @@ admin > coordenador_de_tratamento > entrevistador > tarefeiro > assistido
 ### Decisão
 
 **Checkpoint anti-regressão aprovado.** Autorizado avançar para a **Fase 4** da homologação manual da FER Piloto. Nenhuma correção adicional é necessária antes do próximo ciclo.
+
+## FIX08 — Cadastro de assistido e padronização de erros amigáveis
+
+### Erro encontrado
+Fase 4, Teste 4.1 — admin local da FER Piloto tenta cadastrar "Assistido Teste 01" em Atendimento → Assistidos → Novo Assistido. O toast exibe o erro cru:
+
+> new row violates row-level security policy for table "assistidos"
+
+### Causa técnica
+1. O `INSERT` em `public.assistidos` era feito sem `instituicao_id`. A coluna é `NOT NULL` e a policy `shadow_tenant_all_assistidos` exige `current_instituicao_id() = instituicao_id`, mas o GUC `app.current_instituicao` não é definido pelas requisições diretas ao PostgREST — só por RPCs `SECURITY DEFINER` específicas. Fora dessas RPCs, apenas `platform_admin` conseguia inserir, e mesmo assim faltaria o `instituicao_id`.
+2. O tratamento de erro do frontend jogava `error.message` direto no toast, vazando termos técnicos (`row-level security`, `policy`, nome da tabela) para o usuário final.
+
+### Correção aplicada
+- **Backend** (`supabase/migrations`): nova policy `admin_instituicao gerencia assistidos do tenant` em `public.assistidos` (`FOR ALL TO authenticated`), usando `fn_is_admin_instituicao(auth.uid(), instituicao_id)` — mesmo padrão do FIX04 para `voluntarios`. Não amplia acesso a `anon`, assistidos ou tarefeiros; só admin local da instituição alvo insere/edita/exclui.
+- **Frontend** (`src/pages/Assistidos.tsx`):
+  - Consome `useInstituicaoAtiva()` e inclui `instituicao_id: selectedInstituicaoId` no payload de INSERT.
+  - Falha-fechado antes do request quando não há instituição ativa, com mensagem amigável do helper.
+- **Helper de erros** (`src/lib/supabaseFriendlyErrors.ts`): novo mapeador central `toFriendlyError(error, ctx)` traduz códigos técnicos comuns (`42501`, `23505`, `23502`, `23514`) em mensagens em português, sem vazar SQL, nome de tabela ou SQLSTATE ao usuário. Fornece `code` curto (`ASSISTIDOS_INSERT_DENIED`, `..._DUPLICATE`, `..._REQUIRED`, `..._UNEXPECTED`) e `formatSupportDetails` para o bloco "Detalhes técnicos para suporte".
+
+### Regras reforçadas
+- `instituicao_id` do novo assistido = **instituição ativa** do contexto; nunca inferido de outro tenant.
+- Sem instituição ativa → operação bloqueada no cliente com mensagem: "Não foi possível identificar a instituição atual. Selecione uma instituição e tente novamente."
+- Erros de banco no cadastro geram, no máximo, uma das mensagens amigáveis padronizadas + bloco discreto de "Detalhes técnicos para suporte" com código e operação — nunca `row-level security`, `policy`, `assistidos`, `PostgREST` ou `SQLSTATE` crus.
+- Erro técnico completo permanece em `console.error` para diagnóstico interno.
+
+### Testes executados
+- `src/test/governanca/saas06c1-fix08-assistido-erros-amigaveis.test.ts` — 7/7 ✅ (cobre RLS por SQLSTATE, RLS por mensagem, 23505, 23502, tenant ausente, erro inesperado, sanitização em `formatSupportDetails`).
+- Suíte cumulativa `src/test/governanca` — **1075/1075 ✅**.
+- `tsgo --noEmit` — exit 0.
+
+### Confirmação anti-regressão
+- Voluntários/tarefeiro (FIX04/FIX06/FIX07), solicitações comerciais (FIX02), Plano e Assinatura e módulos permanecem verdes.
+- Nenhuma alteração em `Tratamentos FER` original, planos ou assinaturas comerciais.
+- Nenhum dado real migrado.
+
+### Critério de aceite
+Atendido: admin local da FER Piloto agora consegue cadastrar assistido fictício, o registro fica restrito ao tenant correto via policy `admin_instituicao gerencia assistidos do tenant`, nenhum erro técnico bruto é exibido ao usuário e a suíte cumulativa SAAS-06-C1 segue verde.
