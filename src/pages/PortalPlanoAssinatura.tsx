@@ -146,6 +146,16 @@ function formatMoneyCents(cents: number | null | undefined) {
   });
 }
 
+const LABEL_MODULO_COMERCIAL: Record<string, string> = Object.fromEntries(
+  MODULOS_COMERCIAIS.map((m) => [m.codigo, m.nome]),
+);
+
+function labelModuloComercial(codigo: string | null | undefined) {
+  if (!codigo) return "—";
+  return LABEL_MODULO_COMERCIAL[codigo] ?? codigo;
+}
+
+
 // --- Componente auxiliar ---
 interface AssinaturaComercial {
   id: string;
@@ -249,7 +259,8 @@ export default function PortalPlanoAssinatura() {
   const codigosHabilitados = new Set(modulosHabilitados.map((m) => m.codigo));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 sm:pb-16">
+
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <CreditCard className="h-6 w-6 text-primary" />
@@ -449,7 +460,10 @@ export default function PortalPlanoAssinatura() {
                       <td className="py-2 pr-4">
                         {TIPO_SOLICITACAO_LABEL[s.tipo] ?? s.tipo}
                       </td>
-                      <td className="py-2 pr-4">{s.modulo_codigo ?? "—"}</td>
+                      <td className="py-2 pr-4">
+                        {labelModuloComercial(s.modulo_codigo)}
+                      </td>
+
                       <td className="py-2 pr-4 max-w-md whitespace-pre-line text-xs text-muted-foreground">
                         {s.mensagem}
                       </td>
