@@ -521,7 +521,7 @@ function NovaSolicitacaoDialog({
     onSuccess: () => {
       toast.success("Solicitação enviada. A equipe do Portal analisará em breve.");
       setOpen(false);
-      setTipo("contato_comercial");
+      setTipo("falar_com_comercial");
       setModuloCodigo("");
       setMensagem("");
       qc.invalidateQueries({ queryKey: ["portal-cliente", "solicitacoes"] });
