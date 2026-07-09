@@ -24,6 +24,7 @@ import {
   fetchInstituicaoConfig,
   fetchVoluntarioFuncoesMap,
   fetchVoluntarios,
+  fetchVoluntariosComAcessoOperacional,
   isCpfDuplicado,
   replaceVoluntarioFuncoes,
   saveVoluntario,
