@@ -78,6 +78,8 @@ const PortalInstituicoes = lazy(() => import("./pages/PortalInstituicoes"));
 const PortalModulos = lazy(() => import("./pages/PortalModulos"));
 const PortalAdmin = lazy(() => import("./pages/PortalAdmin"));
 const PortalAssinaturas = lazy(() => import("./pages/PortalAssinaturas"));
+const PortalPlanoAssinatura = lazy(() => import("./pages/PortalPlanoAssinatura"));
+const PortalSolicitacoesComerciais = lazy(() => import("./pages/PortalSolicitacoesComerciais"));
 
 const queryClient = new QueryClient();
 
