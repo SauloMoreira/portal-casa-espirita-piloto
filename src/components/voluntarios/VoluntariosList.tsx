@@ -82,6 +82,21 @@ export function VoluntariosList({
                     <TableCell>
                       <VoluntarioStatusBadge status={v.status} />
                     </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {acessoOperacionalIds?.has(v.id) ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-xs">
+                          Ativo
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-muted-foreground"
+                          title="Cadastro como voluntário não concede acesso. Gerencie em Acesso e Segurança → Permissões de Acesso."
+                        >
+                          Não concedido
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <TermoStatusBadge status={v.termo_status} />
                     </TableCell>
