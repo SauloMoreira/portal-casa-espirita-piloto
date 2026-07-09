@@ -53,9 +53,14 @@ export function useVoluntarios() {
   const { toast } = useToast();
 
   const [voluntarios, setVoluntarios] = useState<VoluntarioListItem[]>([]);
+  const [acessoOperacionalIds, setAcessoOperacionalIds] = useState<Set<string>>(new Set());
   const [allFuncoes, setAllFuncoes] = useState<FuncaoVoluntariado[]>([]);
   const [voluntarioFuncoesMap, setVoluntarioFuncoesMap] = useState<VoluntarioFuncoesMap>({});
   const [instData, setInstData] = useState<Record<string, unknown> | null>(null);
+
+  // FIX05 — orientação pós-cadastro (atuação × acesso).
+  const [posCadastroOpen, setPosCadastroOpen] = useState(false);
+  const [posCadastroNome, setPosCadastroNome] = useState("");
 
   const [filters, setFilters] = useState<VoluntarioFilterState>({
     search: "",
