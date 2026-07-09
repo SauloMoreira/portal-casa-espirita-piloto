@@ -31,11 +31,12 @@ describe("SAAS-06-C1-FIX01 — TenantSwitcher", () => {
   });
 
   it("caso 1 instituição: cursor-default e select-none (não parece botão)", () => {
-    const singleMatch = src.match(/data-testid="tenant-badge-single"[\s\S]*?<\/div>\s*\);\s*\}/);
+    const singleMatch = src.match(/<div[\s\S]*?data-testid="tenant-badge-single"[\s\S]*?<\/div>/);
     expect(singleMatch).not.toBeNull();
     expect(singleMatch![0]).toMatch(/cursor-default/);
     expect(singleMatch![0]).toMatch(/select-none/);
   });
+
 
   it("caso 1 instituição: sem ChevronDown/Dropdown no ramo single", () => {
     const singleMatch = src.match(/data-testid="tenant-badge-single"[\s\S]*?<\/div>\s*\);\s*\}/);
