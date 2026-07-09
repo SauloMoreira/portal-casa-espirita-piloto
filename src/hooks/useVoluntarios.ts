@@ -190,7 +190,13 @@ export function useVoluntarios() {
       const savedId = await saveVoluntario(payload, editId, user.id);
       await replaceVoluntarioFuncoes(savedId, form.funcoes_ids);
 
+      const wasCreate = !editId;
+      const nomeSalvo = form.nome_completo.trim();
       toast({ title: editId ? VOLUNTARIO_MESSAGES.updated : VOLUNTARIO_MESSAGES.created });
+      if (wasCreate) {
+        setPosCadastroNome(nomeSalvo);
+        setPosCadastroOpen(true);
+      }
       setOpen(false);
       setForm(emptyVoluntarioForm);
       setEditId(null);
