@@ -93,7 +93,13 @@ export function useVoluntarios() {
   const [deleteTarget, setDeleteTarget] = useState<VoluntarioListItem | null>(null);
 
   const reloadVoluntarios = useCallback(async () => {
-    setVoluntarios(await fetchVoluntarios());
+    const lista = await fetchVoluntarios();
+    setVoluntarios(lista);
+    try {
+      setAcessoOperacionalIds(await fetchVoluntariosComAcessoOperacional(lista));
+    } catch {
+      setAcessoOperacionalIds(new Set());
+    }
   }, []);
 
   const reloadFuncoesMap = useCallback(async () => {
