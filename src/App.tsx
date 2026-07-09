@@ -176,6 +176,8 @@ const App = () => (
                  <Route path={ROUTES.portalModulos} element={guard(<PortalModulos />, "Portal · Módulos")} />
                  <Route path={ROUTES.portalAdmin} element={<PlatformAdminRoute>{guard(<PortalAdmin />, "Portal · Administração")}</PlatformAdminRoute>} />
                  <Route path={ROUTES.portalAssinaturas} element={<PlatformAdminRoute>{guard(<PortalAssinaturas />, "Portal · Assinaturas")}</PlatformAdminRoute>} />
+                 <Route path={ROUTES.portalSolicitacoes} element={<PlatformAdminRoute>{guard(<PortalSolicitacoesComerciais />, "Portal · Solicitações")}</PlatformAdminRoute>} />
+                 <Route path={ROUTES.portalPlanoAssinatura} element={guard(<PortalPlanoAssinatura />, "Portal · Plano e Assinatura")} />
 
 
                 </Route>
