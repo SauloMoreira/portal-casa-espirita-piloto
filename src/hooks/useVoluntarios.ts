@@ -36,6 +36,8 @@ import {
   mapearPessoaParaPrefill,
   type PessoaCandidata,
 } from "@/lib/voluntarioCadastro";
+import { friendlyVoluntarioError } from "@/lib/voluntarioErrors";
+
 import type {
   FuncaoVoluntariado,
   VoluntarioFilterState,
@@ -185,12 +187,13 @@ export function useVoluntarios() {
     } catch (error) {
       toast({
         title: VOLUNTARIO_MESSAGES.saveError,
-        description: (error as Error).message,
+        description: friendlyVoluntarioError(error),
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
+
   }, [validate, user, form, editId, toast, reloadVoluntarios, reloadFuncoesMap]);
 
   const openEdit = useCallback(async (v: VoluntarioListItem) => {

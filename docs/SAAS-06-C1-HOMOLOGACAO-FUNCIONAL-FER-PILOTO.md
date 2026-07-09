@@ -266,3 +266,84 @@ independentemente do que o cliente envie.
   é 100% frontend + RLS já vigente, sem nova migração de banco.
 
 **Status:** ✅ Aprovado — 12/12 testes verdes.
+
+---
+
+## FIX04 — Cadastro de voluntário/tarefeiro pelo admin local (RLS + mensagens amigáveis)
+
+**Erro observado (Teste 3.5):** admin local da FER Piloto ao cadastrar novo
+voluntário do tipo *Tarefeiro* recebia o toast bruto:
+
+> `new row violates row-level security policy for table "voluntarios"`
+
+Adicionalmente a tela exibia "Nenhuma função cadastrada para os tipos
+selecionados." sem orientar o próximo passo.
+
+**Causa técnica:** a única policy existente em `public.voluntarios`
+(`shadow_tenant_all_voluntarios`) exige `current_instituicao_id()`, que lê a
+GUC `app.current_instituicao`. Essa GUC é setada apenas dentro de RPCs
+`SECURITY DEFINER` (SAAS-05-E). O fluxo de cadastro de voluntários faz
+`INSERT` direto na tabela via PostgREST, portanto a GUC vem nula e a policy
+bloqueia qualquer usuário que **não** seja `platform_admin` — inclusive
+`admin_instituicao` legítimo da própria instituição.
+
+**Correção aplicada:**
+
+1. **Policy nova em `public.voluntarios`** (aditiva, permissiva, escopo estrito):
+
+   ```sql
+   CREATE POLICY "admin_instituicao gerencia voluntarios do tenant"
+   ON public.voluntarios
+   FOR ALL TO authenticated
+   USING      (public.fn_is_admin_instituicao(auth.uid(), instituicao_id))
+   WITH CHECK (public.fn_is_admin_instituicao(auth.uid(), instituicao_id));
+   ```
+
+   `fn_is_admin_instituicao` exige `papel_local = 'admin_instituicao'` **e**
+   `status = 'ativo'` no tenant da linha. Nenhuma abertura para `anon`,
+   `authenticated` genérico, ou cross-tenant. `platform_admin` continua
+   coberto pela policy anterior.
+
+2. **Regra de função de voluntariado (documentada):** função de
+   voluntariado **não é obrigatória** para nenhum tipo (inclusive Tarefeiro).
+   O formulário permite salvar sem função selecionada; a UI passa a mostrar
+   um aviso informativo (não bloqueante) apontando `Pessoas → Funções de
+   Voluntariado` como próximo passo opcional.
+
+3. **Tradução amigável de erros** (`src/lib/voluntarioErrors.ts` +
+   `useVoluntarios.handleSave`): o hook nunca exibe mais a mensagem crua do
+   Postgres. Tabela de tradução:
+
+   | Sintoma                                          | Mensagem exibida                                                                                            |
+   | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+   | RLS (`42501` / `row-level security`)             | "Você não possui permissão para cadastrar voluntários nesta instituição."                                    |
+   | `requireInstituicaoId` sem tenant (SAAS-05-D)    | "Não foi possível identificar a instituição atual. Selecione uma instituição e tente novamente."             |
+   | Unicidade (`23505` / `duplicate key`)            | "Já existe um voluntário com esses dados nesta instituição."                                                 |
+   | Qualquer outro erro                              | "Não foi possível salvar o voluntário no momento. Tente novamente ou fale com o suporte."                    |
+
+   O erro original continua sendo registrado em `console.error` para
+   diagnóstico.
+
+**Testes executados:**
+
+- `src/test/governanca/saas06c1-fix04-voluntario-errors.test.ts` (6/6 ✅)
+  cobre RLS por code e por mensagem, fail-closed de tenant, unicidade,
+  fallback genérico, e garante que a string "row-level security" e
+  "voluntarios" nunca aparecem no texto retornado ao usuário final.
+
+**Preservação multi-tenant:**
+
+- policy nova é escopada por `instituicao_id` da linha → admin local da FER
+  Piloto **não** consegue inserir/ler/editar voluntário de outra
+  instituição;
+- `saveVoluntario` continua injetando `instituicao_id = requireInstituicaoId()`,
+  então nenhum insert pode subir sem tenant explícito (fail-closed
+  frontend);
+- assistidos, usuários sem vínculo e voluntários/tarefeiros comuns
+  continuam bloqueados: `fn_is_admin_instituicao` retorna `false` para
+  qualquer papel diferente de `admin_instituicao` ativo;
+- Tratamentos FER original, módulos, assinatura e Plano e Assinatura não
+  foram tocados.
+
+**Status:** ✅ Aprovado — 6/6 testes verdes; RLS de `voluntarios` permanece
+fail-closed; nenhuma policy ampla para `authenticated` foi criada.
