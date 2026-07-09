@@ -86,10 +86,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRoles(list);
       // Master holds both 'administrador_master' and 'admin'; collapse any
       // administrative role to 'admin' so existing route guards keep working.
+      // Priority order guarantees operational roles override the base 'assistido'
+      // when a user accumulates both (e.g. volunteer/tarefeiro who is also
+      // an auto-created assistido). Without this, list order from the API is
+      // undefined and can pin the effective role to 'assistido' after a grant.
+      const priority: AppRole[] = [
+        "admin",
+        "coordenador_de_tratamento",
+        "entrevistador",
+        "tarefeiro",
+        "assistido",
+      ];
       if (list.includes("administrador_master") || list.includes("admin")) {
         setRole("admin");
       } else {
-        setRole((list[0] as AppRole) ?? "assistido");
+        const effective = priority.find((r) => list.includes(r));
+        setRole(effective ?? (list[0] as AppRole) ?? "assistido");
       }
       if (profileRes.ok) {
         const profileRows = (await profileRes.json()) as UserProfile[] | null;

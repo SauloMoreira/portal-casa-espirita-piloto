@@ -432,3 +432,26 @@ acesso, sem regressão em RLS ou em multi-tenant.
 - `src/test/governanca/q1c2-acesso-service.test.ts` — 10/10 ✅ (atualizado para o novo shape).
 
 **Validação multi-tenant:** RLS de `instituicao_usuarios`, `user_roles` e `platform_admins` inalteradas. Admin da Casa Demo continua incapaz de conceder acesso na FER Piloto (função retorna "Você não é administrador desta instituição."). Assistido e tarefeiro comum reprovados pelo guard `is_active_admin`. Nenhum vínculo global é criado. Projeto Tratamentos FER original intocado.
+
+## FIX07 — Regressão no acesso operacional do Tarefeiro
+
+**Sintoma:** após FIX06, o usuário "Tarefeiro Teste" entrava na FER Piloto mas continuava aparecendo como **ASSISTIDO** no rodapé lateral e via apenas o menu "Meu Espaço" (Meus Tratamentos / Minha Agenda / Documentos). O acesso operacional de Tarefeiro havia sido concedido corretamente em Gestão de Acesso e o vínculo `instituicao_usuarios` estava ativo — logo, a regressão não estava na gravação nem no RLS.
+
+**Causa técnica:** o hook `AuthContext.fetchRoleAndProfile` selecionava o role efetivo pegando o **primeiro item** da resposta de `user_roles` (`list[0]`). Como a query não define `ORDER BY` e o PostgREST não garante ordem, um usuário que acumulasse `assistido` (papel base auto-criado) + `tarefeiro` (concedido depois) podia ter `role = "assistido"` fixado como efetivo. A sidebar/dashboard usam esse `role` colapsado para escolher menu e badge, então o operacional ficava invisível apesar de o usuário tê-lo no array `roles`.
+
+**Correção:** `src/contexts/AuthContext.tsx` passa a resolver o role efetivo por **prioridade determinística**:
+
+```
+admin > coordenador_de_tratamento > entrevistador > tarefeiro > assistido
+```
+
+`administrador_master`/`admin` continuam colapsando em `admin` (comportamento anterior preservado). Guards de rota não são afetados: `ProtectedRoute` já checa o array completo `roles`, então nenhum acesso é ampliado — apenas a **exibição** e o **dashboard padrão** passam a refletir o papel operacional quando ele coexiste com `assistido`.
+
+**Menu esperado para Tarefeiro (inalterado):** Painel Inicial, Notificações, Ajuda, Assistidos leitura via módulos operacionais permitidos (Agenda de Entrevistas, Registro de Presenças, Avisos de Ausência, Agendar Entrevista, Sessões Públicas, Relatórios). Nenhum item administrativo/comercial/global (Usuários, Permissões, Plano e Assinatura, Portal Admin, Central de Assinaturas) é adicionado.
+
+**Segurança:** nenhum papel administrativo é concedido; `platform_admins` intocado; RLS inalterada; sem cross-tenant; projeto Tratamentos FER original intocado.
+
+**Testes:**
+
+- `src/test/governanca/saas06c1-fix07-prioridade-role-operacional.test.ts` — 3/3 ✅.
+- Suítes anteriores da homologação C1 (FIX01..FIX06) permanecem verdes — a correção é escopo `AuthContext` e não altera contratos de dados/rotas.
