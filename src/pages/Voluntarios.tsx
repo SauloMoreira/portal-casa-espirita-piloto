@@ -7,6 +7,7 @@ import { TermoAdesao } from "@/components/voluntarios/TermoAdesao";
 import { FichaVoluntario } from "@/components/voluntarios/FichaVoluntario";
 import { DeleteVoluntarioDialog } from "@/components/voluntarios/DeleteVoluntarioDialog";
 import { TermoVoluntarioDialog } from "@/components/voluntarios/TermoVoluntarioDialog";
+import { PosCadastroAcessoDialog } from "@/components/voluntarios/PosCadastroAcessoDialog";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 
 export default function Voluntarios() {
@@ -20,6 +21,7 @@ export default function Voluntarios() {
 
       <VoluntariosList
         voluntarios={v.paginated}
+        acessoOperacionalIds={v.acessoOperacionalIds}
         onEdit={v.openEdit}
         onFicha={v.openFicha}
         onTermo={v.openTermoFlow}
@@ -67,6 +69,14 @@ export default function Voluntarios() {
         onSelecionarPessoa={v.aplicarPessoa}
         onCadastrarDoZero={v.cadastrarDoZero}
       />
+
+      <PosCadastroAcessoDialog
+        open={v.posCadastroOpen}
+        onOpenChange={v.setPosCadastroOpen}
+        nome={v.posCadastroNome}
+      />
+
+
 
 
       {v.selectedVoluntario && (

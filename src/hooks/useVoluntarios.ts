@@ -24,6 +24,7 @@ import {
   fetchInstituicaoConfig,
   fetchVoluntarioFuncoesMap,
   fetchVoluntarios,
+  fetchVoluntariosComAcessoOperacional,
   isCpfDuplicado,
   replaceVoluntarioFuncoes,
   saveVoluntario,
@@ -52,9 +53,14 @@ export function useVoluntarios() {
   const { toast } = useToast();
 
   const [voluntarios, setVoluntarios] = useState<VoluntarioListItem[]>([]);
+  const [acessoOperacionalIds, setAcessoOperacionalIds] = useState<Set<string>>(new Set());
   const [allFuncoes, setAllFuncoes] = useState<FuncaoVoluntariado[]>([]);
   const [voluntarioFuncoesMap, setVoluntarioFuncoesMap] = useState<VoluntarioFuncoesMap>({});
   const [instData, setInstData] = useState<Record<string, unknown> | null>(null);
+
+  // FIX05 — orientação pós-cadastro (atuação × acesso).
+  const [posCadastroOpen, setPosCadastroOpen] = useState(false);
+  const [posCadastroNome, setPosCadastroNome] = useState("");
 
   const [filters, setFilters] = useState<VoluntarioFilterState>({
     search: "",
@@ -87,7 +93,13 @@ export function useVoluntarios() {
   const [deleteTarget, setDeleteTarget] = useState<VoluntarioListItem | null>(null);
 
   const reloadVoluntarios = useCallback(async () => {
-    setVoluntarios(await fetchVoluntarios());
+    const lista = await fetchVoluntarios();
+    setVoluntarios(lista);
+    try {
+      setAcessoOperacionalIds(await fetchVoluntariosComAcessoOperacional(lista));
+    } catch {
+      setAcessoOperacionalIds(new Set());
+    }
   }, []);
 
   const reloadFuncoesMap = useCallback(async () => {
@@ -178,7 +190,13 @@ export function useVoluntarios() {
       const savedId = await saveVoluntario(payload, editId, user.id);
       await replaceVoluntarioFuncoes(savedId, form.funcoes_ids);
 
+      const wasCreate = !editId;
+      const nomeSalvo = form.nome_completo.trim();
       toast({ title: editId ? VOLUNTARIO_MESSAGES.updated : VOLUNTARIO_MESSAGES.created });
+      if (wasCreate) {
+        setPosCadastroNome(nomeSalvo);
+        setPosCadastroOpen(true);
+      }
       setOpen(false);
       setForm(emptyVoluntarioForm);
       setEditId(null);
@@ -493,5 +511,10 @@ export function useVoluntarios() {
     setDeleteOpen,
     deleteTarget,
     onDeleted,
+    // FIX05 — acesso × atuação
+    acessoOperacionalIds,
+    posCadastroOpen,
+    setPosCadastroOpen,
+    posCadastroNome,
   };
 }

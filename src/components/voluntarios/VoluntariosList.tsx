@@ -28,6 +28,7 @@ import type { VoluntarioListItem } from "@/types/voluntarios";
 
 interface Props {
   voluntarios: VoluntarioListItem[];
+  acessoOperacionalIds?: Set<string>;
   onEdit: (v: VoluntarioListItem) => void;
   onFicha: (v: VoluntarioListItem) => void;
   onTermo: (v: VoluntarioListItem) => void;
@@ -37,7 +38,7 @@ interface Props {
 }
 
 export function VoluntariosList({
-  voluntarios, onEdit, onFicha, onTermo, onInactivate, onReactivate, onDelete,
+  voluntarios, acessoOperacionalIds, onEdit, onFicha, onTermo, onInactivate, onReactivate, onDelete,
 }: Props) {
   return (
     <Card>
@@ -50,6 +51,7 @@ export function VoluntariosList({
               <TableHead className="hidden md:table-cell">Celular</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="hidden lg:table-cell">Acesso</TableHead>
               <TableHead className="hidden md:table-cell">Termo</TableHead>
               <TableHead className="hidden lg:table-cell">Ingresso</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -58,7 +60,7 @@ export function VoluntariosList({
           <TableBody>
             {voluntarios.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   {VOLUNTARIO_MESSAGES.emptyList}
                 </TableCell>
               </TableRow>
@@ -79,6 +81,21 @@ export function VoluntariosList({
                     </TableCell>
                     <TableCell>
                       <VoluntarioStatusBadge status={v.status} />
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {acessoOperacionalIds?.has(v.id) ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-xs">
+                          Ativo
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-muted-foreground"
+                          title="Cadastro como voluntário não concede acesso. Gerencie em Acesso e Segurança → Permissões de Acesso."
+                        >
+                          Não concedido
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <TermoStatusBadge status={v.termo_status} />
