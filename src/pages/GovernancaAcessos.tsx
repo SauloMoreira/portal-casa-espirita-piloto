@@ -84,6 +84,7 @@ const isOperationalRole = (r: string): r is OperationalRole =>
 
 export default function GovernancaAcessos() {
   const { user, isMaster } = useAuth();
+  const { selecionada } = useInstituicaoAtiva();
   const { toast } = useToast();
 
   const [profiles, setProfiles] = useState<ProfileLite[]>([]);
