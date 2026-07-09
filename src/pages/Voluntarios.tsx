@@ -70,6 +70,14 @@ export default function Voluntarios() {
         onCadastrarDoZero={v.cadastrarDoZero}
       />
 
+      <PosCadastroAcessoDialog
+        open={v.posCadastroOpen}
+        onOpenChange={v.setPosCadastroOpen}
+        nome={v.posCadastroNome}
+      />
+
+
+
 
       {v.selectedVoluntario && (
         <TermoAdesao
