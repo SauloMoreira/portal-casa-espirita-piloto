@@ -28,6 +28,7 @@ import type { VoluntarioListItem } from "@/types/voluntarios";
 
 interface Props {
   voluntarios: VoluntarioListItem[];
+  acessoOperacionalIds?: Set<string>;
   onEdit: (v: VoluntarioListItem) => void;
   onFicha: (v: VoluntarioListItem) => void;
   onTermo: (v: VoluntarioListItem) => void;
@@ -37,7 +38,7 @@ interface Props {
 }
 
 export function VoluntariosList({
-  voluntarios, onEdit, onFicha, onTermo, onInactivate, onReactivate, onDelete,
+  voluntarios, acessoOperacionalIds, onEdit, onFicha, onTermo, onInactivate, onReactivate, onDelete,
 }: Props) {
   return (
     <Card>
