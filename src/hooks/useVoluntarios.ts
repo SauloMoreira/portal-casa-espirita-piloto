@@ -511,5 +511,10 @@ export function useVoluntarios() {
     setDeleteOpen,
     deleteTarget,
     onDeleted,
+    // FIX05 — acesso × atuação
+    acessoOperacionalIds,
+    posCadastroOpen,
+    setPosCadastroOpen,
+    posCadastroNome,
   };
 }
