@@ -3,7 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShieldCheck, CreditCard } from "lucide-react";
+import { Loader2, ShieldCheck, CreditCard, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalHub } from "@/hooks/usePortalHub";
 import { ROUTES } from "@/constants";
@@ -98,11 +98,18 @@ export default function PortalAdmin() {
             </p>
           </div>
         </div>
-        <Button asChild size="sm" variant="outline">
-          <Link to={ROUTES.portalAssinaturas}>
-            <CreditCard className="h-4 w-4 mr-2" /> Central de Assinaturas
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link to={ROUTES.portalAssinaturas}>
+              <CreditCard className="h-4 w-4 mr-2" /> Central de Assinaturas
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link to={ROUTES.portalSolicitacoes}>
+              <Send className="h-4 w-4 mr-2" /> Solicitações comerciais
+            </Link>
+          </Button>
+        </div>
       </header>
 
       <Card>

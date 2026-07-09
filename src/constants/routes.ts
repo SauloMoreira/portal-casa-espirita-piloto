@@ -78,6 +78,8 @@ export const ROUTES = {
   portalModulos: "/portal/modulos",
   portalAdmin: "/portal/admin",
   portalAssinaturas: "/portal/admin/assinaturas",
+  portalSolicitacoes: "/portal/admin/solicitacoes",
+  portalPlanoAssinatura: "/portal/plano-assinatura",
 } as const;
 
 export type AppRoute = typeof ROUTES;

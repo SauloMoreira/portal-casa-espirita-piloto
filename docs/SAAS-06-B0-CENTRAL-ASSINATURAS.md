@@ -392,3 +392,23 @@ cobre:
 - Assistido não acessa a superfície;
 - Projeto FER original **intocado** — vínculo aplicado apenas na instituição
   piloto multitenant.
+
+---
+
+## Portal do Cliente — Plano e Assinatura (SAAS-06-B0.4)
+
+O recorte SAAS-06-B0.4 estende a Central de Assinaturas com uma **contrapartida
+para o admin local** da instituição:
+
+- **Rota `/portal/plano-assinatura`** (papel `admin_instituicao` ou
+  `platform_admin`) — consulta plano, status, módulos habilitados, vencimentos,
+  documentos comerciais e permite abrir **solicitações comerciais**
+  (novo módulo, cancelamento, segunda via de cobrança, contato comercial etc.).
+- **Rota `/portal/admin/solicitacoes`** (somente `platform_admin`) — lista,
+  filtra e altera status/observação interna das solicitações.
+- **Regra crítica**: aprovar solicitação **não** habilita módulo
+  automaticamente. A habilitação real continua sendo feita em
+  **Central de Assinaturas → Editar → Módulos habilitados**.
+
+Detalhes completos, RLS, testes e pendências futuras: veja
+`docs/SAAS-06-B0.4-PORTAL-CLIENTE-PLANO-ASSINATURA.md`.

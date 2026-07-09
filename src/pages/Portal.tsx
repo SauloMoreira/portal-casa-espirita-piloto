@@ -2,7 +2,7 @@ import { Link, Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, ShieldCheck, Boxes, ArrowRight, Loader2, AlertTriangle } from "lucide-react";
+import { Building2, ShieldCheck, Boxes, ArrowRight, Loader2, AlertTriangle, CreditCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { ROUTES } from "@/constants";
@@ -112,6 +112,32 @@ export default function Portal() {
           </CardContent>
         </Card>
       )}
+
+      {selecionada &&
+        (isPlatformAdmin ||
+          (selecionada.vinculo_status === "ativo" &&
+            selecionada.papel_local === "admin_instituicao")) && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="flex items-center justify-between gap-4 py-4">
+              <div className="flex items-center gap-3">
+                <CreditCard className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="font-medium">Plano e Assinatura</p>
+                  <p className="text-xs text-muted-foreground">
+                    Consulte plano, módulos habilitados, vencimentos e abra
+                    solicitações comerciais.
+                  </p>
+                </div>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link to={ROUTES.portalPlanoAssinatura}>
+                  Abrir <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
 
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">

@@ -42,6 +42,7 @@ import {
   Home,
   Wrench,
   SlidersHorizontal,
+  CreditCard,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -159,6 +160,7 @@ export const navGroups: NavGroup[] = [
     icon: Landmark,
     items: [
       { title: "Instituição", url: "/instituicao", icon: Building2, roles: ["admin"] },
+      { title: "Plano e Assinatura", url: "/portal/plano-assinatura", icon: CreditCard, roles: ["admin"] },
       { title: "Gestão Institucional", url: "/painel-institucional", icon: LayoutDashboard, roles: ["admin"] },
       { title: "Ação Social", url: "/acao-social", icon: Apple, roles: ["admin"] },
       { title: "Campanhas", url: "/campanhas", icon: Megaphone, roles: ["admin"] },
