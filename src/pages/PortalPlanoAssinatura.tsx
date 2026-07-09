@@ -498,7 +498,7 @@ function NovaSolicitacaoDialog({
   onCriada: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [tipo, setTipo] = useState<string>("contato_comercial");
+  const [tipo, setTipo] = useState<string>("falar_com_comercial");
   const [moduloCodigo, setModuloCodigo] = useState<string>("");
   const [mensagem, setMensagem] = useState("");
   const qc = useQueryClient();
