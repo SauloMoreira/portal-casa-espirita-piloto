@@ -39,14 +39,17 @@ export function TenantSwitcher() {
     const inst = instituicoes[0];
     return (
       <div
-        className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1 text-xs text-muted-foreground"
+        className="hidden md:inline-flex cursor-default select-none items-center gap-2 rounded-full bg-muted/60 px-3 py-1 text-xs text-muted-foreground"
         aria-label={`Instituição atual: ${inst.nome}`}
         title={`Instituição atual: ${inst.nome}`}
         data-testid="tenant-badge-single"
         role="status"
       >
         <Building2 className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-        <span className="max-w-[180px] truncate font-medium text-foreground">
+        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/80">
+          Instituição atual:
+        </span>
+        <span className="max-w-[220px] truncate font-semibold text-foreground">
           {inst.nome}
         </span>
       </div>
@@ -62,9 +65,11 @@ export function TenantSwitcher() {
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-2"
-          aria-label="Trocar instituição ativa"
+          className="h-8 cursor-pointer gap-2"
+          aria-label="Trocar instituição"
+          title="Trocar instituição"
         >
+
           <Building2 className="h-3.5 w-3.5 text-primary" />
           <span className="max-w-[160px] truncate">{rotuloAtual}</span>
           <ChevronDown className="h-3.5 w-3.5 opacity-70" />
