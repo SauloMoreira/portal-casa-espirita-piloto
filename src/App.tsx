@@ -172,8 +172,8 @@ const App = () => (
 
                  {/* SaaS Portal / Hub (SAAS-03) — acessível a qualquer usuário autenticado, sem exigir tenant ativo. */}
                  <Route path={ROUTES.portal} element={guard(<Portal />, "Portal SaaS")} />
-                 <Route path={ROUTES.portalInstituicoes} element={guard(<PortalInstituicoes />, "Portal · Instituições")} />
-                 <Route path={ROUTES.portalModulos} element={guard(<PortalModulos />, "Portal · Módulos")} />
+                 <Route path={ROUTES.portalInstituicoes} element={<PlatformAdminRoute>{guard(<PortalInstituicoes />, "Portal · Instituições")}</PlatformAdminRoute>} />
+                 <Route path={ROUTES.portalModulos} element={<PlatformAdminRoute>{guard(<PortalModulos />, "Portal · Módulos")}</PlatformAdminRoute>} />
                  <Route path={ROUTES.portalAdmin} element={<PlatformAdminRoute>{guard(<PortalAdmin />, "Portal · Administração")}</PlatformAdminRoute>} />
                  <Route path={ROUTES.portalAssinaturas} element={<PlatformAdminRoute>{guard(<PortalAssinaturas />, "Portal · Assinaturas")}</PlatformAdminRoute>} />
                  <Route path={ROUTES.portalSolicitacoes} element={<PlatformAdminRoute>{guard(<PortalSolicitacoesComerciais />, "Portal · Solicitações")}</PlatformAdminRoute>} />

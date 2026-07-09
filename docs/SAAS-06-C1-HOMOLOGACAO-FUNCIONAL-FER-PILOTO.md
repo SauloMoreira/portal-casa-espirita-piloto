@@ -162,3 +162,52 @@ Nova suíte `saas06c1-fix03-solicitacoes-comerciais-visual.test.ts` valida:
 - widget flutuante `FaleConoscoButton` mantém posicionamento fixo conhecido;
 - documento atualizado com a nota FIX03.
 
+
+## Teste 3.2-B — Bloqueio automatizado de rotas globais para admin local
+
+**Cenário:** usuário admin local da FER Piloto (`saulocmoreira@hotmail.com`),
+com vínculo ativo apenas na Fraternidade Espírita Ramatis — Piloto e SEM
+registro em `platform_admins` (nem `platform_admin` nem `platform_owner`).
+
+**Rotas globais validadas (fail-closed via `<PlatformAdminRoute>`):**
+
+- `/portal/admin` (`ROUTES.portalAdmin`)
+- `/portal/admin/assinaturas` (`ROUTES.portalAssinaturas`)
+- `/portal/admin/solicitacoes` (`ROUTES.portalSolicitacoes`)
+- `/portal/instituicoes` (`ROUTES.portalInstituicoes`) — passou a ser guardada neste recorte
+- `/portal/modulos` (`ROUTES.portalModulos`) — passou a ser guardada neste recorte
+
+**Comportamento esperado:** ao acessar qualquer uma dessas URLs sem
+`platform_admin`/`platform_owner`, o `PlatformAdminRoute` executa
+`<Navigate to={ROUTES.portal} replace />`, ou seja, o usuário é
+redirecionado ao hub `/portal` sem renderizar Central de Assinaturas,
+Instituições, Módulos ou Solicitações Comerciais globais. Nenhum tenant
+alheio é listado, nenhum plano/módulo é alterável, nenhum dado de
+`Casa Espírita Demo` é exposto.
+
+**Cobertura automatizada:**
+`src/test/governanca/saas06c1-3-2b-bloqueio-rotas-globais.test.ts`
+(9 asserções) verifica que:
+
+- toda rota administrativa global em `src/App.tsx` está envolta em
+  `<PlatformAdminRoute>`;
+- `PlatformAdminRoute` checa `isPlatformAdmin` via `usePortalHub` e
+  redireciona para `ROUTES.portal` no caso negativo;
+- `isPlatformAdmin` no `usePortalHub` deriva exclusivamente da tabela
+  `platform_admins` — nunca de `papel_local` / `admin_instituicao`, ou seja,
+  admin local jamais é promovido a platform_admin pelo cliente.
+
+**Complementa:** `saas06a2-blindagem-perfil-portal.test.ts` (redirect de
+assistido puro e gate do card administrativo no `Portal.tsx`).
+
+**Contrafactual (garantido pelo mesmo guard):**
+
+- `platform_admin`/`platform_owner` continuam acessando normalmente todas as
+  rotas globais (o guard só bloqueia quando `!isPlatformAdmin`);
+- admin local continua acessando apenas as rotas operacionais da própria
+  instituição (`RequireInstituicao` + `ProtectedRoute` já cobrem isso);
+- projeto **Tratamentos FER original permanece intocado** — o recorte 3.2-B
+  é 100% frontend + testes, sem migração de banco.
+
+**Status:** ✅ Aprovado — 21/21 testes verdes
+(3.2-B: 9/9, SAAS-06-A2 correlata: 12/12).
