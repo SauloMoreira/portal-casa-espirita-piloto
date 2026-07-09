@@ -188,17 +188,25 @@ export default function GovernancaAcessos() {
       toast({ title: "Selecione um usuário.", variant: "destructive" });
       return;
     }
+    if (!selecionada?.id) {
+      toast({
+        title: "Selecione uma instituição antes de conceder acesso.",
+        variant: "destructive",
+      });
+      return;
+    }
     setLoading(true);
     try {
       const { status } = await concederAcessoOperacional({
         targetUserId: opUserId,
         role: opRole,
         motivo: opMotivo.trim() || null,
+        instituicaoId: selecionada.id,
       });
       toast({
-        title: status === "ja_concedido" ? "Acesso já existia" : "Acesso operacional concedido",
+        title: status === "ja_concedido" ? "Acesso já existia" : "Usuário vinculado à instituição e acesso concedido com sucesso",
         description: status === "ja_concedido"
-          ? "O usuário já possuía este acesso."
+          ? "O usuário já possuía este acesso nesta instituição."
           : `${OPERATIONAL_ROLE_LABELS[opRole]} concedido a ${nameOf(opUserId)}.`,
       });
       setOpOpen(false);
