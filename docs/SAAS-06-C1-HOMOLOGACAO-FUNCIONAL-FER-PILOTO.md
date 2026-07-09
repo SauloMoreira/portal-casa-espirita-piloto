@@ -100,3 +100,30 @@ Nenhuma pendência bloqueante para o piloto operar o módulo Tratamentos. Itens 
 ## 8. Decisão
 
 **Avanço autorizado** para os próximos recortes SaaS (Caixa/Cantina, Biblioteca etc.), com a FER Piloto servindo como referência operacional. O projeto Tratamentos FER original permanece **intocado** e continua ativo em paralelo.
+
+## 9. FIX01 — Clareza do componente de instituição atual no header
+
+Data: 2026-07-09
+Escopo: apenas UI do `TenantSwitcher` no header global. Sem alteração de RLS, permissões, vínculos, assinatura ou módulos.
+
+Motivação:
+Durante a homologação manual (Teste 1.3), o admin local da FER Piloto viu apenas a própria instituição, sem exposição de Casa Demo ou Portal Admin — comportamento correto. Porém o nome "Fraternidade Espírita Ramatis…" aparecia no header com aparência de dropdown clicável, gerando dúvida de UX quando não havia outras instituições para trocar.
+
+Ajuste aplicado:
+- **1 instituição vinculada**: o header exibe um **badge informativo** (pílula `rounded-full`, fundo `muted/60`, sem borda de botão, sem chevron), com tooltip e `aria-label` "Instituição atual: <nome>", ícone de instituição preservado e truncamento mantido.
+- **≥ 2 instituições vinculadas**: mantém o **seletor real** com botão, chevron e `DropdownMenu`, permitindo alternância entre instituições permitidas.
+- **Vínculo inativo**: continua desabilitado no dropdown; nunca listado como opção selecionável.
+- **platform_admin / platform_owner**: comportamento inalterado; capacidade de trocar contexto segue a mesma regra prévia e não é exposta ao admin local comum.
+
+Segurança:
+Nenhuma alteração em RLS, policies, RPCs, edge functions, `assinaturas`, `assinatura_modulos`, `admin_instituicao` ou no projeto Tratamentos FER original.
+
+Testes:
+Nova suíte `saas06c1-fix01-tenant-header-clareza.test.ts` valida:
+- badge informativo com tooltip "Instituição atual" no caso single;
+- ausência de `ChevronDown`/`DropdownMenu` no ramo single;
+- uso de `DropdownMenu` + `ChevronDown` no caso múltiplo;
+- itens inativos permanecem desabilitados (`podeSelecionar === 'ativo'`);
+- guards de `PortalAdmin` (`PlatformAdminRoute`) e `Usuarios` (`allowedRoles=['admin']`) preservados;
+- documento atualizado com a nota FIX01.
+
