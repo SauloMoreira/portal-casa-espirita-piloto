@@ -128,3 +128,37 @@ Nova suíte `saas06c1-fix01-tenant-header-clareza.test.ts` valida:
 - guards de `PortalAdmin` (`PlatformAdminRoute`) e `Usuarios` (`allowedRoles=['admin']`) preservados;
 - documento atualizado com a nota FIX01.
 
+## 10. FIX03 — Ajuste visual da área Solicitações comerciais e padronização do label de módulo
+
+Data: 2026-07-09
+Escopo: apenas UI da página `/portal/plano-assinatura` (seção "Solicitações comerciais"). Sem alteração de RLS, permissões, assinatura, plano, status, habilitação de módulos, fluxo de cobrança, auditoria ou projeto Tratamentos FER original.
+
+Motivação:
+Durante o Reteste 2.5 da homologação manual da FER Piloto, a criação de solicitação comercial funcionou corretamente após o FIX02. Porém foram identificadas duas melhorias visuais:
+
+1. A área de Solicitações comerciais ficava muito próxima do limite inferior da tela, e o botão flutuante "Fale Conosco" prejudicava a visualização da linha/status.
+2. Na listagem de solicitações, o módulo aparecia como código cru (`caixa`) em vez do label comercial correto (`Caixa / Cantina`).
+
+Ajuste aplicado:
+- **Espaçamento inferior**: o container principal da página (`/portal/plano-assinatura`) recebeu `pb-24 sm:pb-16`, garantindo margem inferior generosa e evitando que o card de Solicitações comerciais fique colado no rodapé ou coberto pelo widget flutuante de WhatsApp (`FaleConoscoButton`). Em mobile (`bottom-20`) o espaçamento é maior; em desktop (`bottom-6`) permanece confortável.
+- **Label comercial do módulo**: criada função `labelModuloComercial` centralizada no próprio componente, usando o catálogo local `MODULOS_COMERCIAIS` para traduzir `caixa` → `Caixa / Cantina`, `tratamentos` → `Tratamentos`, etc. A célula da tabela agora chama essa função em vez de exibir o código raw.
+
+Labels oficiais mantidos:
+- Tratamentos
+- Caixa / Cantina
+- Biblioteca
+- Portal Institucional
+- Financeiro
+
+Segurança:
+Nenhuma alteração em RLS, policies, RPCs, edge functions, tabelas `assinaturas`/`assinatura_modulos`/`solicitacoes_comerciais`, habilitação de módulos, plano/status da assinatura, fluxo de cobrança, auditoria ou no projeto Tratamentos FER original.
+
+Testes:
+Nova suíte `saas06c1-fix03-solicitacoes-comerciais-visual.test.ts` valida:
+- exibição do label comercial "Caixa / Cantina" (não `caixa` cru);
+- presença de status "Pendente" na listagem;
+- criação de solicitação via `solicitacoes_comerciais.insert` sem mutar `assinatura_modulos` ou `assinaturas` (não habilita módulo automaticamente);
+- padding-bottom (`pb-24 sm:pb-16`) no container da página;
+- widget flutuante `FaleConoscoButton` mantém posicionamento fixo conhecido;
+- documento atualizado com a nota FIX03.
+
