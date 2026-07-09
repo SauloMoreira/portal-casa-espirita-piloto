@@ -6,10 +6,11 @@ import { resolve } from "node:path";
  * SAAS-06-C1-FIX01 — Clareza do seletor/informativo de instituição no header.
  *
  * Regras validadas por pattern-matching sobre o componente TenantSwitcher:
- *  - 1 instituição vinculada: badge informativo, sem ChevronDown/Dropdown;
- *  - ≥2 instituições: usa DropdownMenu com ChevronDown;
+ *  - 1 instituição: badge informativo com rótulo textual "Instituição atual:",
+ *    cursor-default, sem ChevronDown/Dropdown, tooltip explícito;
+ *  - ≥2 instituições: DropdownMenu com ChevronDown, cursor-pointer e rótulo
+ *    "Trocar instituição";
  *  - dropdown desabilita itens sem vínculo ativo (nunca lista cross-tenant);
- *  - badge single expõe tooltip "Instituição atual: <nome>";
  *  - documento SAAS-06-C1 registra a nota FIX01.
  */
 
@@ -25,6 +26,18 @@ describe("SAAS-06-C1-FIX01 — TenantSwitcher", () => {
     expect(src).toMatch(/aria-label=\{`Instituição atual: \$\{inst\.nome\}`\}/);
   });
 
+  it("caso 1 instituição: exibe rótulo textual 'Instituição atual:'", () => {
+    expect(src).toMatch(/Instituição atual:\s*<\/span>/);
+  });
+
+  it("caso 1 instituição: cursor-default e select-none (não parece botão)", () => {
+    const singleMatch = src.match(/<div[\s\S]*?data-testid="tenant-badge-single"[\s\S]*?<\/div>/);
+    expect(singleMatch).not.toBeNull();
+    expect(singleMatch![0]).toMatch(/cursor-default/);
+    expect(singleMatch![0]).toMatch(/select-none/);
+  });
+
+
   it("caso 1 instituição: sem ChevronDown/Dropdown no ramo single", () => {
     const singleMatch = src.match(/data-testid="tenant-badge-single"[\s\S]*?<\/div>\s*\);\s*\}/);
     expect(singleMatch).not.toBeNull();
@@ -33,11 +46,12 @@ describe("SAAS-06-C1-FIX01 — TenantSwitcher", () => {
     expect(singleBranch).not.toMatch(/DropdownMenu/);
   });
 
-
-  it("caso múltiplas: usa DropdownMenu com ChevronDown", () => {
+  it("caso múltiplas: DropdownMenu + ChevronDown + rótulo 'Trocar instituição'", () => {
     expect(src).toMatch(/<DropdownMenu>/);
     expect(src).toMatch(/<ChevronDown/);
-    expect(src).toMatch(/aria-label="Trocar instituição ativa"/);
+    expect(src).toMatch(/aria-label="Trocar instituição"/);
+    expect(src).toMatch(/title="Trocar instituição"/);
+    expect(src).toMatch(/cursor-pointer/);
   });
 
   it("dropdown desabilita instituições sem vínculo ativo", () => {
@@ -72,6 +86,10 @@ describe("SAAS-06-C1-FIX01 — documento", () => {
 
   it("registra a nota FIX01", () => {
     expect(doc).toMatch(/FIX01 — Clareza do componente de instituição atual no header/);
+  });
+
+  it("nota FIX01 menciona rótulo textual 'Instituição atual'", () => {
+    expect(doc).toMatch(/Instituição atual/);
   });
 
   it("mantém declaração de projeto Tratamentos FER original intocado", () => {
