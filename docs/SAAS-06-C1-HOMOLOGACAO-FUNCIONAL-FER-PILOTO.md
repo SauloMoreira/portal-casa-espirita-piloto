@@ -109,9 +109,10 @@ Escopo: apenas UI do `TenantSwitcher` no header global. Sem alteração de RLS, 
 Motivação:
 Durante a homologação manual (Teste 1.3), o admin local da FER Piloto viu apenas a própria instituição, sem exposição de Casa Demo ou Portal Admin — comportamento correto. Porém o nome "Fraternidade Espírita Ramatis…" aparecia no header com aparência de dropdown clicável, gerando dúvida de UX quando não havia outras instituições para trocar.
 
-Ajuste aplicado:
-- **1 instituição vinculada**: o header exibe um **badge informativo** (pílula `rounded-full`, fundo `muted/60`, sem borda de botão, sem chevron), com tooltip e `aria-label` "Instituição atual: <nome>", ícone de instituição preservado e truncamento mantido.
-- **≥ 2 instituições vinculadas**: mantém o **seletor real** com botão, chevron e `DropdownMenu`, permitindo alternância entre instituições permitidas.
+Ajuste aplicado (revisão visual):
+- **1 instituição vinculada**: badge informativo com **rótulo textual explícito** "Instituição atual:" antecedendo o nome da casa, em pílula `rounded-full` com fundo `muted/60`, `cursor-default`, `select-none`, sem chevron e sem hover de botão. Tooltip e `aria-label` reforçam "Instituição atual: <nome>". Ícone de instituição preservado; nomes longos truncam em `max-w-[220px]`.
+- **≥ 2 instituições vinculadas**: seletor real com botão `cursor-pointer`, chevron visível, `aria-label`/`title` "Trocar instituição" e `DropdownMenu` listando apenas instituições com vínculo ativo.
+
 - **Vínculo inativo**: continua desabilitado no dropdown; nunca listado como opção selecionável.
 - **platform_admin / platform_owner**: comportamento inalterado; capacidade de trocar contexto segue a mesma regra prévia e não é exposta ao admin local comum.
 
