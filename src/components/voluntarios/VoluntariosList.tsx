@@ -51,6 +51,7 @@ export function VoluntariosList({
               <TableHead className="hidden md:table-cell">Celular</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="hidden lg:table-cell">Acesso</TableHead>
               <TableHead className="hidden md:table-cell">Termo</TableHead>
               <TableHead className="hidden lg:table-cell">Ingresso</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -59,7 +60,7 @@ export function VoluntariosList({
           <TableBody>
             {voluntarios.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   {VOLUNTARIO_MESSAGES.emptyList}
                 </TableCell>
               </TableRow>
