@@ -20,6 +20,12 @@ import { GerarAcessoAssistido } from "@/components/GerarAcessoAssistido";
 import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { getRange, DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
+import {
+  toFriendlyError,
+  formatSupportDetails,
+  TENANT_AUSENTE_ERROR,
+} from "@/lib/supabaseFriendlyErrors";
 
 interface Assistido {
   id: string;
@@ -83,6 +89,7 @@ export default function Assistidos() {
   const [resetOpen, setResetOpen] = useState(false);
   const { user, role } = useAuth();
   const { toast } = useToast();
+  const { selectedInstituicaoId } = useInstituicaoAtiva();
 
   // Paginação real (server-side) respeitando busca e filtro de status.
   const fetchAssistidos = async (opts?: { page?: number }) => {
@@ -136,6 +143,15 @@ export default function Assistidos() {
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) { toast({ title: "Corrija os campos destacados", variant: "destructive" }); return; }
+
+    // SAAS-06-C1-FIX08 — tenant obrigatório. Sem instituição ativa não persiste.
+    if (!editId && !selectedInstituicaoId) {
+      toast({
+        title: TENANT_AUSENTE_ERROR.message,
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
     const cpfClean = form.cpf.replace(/\D/g, "");
@@ -194,11 +210,28 @@ export default function Assistidos() {
     if (editId) {
       ({ error } = await supabase.from("assistidos").update(payload as any).eq("id", editId));
     } else {
-      ({ error } = await supabase.from("assistidos").insert({ ...payload, created_by: user!.id } as any));
+      // SAAS-06-C1-FIX08 — vincula sempre à instituição ativa (fail-closed acima).
+      ({ error } = await supabase.from("assistidos").insert({
+        ...payload,
+        created_by: user!.id,
+        instituicao_id: selectedInstituicaoId!,
+      } as any));
     }
 
     if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      const friendly = toFriendlyError(error, {
+        operacao: editId ? "atualizar_assistido" : "cadastrar_assistido",
+        entidade: "assistidos",
+        acao: editId ? "UPDATE" : "INSERT",
+        instituicaoId: selectedInstituicaoId,
+      });
+      // Log técnico interno (não exibido ao usuário).
+      console.error("[assistidos:save]", friendly.code, friendly.raw);
+      toast({
+        title: friendly.message,
+        description: `Detalhes técnicos para suporte:\n${formatSupportDetails(friendly)}`,
+        variant: "destructive",
+      });
     } else {
       toast({ title: editId ? "Assistido atualizado" : "Assistido cadastrado" });
       setOpen(false);
