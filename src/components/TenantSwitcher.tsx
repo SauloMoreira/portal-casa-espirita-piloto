@@ -34,21 +34,25 @@ export function TenantSwitcher() {
 
   const ativas = instituicoes.filter((i) => i.vinculo_status === "ativo");
 
-  // Caso simples: 1 instituição — apenas rótulo, sem dropdown.
+  // Caso simples: 1 instituição — badge informativo (não é dropdown).
   if (ativas.length <= 1 && instituicoes.length === 1) {
     const inst = instituicoes[0];
     return (
       <div
-        className="hidden md:flex items-center gap-2 rounded-md border px-2 py-1 text-xs text-muted-foreground"
-        aria-label="Instituição ativa"
+        className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1 text-xs text-muted-foreground"
+        aria-label={`Instituição atual: ${inst.nome}`}
+        title={`Instituição atual: ${inst.nome}`}
+        data-testid="tenant-badge-single"
+        role="status"
       >
-        <Building2 className="h-3.5 w-3.5 text-primary" />
+        <Building2 className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
         <span className="max-w-[180px] truncate font-medium text-foreground">
           {inst.nome}
         </span>
       </div>
     );
   }
+
 
   const rotuloAtual = selecionada?.nome ?? "Selecionar instituição";
 
