@@ -89,6 +89,7 @@ export default function Assistidos() {
   const [resetOpen, setResetOpen] = useState(false);
   const { user, role } = useAuth();
   const { toast } = useToast();
+  const { selectedInstituicaoId } = useInstituicaoAtiva();
 
   // Paginação real (server-side) respeitando busca e filtro de status.
   const fetchAssistidos = async (opts?: { page?: number }) => {
