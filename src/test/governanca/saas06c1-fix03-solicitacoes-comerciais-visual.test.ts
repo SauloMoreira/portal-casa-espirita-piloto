@@ -37,9 +37,12 @@ describe("SAAS-06-C1-FIX03 — UI de Solicitações comerciais", () => {
   });
 
   it("mantém status Pendente visível na listagem", () => {
+    // O label "Pendente" vem da constante centralizada; a célula usa o lookup.
     expect(page).toMatch(/STATUS_SOLICITACAO_LABEL\[s\.status\]/);
-    expect(page).toMatch(/pendente/);
+    const constants = read("src/constants/solicitacoesComerciais.ts");
+    expect(constants).toMatch(/pendente:\s*"Pendente"/);
   });
+
 
   it("não habilita/desabilita módulos automaticamente ao criar solicitação", () => {
     // Admin local só insere em solicitacoes_comerciais; nunca altera
