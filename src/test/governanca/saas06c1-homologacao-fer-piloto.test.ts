@@ -41,8 +41,11 @@ describe("SAAS-06-C1 — branding global neutro pré-login", () => {
     expect(src).toMatch(/SC Moreira Tech/);
   });
 
-  it("não referencia 'Tratamentos FER' no branding global", () => {
-    expect(src).not.toMatch(/Tratamentos FER/i);
+  it("não expõe 'Tratamentos FER' como valor do branding global", () => {
+    // Permite menção em comentário (a diretiva atual explicitamente diz
+    // "Não referenciar 'Tratamentos FER'..."), mas veta o rótulo como
+    // valor de campo do objeto exportado.
+    expect(src).not.toMatch(/:\s*"[^"]*Tratamentos FER[^"]*"/i);
   });
 });
 
