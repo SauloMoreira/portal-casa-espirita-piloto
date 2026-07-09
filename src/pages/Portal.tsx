@@ -2,7 +2,7 @@ import { Link, Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, ShieldCheck, Boxes, ArrowRight, Loader2, AlertTriangle } from "lucide-react";
+import { Building2, ShieldCheck, Boxes, ArrowRight, Loader2, AlertTriangle, CreditCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { ROUTES } from "@/constants";
