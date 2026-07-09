@@ -127,12 +127,15 @@ export function VoluntarioTipoFuncaoSection({
           </div>
         )}
         {form.tipos_voluntario.length > 0 && availableFuncoes.length === 0 && (
-          <div className="sm:col-span-2">
-            <p className="text-xs text-muted-foreground">
-              Nenhuma função cadastrada para os tipos selecionados.
+          <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-2">
+            <p className="text-xs text-amber-800">
+              Nenhuma função de voluntariado cadastrada para os tipos selecionados.
+              Você pode salvar o voluntário assim mesmo e vincular funções depois em{" "}
+              <span className="font-medium">Pessoas → Funções de Voluntariado</span>.
             </p>
           </div>
         )}
+
         {form.tipos_voluntario.length === 0 && (
           <div className="sm:col-span-2">
             <p className="text-xs text-muted-foreground">
