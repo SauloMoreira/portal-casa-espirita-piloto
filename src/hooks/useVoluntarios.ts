@@ -36,6 +36,8 @@ import {
   mapearPessoaParaPrefill,
   type PessoaCandidata,
 } from "@/lib/voluntarioCadastro";
+import { friendlyVoluntarioError } from "@/lib/voluntarioErrors";
+
 import type {
   FuncaoVoluntariado,
   VoluntarioFilterState,
