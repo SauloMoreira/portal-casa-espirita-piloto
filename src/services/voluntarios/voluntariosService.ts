@@ -43,7 +43,7 @@ export async function fetchVoluntariosComAcessoOperacional(
     "coordenador_de_tratamento",
     "admin",
     "administrador_master",
-  ];
+  ] as const;
   const { data } = await supabase
     .from("user_roles")
     .select("user_id, role")
