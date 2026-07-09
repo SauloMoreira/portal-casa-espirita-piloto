@@ -26,10 +26,13 @@ describe("SAAS-06-C1-FIX01 — TenantSwitcher", () => {
   });
 
   it("caso 1 instituição: sem ChevronDown/Dropdown no ramo single", () => {
-    const singleBranch = src.split("const rotuloAtual")[0];
+    const singleMatch = src.match(/data-testid="tenant-badge-single"[\s\S]*?<\/div>\s*\);\s*\}/);
+    expect(singleMatch).not.toBeNull();
+    const singleBranch = singleMatch![0];
     expect(singleBranch).not.toMatch(/ChevronDown/);
-    expect(singleBranch).not.toMatch(/DropdownMenu[^C]/);
+    expect(singleBranch).not.toMatch(/DropdownMenu/);
   });
+
 
   it("caso múltiplas: usa DropdownMenu com ChevronDown", () => {
     expect(src).toMatch(/<DropdownMenu>/);
