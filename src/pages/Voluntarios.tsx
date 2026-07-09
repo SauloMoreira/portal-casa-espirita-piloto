@@ -21,6 +21,7 @@ export default function Voluntarios() {
 
       <VoluntariosList
         voluntarios={v.paginated}
+        acessoOperacionalIds={v.acessoOperacionalIds}
         onEdit={v.openEdit}
         onFicha={v.openFicha}
         onTermo={v.openTermoFlow}
