@@ -400,3 +400,35 @@ canônica do botão "Ir para Gestão de Acesso".
 
 **Status:** ✅ Aplicado — orientação clara, sem concessão automática de
 acesso, sem regressão em RLS ou em multi-tenant.
+
+---
+
+## FIX06 — Garantia de vínculo institucional ativo ao conceder acesso operacional
+
+**Erro encontrado:** No Teste 3.5, usuário "Tarefeiro Teste" criado dentro da FER Piloto recebeu acesso operacional em Gestão de Acesso, mas ao logar via Portal apareceu "Minhas instituições: 0".
+
+**Causa técnica:** `fn_conceder_acesso_operacional` inseria a role em `user_roles` sem criar o vínculo correspondente em `instituicao_usuarios`. `usePortalHub` deriva as instituições visíveis exatamente desse vínculo, então o usuário ficava com acesso operacional órfão — sem tenant associado.
+
+**Regra correta:** Toda concessão de acesso operacional feita por admin_instituicao (ou platform_admin) precisa, na mesma transação, garantir vínculo ativo em `instituicao_usuarios` para o tenant onde a concessão ocorreu.
+
+**Correção aplicada:**
+
+1. `fn_conceder_acesso_operacional` passou a receber `p_instituicao_id uuid DEFAULT NULL` (fallback para `current_instituicao_id()` de compat).
+2. Fluxo transacional:
+   - valida caller (`is_active_admin`);
+   - resolve tenant (parâmetro → GUC);
+   - valida autoridade (`platform_admin` OU `fn_is_admin_instituicao(caller, tenant)`);
+   - upsert idempotente em `instituicao_usuarios` com `papel_local` mapeado (`entrevistador`, `tarefeiro`, `coordenador`) e `status = ativo`;
+   - reativa vínculo se estiver inativo (auditado);
+   - insere `user_roles` (idempotente) e registra auditoria `ACESSO_OPERACIONAL_CONCEDIDO` + `VINCULO_INSTITUCIONAL_CRIADO/REATIVADO`.
+3. Mensagens amigáveis: "Selecione uma instituição antes de conceder acesso.", "Você não é administrador desta instituição.", "Usuário vinculado à instituição e acesso concedido com sucesso."
+4. Frontend (`GovernancaAcessos.tsx`) passa `instituicaoId` do `InstituicaoContext` para o service; nunca chama sem tenant selecionado.
+
+**Tratamento do caso Tarefeiro Teste:** vínculo em `instituicao_usuarios` inserido de forma idempotente (`ON CONFLICT ... DO UPDATE SET status='ativo'`) para o par (FER Piloto, Tarefeiro Teste, papel_local=tarefeiro). Auditoria registrada como `origem: FIX06-backfill-tarefeiro-teste`.
+
+**Testes executados:**
+
+- `src/test/governanca/saas06c1-fix06-vinculo-institucional.test.ts` — 6/6 ✅ (payload com `p_instituicao_id`, fallback null, mensagens amigáveis sem tenant / sem autoridade, idempotência, recusa de papéis administrativos).
+- `src/test/governanca/q1c2-acesso-service.test.ts` — 10/10 ✅ (atualizado para o novo shape).
+
+**Validação multi-tenant:** RLS de `instituicao_usuarios`, `user_roles` e `platform_admins` inalteradas. Admin da Casa Demo continua incapaz de conceder acesso na FER Piloto (função retorna "Você não é administrador desta instituição."). Assistido e tarefeiro comum reprovados pelo guard `is_active_admin`. Nenhum vínculo global é criado. Projeto Tratamentos FER original intocado.

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +84,7 @@ const isOperationalRole = (r: string): r is OperationalRole =>
 
 export default function GovernancaAcessos() {
   const { user, isMaster } = useAuth();
+  const { selecionada } = useInstituicaoAtiva();
   const { toast } = useToast();
 
   const [profiles, setProfiles] = useState<ProfileLite[]>([]);
@@ -186,17 +188,25 @@ export default function GovernancaAcessos() {
       toast({ title: "Selecione um usuário.", variant: "destructive" });
       return;
     }
+    if (!selecionada?.id) {
+      toast({
+        title: "Selecione uma instituição antes de conceder acesso.",
+        variant: "destructive",
+      });
+      return;
+    }
     setLoading(true);
     try {
       const { status } = await concederAcessoOperacional({
         targetUserId: opUserId,
         role: opRole,
         motivo: opMotivo.trim() || null,
+        instituicaoId: selecionada.id,
       });
       toast({
-        title: status === "ja_concedido" ? "Acesso já existia" : "Acesso operacional concedido",
+        title: status === "ja_concedido" ? "Acesso já existia" : "Usuário vinculado à instituição e acesso concedido com sucesso",
         description: status === "ja_concedido"
-          ? "O usuário já possuía este acesso."
+          ? "O usuário já possuía este acesso nesta instituição."
           : `${OPERATIONAL_ROLE_LABELS[opRole]} concedido a ${nameOf(opUserId)}.`,
       });
       setOpOpen(false);

@@ -3672,6 +3672,7 @@ export type Database = {
           }
       fn_conceder_acesso_operacional: {
         Args: {
+          p_instituicao_id?: string
           p_motivo?: string
           p_role: Database["public"]["Enums"]["app_role"]
           p_target_user_id: string
