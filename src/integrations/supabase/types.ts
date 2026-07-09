@@ -309,6 +309,7 @@ export type Database = {
       }
       assinaturas: {
         Row: {
+          classificacao: string | null
           condicao_especial: string | null
           created_at: string
           data_fim: string | null
@@ -316,6 +317,7 @@ export type Database = {
           forma_pagamento: string | null
           id: string
           instituicao_id: string
+          observacoes_cliente: string | null
           observacoes_comerciais: string | null
           plano_id: string
           proximo_vencimento: string | null
@@ -326,6 +328,7 @@ export type Database = {
           valor_mensal_cents: number | null
         }
         Insert: {
+          classificacao?: string | null
           condicao_especial?: string | null
           created_at?: string
           data_fim?: string | null
@@ -333,6 +336,7 @@ export type Database = {
           forma_pagamento?: string | null
           id?: string
           instituicao_id: string
+          observacoes_cliente?: string | null
           observacoes_comerciais?: string | null
           plano_id: string
           proximo_vencimento?: string | null
@@ -343,6 +347,7 @@ export type Database = {
           valor_mensal_cents?: number | null
         }
         Update: {
+          classificacao?: string | null
           condicao_especial?: string | null
           created_at?: string
           data_fim?: string | null
@@ -350,6 +355,7 @@ export type Database = {
           forma_pagamento?: string | null
           id?: string
           instituicao_id?: string
+          observacoes_cliente?: string | null
           observacoes_comerciais?: string | null
           plano_id?: string
           proximo_vencimento?: string | null
@@ -3011,6 +3017,56 @@ export type Database = {
           },
         ]
       }
+      solicitacoes_comerciais: {
+        Row: {
+          concluida_em: string | null
+          created_at: string
+          id: string
+          instituicao_id: string
+          mensagem: string
+          modulo_codigo: string | null
+          observacao_interna: string | null
+          solicitante_user_id: string
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          concluida_em?: string | null
+          created_at?: string
+          id?: string
+          instituicao_id: string
+          mensagem: string
+          modulo_codigo?: string | null
+          observacao_interna?: string | null
+          solicitante_user_id: string
+          status?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          concluida_em?: string | null
+          created_at?: string
+          id?: string
+          instituicao_id?: string
+          mensagem?: string
+          modulo_codigo?: string | null
+          observacao_interna?: string | null
+          solicitante_user_id?: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_comerciais_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tipos_tratamento: {
         Row: {
           bloqueia_proximo_tratamento: boolean
@@ -3691,6 +3747,11 @@ export type Database = {
         Args: { p_fila_id: string }
         Returns: string
       }
+      fn_is_admin_instituicao: {
+        Args: { _inst_id: string; _user_id: string }
+        Returns: boolean
+      }
+      fn_is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       fn_lembrete_antecedencia_horas: { Args: never; Returns: number }
       fn_listar_coordenacao_tratamentos: { Args: never; Returns: Json }
       fn_listar_parametros_operacionais: {
