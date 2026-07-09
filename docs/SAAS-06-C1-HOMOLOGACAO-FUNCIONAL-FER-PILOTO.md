@@ -347,3 +347,56 @@ bloqueia qualquer usuário que **não** seja `platform_admin` — inclusive
 
 **Status:** ✅ Aprovado — 6/6 testes verdes; RLS de `voluntarios` permanece
 fail-closed; nenhuma policy ampla para `authenticated` foi criada.
+
+---
+
+## FIX05 — Orientação entre cadastro de voluntário e concessão de acesso
+
+**Contexto:** cadastrar um usuário como voluntário/tarefeiro define apenas a
+atuação da pessoa na casa. Não concede acesso operacional ao sistema — o
+acesso segue sendo concedido explicitamente em Acesso e Segurança →
+Permissões de Acesso.
+
+**Regra correta (reafirmada):**
+
+- cadastro de voluntário/tarefeiro fica em Pessoas → Voluntários;
+- acesso ao sistema é concedido separadamente em Acesso e Segurança →
+  Permissões de Acesso;
+- concessão de acesso é explícita, auditada e nunca automática.
+
+**Ajustes de UI aplicados:**
+
+- Diálogo pós-cadastro `PosCadastroAcessoDialog` orienta e oferece
+  "Ir para Gestão de Acesso" (rota `/governanca-acessos`) ou "Fazer depois".
+- Formulário de voluntário exibe faixa de atenção reforçando que o cadastro
+  não libera acesso ao sistema.
+- Listagem de voluntários passou a exibir a coluna **Acesso** com badge
+  "Ativo" (quando o `origem_user_id` tem papel operacional em `user_roles`)
+  ou "Não concedido" (padrão), com tooltip explicativo.
+- Ficha do voluntário mostra a orientação curta: "Tipo de voluntário não
+  equivale a acesso ao sistema."
+
+**Mensagens aplicadas:**
+
+- "Voluntário cadastrado com sucesso."
+- "Este cadastro não libera acesso ao sistema."
+- "Para liberar acesso, vá em Acesso e Segurança → Permissões de Acesso."
+- "Acesso operacional ainda não concedido."
+
+**Segurança:**
+
+- nenhuma alteração em RLS, RPCs ou papéis — a leitura de `user_roles` no
+  frontend é somente informativa e restrita ao escopo já visível ao admin;
+- cadastro de voluntário continua NÃO gravando em `user_roles`;
+- admin local só concede permissões dentro da própria instituição
+  (`fn_is_admin_instituicao`), assistidos e usuários sem vínculo não têm
+  acesso à Gestão de Acesso;
+- Tratamentos FER original permanece intocado.
+
+**Testes:** `src/test/governanca/saas06c1-fix05-atuacao-acesso.test.ts`
+(6/6 verdes) — cobre papéis operacionais reconhecidos, ausência do
+`assistido` na lista operacional, orientação sem termos técnicos e rota
+canônica do botão "Ir para Gestão de Acesso".
+
+**Status:** ✅ Aplicado — orientação clara, sem concessão automática de
+acesso, sem regressão em RLS ou em multi-tenant.
