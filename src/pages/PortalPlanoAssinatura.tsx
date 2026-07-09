@@ -530,7 +530,8 @@ function NovaSolicitacaoDialog({
     onError: (e: Error) => toast.error(e.message ?? "Falha ao enviar solicitação."),
   });
 
-  const precisaModulo = tipo === "novo_modulo" || tipo === "desabilitar_modulo";
+  const precisaModulo =
+    tipo === "solicitar_novo_modulo" || tipo === "solicitar_desabilitar_modulo";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
