@@ -20,6 +20,12 @@ import { GerarAcessoAssistido } from "@/components/GerarAcessoAssistido";
 import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { getRange, DEFAULT_PAGE_SIZE } from "@/lib/pagination";
+import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
+import {
+  toFriendlyError,
+  formatSupportDetails,
+  TENANT_AUSENTE_ERROR,
+} from "@/lib/supabaseFriendlyErrors";
 
 interface Assistido {
   id: string;
