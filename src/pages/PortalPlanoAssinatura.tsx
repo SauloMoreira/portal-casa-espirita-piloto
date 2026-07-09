@@ -146,6 +146,16 @@ function formatMoneyCents(cents: number | null | undefined) {
   });
 }
 
+const LABEL_MODULO_COMERCIAL: Record<string, string> = Object.fromEntries(
+  MODULOS_COMERCIAIS.map((m) => [m.codigo, m.nome]),
+);
+
+function labelModuloComercial(codigo: string | null | undefined) {
+  if (!codigo) return "—";
+  return LABEL_MODULO_COMERCIAL[codigo] ?? codigo;
+}
+
+
 // --- Componente auxiliar ---
 interface AssinaturaComercial {
   id: string;
