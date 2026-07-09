@@ -552,9 +552,9 @@ function NovaSolicitacaoDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(TIPO_SOLICITACAO_LABEL).map(([k, v]) => (
+                {TIPOS_ATIVOS_UI.map((k) => (
                   <SelectItem key={k} value={k}>
-                    {v}
+                    {TIPO_SOLICITACAO_LABEL[k]}
                   </SelectItem>
                 ))}
               </SelectContent>
