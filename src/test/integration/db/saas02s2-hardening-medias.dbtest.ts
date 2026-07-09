@@ -32,7 +32,7 @@ const FUNCOES_MEDIAS: Array<{ nome: string; args: string }> = [
   { nome: "decidir_promocao_admin", args: "uuid, text, text" },
   { nome: "fn_conceder_acesso_base", args: "" },
   // 4.2 Acesso operacional / coordenação
-  { nome: "fn_conceder_acesso_operacional", args: "uuid, app_role, text" },
+  { nome: "fn_conceder_acesso_operacional", args: "uuid, app_role, text, uuid" },
   { nome: "fn_revogar_acesso_operacional", args: "uuid, app_role, text" },
   { nome: "fn_coordena_tratamento", args: "uuid, uuid" },
   { nome: "fn_designar_coordenador", args: "uuid, uuid" },
