@@ -99,6 +99,11 @@ export function VoluntarioFormDialog({
                 demais campos podem ser completados depois (o termo só é liberado com cadastro completo).
               </p>
             )}
+            <p className="text-xs text-muted-foreground rounded-lg border border-amber-200 bg-amber-50 p-2">
+              Este cadastro define a <span className="font-medium">atuação</span> na casa. Não
+              concede acesso ao sistema — permissões operacionais são gerenciadas em Acesso e
+              Segurança → Permissões de Acesso.
+            </p>
             <VoluntarioDadosPessoaisSection form={form} errors={errors} onChange={onChange} />
             <VoluntarioEnderecoSection form={form} errors={errors} onChange={onChange} />
             <VoluntarioTipoFuncaoSection
