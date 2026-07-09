@@ -114,38 +114,13 @@ const CLASSIFICACAO_LABEL: Record<string, string> = {
   cliente: "Cliente",
 };
 
-const TIPO_SOLICITACAO_LABEL: Record<string, string> = {
-  novo_modulo: "Solicitar novo módulo",
-  desabilitar_modulo: "Solicitar desabilitação de módulo",
-  alterar_plano: "Solicitar alteração de plano",
-  segunda_via_cobranca: "Solicitar segunda via de cobrança",
-  cancelamento: "Solicitar cancelamento",
-  contato_comercial: "Solicitar contato comercial",
-  outro: "Outro",
-};
-
-const STATUS_SOLICITACAO_VARIANT: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  pendente: "secondary",
-  em_analise: "secondary",
-  aguardando_pagamento: "secondary",
-  aprovada: "default",
-  concluida: "default",
-  recusada: "destructive",
-  cancelada: "outline",
-};
-
-const STATUS_SOLICITACAO_LABEL: Record<string, string> = {
-  pendente: "Pendente",
-  em_analise: "Em análise",
-  aguardando_pagamento: "Aguardando pagamento",
-  aprovada: "Aprovada",
-  recusada: "Recusada",
-  concluida: "Concluída",
-  cancelada: "Cancelada",
-};
+// Tipos, status e labels centralizados em `constants/solicitacoesComerciais`.
+import {
+  TIPO_SOLICITACAO_LABEL,
+  TIPOS_ATIVOS_UI,
+  STATUS_LABEL as STATUS_SOLICITACAO_LABEL,
+  STATUS_VARIANT as STATUS_SOLICITACAO_VARIANT,
+} from "@/constants/solicitacoesComerciais";
 
 const DOCUMENTOS_PADRAO: Array<{ titulo: string; caminho: string }> = [
   { titulo: "Proposta comercial", caminho: "docs/saas-06-a/01-proposta-comercial.md" },
