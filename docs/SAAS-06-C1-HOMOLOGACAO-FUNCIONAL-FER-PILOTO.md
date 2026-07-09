@@ -211,3 +211,58 @@ assistido puro e gate do card administrativo no `Portal.tsx`).
 
 **Status:** ✅ Aprovado — 21/21 testes verdes
 (3.2-B: 9/9, SAAS-06-A2 correlata: 12/12).
+
+## Teste 3.3-B — Usuário autenticado sem vínculo não acessa FER Piloto
+
+**Objetivo.** Confirmar que um usuário autenticado sem vínculo ativo em
+`instituicao_usuarios` com a Fraternidade Espírita Ramatis — Piloto (e sem
+registro em `platform_admins`) não enxerga a FER no Portal, não abre seu
+dashboard, não abre "Plano e Assinatura", não abre módulos operacionais
+(Tratamentos e correlatos), não acessa dados institucionais, não passa por
+rota direta e não recebe dados da FER em consultas ao backend.
+
+**Suíte automatizada.** `src/test/governanca/saas06c1-3-3b-sem-vinculo-nao-acessa.test.ts`
+(12/12 verdes) valida por pattern-matching a cadeia de fail-closed:
+
+- `InstituicaoContext.allowedIds` filtra por `vinculo_status === "ativo"`;
+- `useSelectedInstituicao` recusa qualquer id fora de `allowedIds` e
+  descarta seleção persistida que deixou de ser permitida;
+- `RequireInstituicao` redireciona para `ROUTES.portal` quando não há
+  instituição ativa — bloqueando dashboard, agenda, tratamentos, presença,
+  configurações, painel institucional, `/instituicao` e demais rotas
+  operacionais mesmo por URL direta;
+- `PortalPlanoAssinatura` faz early-return quando `selecionada` é nula,
+  cobrindo o card "Plano e Assinatura" para admin local sem vínculo;
+- `Portal.tsx` exibe explicitamente "Você ainda não está vinculado a nenhuma
+  instituição" e não renderiza cards de FER;
+- `usePortalHub.acessivel` só é verdadeiro com `vinculo.status === "ativo"` e
+  assinatura fora dos estados terminais (`cancelada`/`suspensa`/`encerrada`);
+- `lib/tenant/currentTenant.requireInstituicaoId` lança erro fail-closed
+  quando não há tenant ativo, impedindo services de vazar consultas
+  cross-tenant.
+
+**Defesa em profundidade (backend / RLS SAAS-05-C, já em produção):**
+
+- `instituicoes.instituicoes_read_membros`: `user_pertence_instituicao(auth.uid(), id) OR is_platform_admin(auth.uid())`;
+- `assinaturas.assinaturas_read_membros`: mesma cláusula sobre
+  `instituicao_id`;
+- `instituicao_usuarios.inst_usuarios_self_or_admin_read`: só o próprio
+  usuário ou admin daquela instituição;
+- `solicitacoes_comerciais.solicitacoes_comerciais_select`:
+  `fn_is_platform_admin(auth.uid()) OR fn_is_admin_instituicao(auth.uid(), instituicao_id)`.
+
+`user_pertence_instituicao` e `fn_is_admin_instituicao` exigem
+`status = 'ativo'`, portanto um vínculo `pendente`/`inativo` — ou a ausência
+total de vínculo — retorna vazio em qualquer `SELECT` sobre esses recursos,
+independentemente do que o cliente envie.
+
+**Contrafactual:**
+
+- usuário **com** vínculo ativo continua acessando normalmente (filtro é
+  `=== "ativo"`, não uma inversão);
+- `platform_admin`/`platform_owner` continuam enxergando todas as
+  instituições (branch `is_platform_admin` das policies);
+- projeto **Tratamentos FER original permanece intocado** — o recorte 3.3-B
+  é 100% frontend + RLS já vigente, sem nova migração de banco.
+
+**Status:** ✅ Aprovado — 12/12 testes verdes.
