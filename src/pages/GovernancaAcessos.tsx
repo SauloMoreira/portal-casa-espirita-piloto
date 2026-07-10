@@ -23,6 +23,13 @@ import {
   solicitarPromocaoAdmin, decidirPromocaoAdmin,
   concederAcessoOperacional, revogarAcessoOperacional,
 } from "@/services/governanca/acessoService";
+import {
+  provisionarAcessoVoluntario,
+  fetchVoluntariosOrfaosDoTenant,
+  isEmailValido,
+  type VoluntarioOrfao,
+} from "@/lib/voluntarioAcessoProvisioning";
+import { Input } from "@/components/ui/input";
 
 interface ProfileLite {
   user_id: string;
