@@ -816,20 +816,27 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
               </div>
             </div>
 
-            <div className="space-y-2 border-t pt-3">
-              <Label className="text-xs">Nova resposta</Label>
-              <Textarea rows={4} value={resposta} onChange={(e) => setResposta(e.target.value)} maxLength={5000} />
-              {isPlatformAdmin && (
-                <label className="flex items-center gap-2 text-xs">
-                  <input type="checkbox" checked={interno} onChange={(e) => setInterno(e.target.checked)} />
-                  Nota interna (visível apenas para administradores da plataforma)
-                </label>
-              )}
-              <Button onClick={handleEnviar} disabled={enviando || !resposta.trim()}>
-                {enviando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Enviar
-              </Button>
-            </div>
+            {isEncerrado(chamado.status) ? (
+              <div className="border-t pt-3 text-xs text-muted-foreground">
+                Chamado encerrado. Para novas tratativas, abra um novo chamado ou peça a reabertura ao administrador da plataforma.
+              </div>
+            ) : (
+              <div className="space-y-2 border-t pt-3">
+                <Label className="text-xs">Nova resposta</Label>
+                <Textarea rows={4} value={resposta} onChange={(e) => setResposta(e.target.value)} maxLength={5000} />
+                {isPlatformAdmin && (
+                  <label className="flex items-center gap-2 text-xs">
+                    <input type="checkbox" checked={interno} onChange={(e) => setInterno(e.target.checked)} />
+                    Nota interna (visível apenas para administradores da plataforma)
+                  </label>
+                )}
+                <Button onClick={handleEnviar} disabled={enviando || !resposta.trim()}>
+                  {enviando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Enviar
+                </Button>
+              </div>
+            )}
+
           </div>
         )}
       </SheetContent>
