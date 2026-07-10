@@ -735,7 +735,7 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
                 <Input
                   type="file"
                   multiple
-                  accept={MIME_PERMITIDOS.join(",")}
+                  accept={ACCEPT_ATTR}
                   onChange={(e) => handleAnexar(e.target.files)}
                 />
               </div>
