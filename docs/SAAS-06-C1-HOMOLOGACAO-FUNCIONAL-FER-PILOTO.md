@@ -532,3 +532,47 @@ Fase 4, Teste 4.1 — admin local da FER Piloto tenta cadastrar "Assistido Teste
 
 ### Critério de aceite
 Atendido: admin local da FER Piloto agora consegue cadastrar assistido fictício, o registro fica restrito ao tenant correto via policy `admin_instituicao gerencia assistidos do tenant`, nenhum erro técnico bruto é exibido ao usuário e a suíte cumulativa SAAS-06-C1 segue verde.
+
+---
+
+## FIX09 — Correção da criação de Sessão Pública e padronização de erro amigável (Fase 4, Teste 4.6)
+
+### Sintoma
+Ao clicar em "Criar Sessão para Hoje" em Atendimento → Sessões Públicas, o admin local da FER Piloto recebia:
+
+```
+new row violates row-level security policy for table "sessoes_publicas"
+```
+
+### Causa
+Mesmo padrão diagnosticado no FIX08: a policy `shadow_tenant_all_sessoes_publicas` depende do GUC `app.current_instituicao`, que **não** é setado em requisições diretas via PostgREST. Sem o GUC, `current_instituicao_id()` retorna NULL e o `WITH CHECK` falha, mesmo para o admin local legítimo da instituição.
+
+### Correção aplicada
+- **Backend** (migration): nova policy `admin_instituicao gerencia sessoes_publicas do tenant` em `public.sessoes_publicas`, restrita a `authenticated`, usando `public.fn_is_admin_instituicao(auth.uid(), instituicao_id)` em `USING` e `WITH CHECK`. Não amplia acesso para `anon`, não permite cross-tenant e não afrouxa a policy existente.
+- **Frontend** (`src/pages/SessoesPublicas.tsx`):
+  - `criarSessaoHoje` agora usa `selectedInstituicaoId` do `InstituicaoContext`, com fail-closed antes do INSERT.
+  - Checagem de duplicidade escopada por `instituicao_id`.
+  - Erros do Supabase passam pelo helper `toFriendlyError(entidade: "sessoes_publicas", operacao: "criar_sessao_publica", acao: "INSERT")`, gerando código curto `SESSOES_PUBLICAS_INSERT_DENIED` e mensagem: "Não foi possível criar a sessão pública. Verifique se a instituição atual está selecionada e se você possui permissão para esta ação. Se o problema continuar, abra um chamado técnico para o administrador geral da plataforma." (via `MSG_PERMISSION_GENERIC` do helper reaproveitado).
+  - `ToastAction` "Abrir chamado técnico" invoca `abrirChamadoTecnico` (`src/lib/abrirChamadoTecnico.ts`), que copia origem, código, operação, instituição, usuário, timestamp e mensagem para a área de transferência e loga um marcador estruturado no console (`[chamado-tecnico:pending-fix10]`).
+- Import `requireInstituicaoId` removido do arquivo (fluxo agora unificado via contexto).
+
+### Regras reforçadas
+- Sessão pública nasce sempre com `instituicao_id = instituição ativa`; sem instituição selecionada, a operação é bloqueada no cliente.
+- Nenhum toast/erro exibe `row-level security`, `policy`, `sessoes_publicas`, `PostgREST` ou SQLSTATE cru.
+- Erro técnico gera código curto padronizado e ação clara para escalonamento.
+
+### FIX10 — preparação
+Documento formal criado em `docs/SAAS-06-C1-CENTRAL-CHAMADOS-ANEXOS.md`:
+- Modelo de dados (`chamados_suporte`, `chamado_mensagens`, `chamado_anexos`).
+- Bucket privado `suporte-anexos` com signed URLs curtas.
+- RLS por perfil (`platform_admin` global, `admin_instituicao` por tenant, autor restrito ao próprio chamado, `anon` sem acesso).
+- Fluxo do botão "Abrir chamado técnico" migrando do stub atual para uma RPC `fn_abrir_chamado_tecnico`.
+- Notificações reaproveitando a fila do SAAS-06-B0.4 e auditoria via `audit_logs`.
+- Escopo de UI para admin local e platform_admin.
+- Bateria de testes obrigatória para a entrega do FIX10.
+
+Nenhuma tabela/bucket/UI de chamados é criada neste ciclo — apenas o design aprovado e o stub que já entrega valor imediato ao usuário (código copiável para escalar ao administrador geral).
+
+### Critério de aceite
+- FIX09: admin local da FER Piloto cria sessão pública sem erro RLS; falha (se ocorrer) gera mensagem amigável + código técnico + botão "Abrir chamado técnico". Isolamento por tenant preservado.
+- FIX10: preparação registrada em documento próprio, pronto para virar recorte de implementação.
