@@ -69,7 +69,16 @@ export interface Chamado {
   created_at: string;
   updated_at: string;
   concluido_em: string | null;
+  resolucao_texto?: string | null;
+  resolucao_tipo?: ChamadoResolucaoTipo | null;
+  resolucao_por_user_id?: string | null;
+  resolucao_em?: string | null;
+  fechamento_texto?: string | null;
+  fechamento_categoria?: ChamadoFechamentoCategoria | null;
+  fechado_por_user_id?: string | null;
+  fechado_em?: string | null;
 }
+
 
 export interface ChamadoMensagem {
   id: string;
