@@ -311,7 +311,7 @@ export async function enviarAnexo(
 export async function urlAssinadaAnexo(anexo: ChamadoAnexo, ttlSeconds = 300): Promise<string | null> {
   const { data, error } = await supabase.storage
     .from("suporte-anexos")
-    .createSignedUrl(anexo.storage_path, ttlSeconds);
+    .createSignedUrl(anexo.storage_path, ttlSeconds, { download: anexo.nome_arquivo });
   if (error) return null;
   return data?.signedUrl ?? null;
 }
