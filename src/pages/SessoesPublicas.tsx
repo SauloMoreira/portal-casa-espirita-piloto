@@ -15,6 +15,11 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { withRetry, isTransientError } from "@/lib/resilience";
 import { contarNovos, modoLabel, checkinUrl } from "@/lib/sessoesPublicas";
+import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
+import { toFriendlyError, formatSupportDetails, TENANT_AUSENTE_ERROR } from "@/lib/supabaseFriendlyErrors";
+import { abrirChamadoTecnico } from "@/lib/abrirChamadoTecnico";
+import { ToastAction } from "@/components/ui/toast";
+
 
 interface TratamentoPublico {
   id: string;
