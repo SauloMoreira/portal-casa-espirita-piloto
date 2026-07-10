@@ -208,25 +208,23 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { role, isMaster, user, profile, signOut } = useAuth();
+  const { selecionada, isPlatformAdmin } = useInstituicaoAtiva();
+  const branding = useTenantBranding();
   const isAssistido = role === "assistido";
-  const [inst, setInst] = useState<{ logo_url: string | null; nome_fantasia: string | null } | null>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    supabase.from("instituicao_config").select("logo_url, nome_fantasia").limit(1).then(({ data }) => {
-      if (data && data.length > 0) setInst(data[0] as any);
-    });
-  }, []);
-
-  useEffect(() => {
-    const handleStorage = () => {
-      supabase.from("instituicao_config").select("logo_url, nome_fantasia").limit(1).then(({ data }) => {
-        if (data && data.length > 0) setInst(data[0] as any);
-      });
-    };
-    window.addEventListener("instituicao-updated", handleStorage);
-    return () => window.removeEventListener("instituicao-updated", handleStorage);
-  }, []);
+  // SAAS-06-C1-FIX11 — cabeçalho da sidebar respeita o contexto ativo.
+  // Sem tenant selecionado, platform_admin vê o branding global do Portal;
+  // usuário comum vê branding neutro do SaaS. Nunca herdamos tenant anterior.
+  const headerTitle = selecionada
+    ? branding.nome
+    : SAAS_BRANDING.name;
+  const headerSubtitle = selecionada
+    ? "Sistema de Gestão"
+    : isPlatformAdmin
+      ? "Administração da Plataforma"
+      : SAAS_BRANDING.tagline;
+  const headerLogo = selecionada ? branding.logoUrl : null;
 
   // Auto-expand group containing active route
   useEffect(() => {
@@ -256,8 +254,8 @@ export function AppSidebar() {
         {/* Logo / Institution header */}
         {!collapsed ? (
           <div className="px-4 py-4 flex items-center gap-3 border-b border-sidebar-border/40">
-            {inst?.logo_url ? (
-              <img src={inst.logo_url} alt="" className="h-9 w-9 rounded-lg object-cover shrink-0" />
+            {headerLogo ? (
+              <img src={headerLogo} alt="" className="h-9 w-9 rounded-lg object-cover shrink-0" />
             ) : (
               <div className="h-9 w-9 rounded-lg bg-sidebar-accent/60 flex items-center justify-center shrink-0">
                 <Heart className="h-4 w-4 text-sidebar-foreground" />
@@ -265,22 +263,23 @@ export function AppSidebar() {
             )}
             <div className="min-w-0">
               <h2 className="text-sm font-display font-semibold text-sidebar-foreground truncate leading-tight">
-                {inst?.nome_fantasia || "Casa Espírita"}
+                {headerTitle}
               </h2>
               <p className="text-[9px] text-sidebar-foreground/50 mt-0.5 tracking-wide uppercase">
-                Sistema de Gestão
+                {headerSubtitle}
               </p>
             </div>
           </div>
         ) : (
           <div className="flex items-center justify-center py-3 border-b border-sidebar-border/40">
-            {inst?.logo_url ? (
-              <img src={inst.logo_url} alt="" className="h-7 w-7 rounded-md object-cover" />
+            {headerLogo ? (
+              <img src={headerLogo} alt="" className="h-7 w-7 rounded-md object-cover" />
             ) : (
               <Heart className="h-5 w-5 text-sidebar-foreground" />
             )}
           </div>
         )}
+
 
         {/* Navigation groups */}
         <div className="flex-1 py-2">
