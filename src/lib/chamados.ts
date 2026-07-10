@@ -23,7 +23,32 @@ export type ChamadoStatus =
   | "aguardando_administrador_global"
   | "aguardando_documento"
   | "resolvido"
+  | "resolvido_pelo_suporte"
+  | "reaberto"
+  | "fechado_pelo_cliente"
+  | "fechado_administrativo"
   | "cancelado";
+
+export type ChamadoResolucaoTipo =
+  | "correcao_tecnica_aplicada"
+  | "orientacao_operacional"
+  | "configuracao_ajustada"
+  | "documento_recebido"
+  | "solicitacao_comercial_tratada"
+  | "nao_reproduzido"
+  | "fora_do_escopo"
+  | "duplicidade"
+  | "outro";
+
+export type ChamadoFechamentoCategoria =
+  | "sem_retorno_cliente"
+  | "duplicidade"
+  | "chamado_cancelado"
+  | "fora_do_escopo"
+  | "resolvido_sem_confirmacao"
+  | "erro_nao_reproduzido"
+  | "outro";
+
 
 export type ChamadoPrioridade = "baixa" | "normal" | "alta" | "critica";
 
