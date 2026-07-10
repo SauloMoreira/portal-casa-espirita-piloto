@@ -102,16 +102,51 @@ export const MIME_PERMITIDOS = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
 ] as const;
+
+/** Extensões aceitas no seletor de arquivos (fallback para navegadores que
+ * enviam MIME vazio ou divergente, ex.: .txt como "" ou "application/octet-stream"). */
+export const EXTENSOES_PERMITIDAS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".pdf",
+  ".docx",
+  ".xlsx",
+  ".txt",
+] as const;
+
+export const ACCEPT_ATTR = [...MIME_PERMITIDOS, ...EXTENSOES_PERMITIDAS].join(",");
 
 export const MAX_ARQUIVO_BYTES = 10 * 1024 * 1024;
 export const MAX_ARQUIVOS_POR_ENVIO = 5;
 
+const EXT_TO_MIME: Record<string, (typeof MIME_PERMITIDOS)[number]> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  txt: "text/plain",
+};
+
+/** Resolve o MIME final a gravar: usa o do arquivo quando permitido; caso
+ * contrário, tenta inferir pela extensão. Retorna null se não conseguir. */
+export function resolveMimeType(file: File): (typeof MIME_PERMITIDOS)[number] | null {
+  if (MIME_PERMITIDOS.includes(file.type as (typeof MIME_PERMITIDOS)[number])) {
+    return file.type as (typeof MIME_PERMITIDOS)[number];
+  }
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return EXT_TO_MIME[ext] ?? null;
+}
+
 export function validarArquivo(file: File): string | null {
   if (file.size <= 0) return "Arquivo vazio.";
   if (file.size > MAX_ARQUIVO_BYTES) return "Arquivo excede 10 MB.";
-  if (!MIME_PERMITIDOS.includes(file.type as (typeof MIME_PERMITIDOS)[number])) {
-    return "Formato não permitido. Envie PNG, JPG, PDF, DOCX ou XLSX.";
+  if (!resolveMimeType(file)) {
+    return "Tipo de arquivo não permitido. Envie PNG, JPG, PDF, DOCX, XLSX ou TXT.";
   }
   return null;
 }
@@ -238,13 +273,15 @@ export async function enviarAnexo(
 ): Promise<ChamadoAnexo> {
   const err = validarArquivo(file);
   if (err) throw new Error(err);
+  const mime = resolveMimeType(file);
+  if (!mime) throw new Error("Tipo de arquivo não permitido. Envie PNG, JPG, PDF, DOCX, XLSX ou TXT.");
   const { data: userRes } = await supabase.auth.getUser();
   const uid = userRes.user?.id;
   if (!uid) throw new Error("AUTH_REQUIRED");
 
   const path = buildStoragePath(chamado.instituicao_id, chamado.id, file);
   const up = await supabase.storage.from("suporte-anexos").upload(path, file, {
-    contentType: file.type,
+    contentType: mime,
     upsert: false,
   });
   if (up.error) throw up.error;
@@ -258,7 +295,7 @@ export async function enviarAnexo(
       enviado_por_user_id: uid,
       nome_arquivo: file.name,
       storage_path: path,
-      mime_type: file.type,
+      mime_type: mime,
       tamanho_bytes: file.size,
     })
     .select("*")
@@ -274,7 +311,7 @@ export async function enviarAnexo(
 export async function urlAssinadaAnexo(anexo: ChamadoAnexo, ttlSeconds = 300): Promise<string | null> {
   const { data, error } = await supabase.storage
     .from("suporte-anexos")
-    .createSignedUrl(anexo.storage_path, ttlSeconds);
+    .createSignedUrl(anexo.storage_path, ttlSeconds, { download: anexo.nome_arquivo });
   if (error) return null;
   return data?.signedUrl ?? null;
 }

@@ -42,11 +42,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { toFriendlyError } from "@/lib/supabaseFriendlyErrors";
 import {
+  ACCEPT_ATTR,
   CHAMADO_PRIORIDADE_LABEL,
   CHAMADO_STATUS_LABEL,
   CHAMADO_TIPO_LABEL,
   MAX_ARQUIVOS_POR_ENVIO,
-  MIME_PERMITIDOS,
   atualizarStatus,
   criarChamado,
   enviarAnexo,
@@ -495,7 +495,7 @@ function NovoChamadoDialog(props: NovoChamadoDialogProps) {
             <Input
               type="file"
               multiple
-              accept={MIME_PERMITIDOS.join(",")}
+              accept={ACCEPT_ATTR}
               onChange={(e) => handleArquivos(e.target.files)}
             />
             {arquivos.length > 0 && (
@@ -598,11 +598,13 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
 
   const handleAnexar = async (fl: FileList | null) => {
     if (!chamado || !fl || fl.length === 0) return;
+    let sucessos = 0;
     for (const f of Array.from(fl).slice(0, MAX_ARQUIVOS_POR_ENVIO)) {
       const err = validarArquivo(f);
       if (err) { toast.error(`${f.name}: ${err}`); continue; }
       try {
         await enviarAnexo(chamado, f);
+        sucessos += 1;
       } catch (e) {
         const fr = toFriendlyError(e, {
           operacao: "enviar_anexo_chamado",
@@ -613,11 +615,14 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
       }
     }
     setAnexos(await obterAnexos(chamado.id));
+    if (sucessos > 0) {
+      toast.success(sucessos === 1 ? "Anexo enviado com sucesso." : `${sucessos} anexos enviados.`);
+    }
   };
 
   const handleBaixar = async (a: ChamadoAnexo) => {
     const url = await urlAssinadaAnexo(a);
-    if (!url) { toast.error("Não foi possível gerar o link do anexo."); return; }
+    if (!url) { toast.error("Não foi possível baixar o anexo. Se o problema continuar, verifique as permissões do storage."); return; }
     window.open(url, "_blank", "noopener");
   };
 
@@ -735,7 +740,7 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
                 <Input
                   type="file"
                   multiple
-                  accept={MIME_PERMITIDOS.join(",")}
+                  accept={ACCEPT_ATTR}
                   onChange={(e) => handleAnexar(e.target.files)}
                 />
               </div>
