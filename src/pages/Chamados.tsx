@@ -622,7 +622,7 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
 
   const handleBaixar = async (a: ChamadoAnexo) => {
     const url = await urlAssinadaAnexo(a);
-    if (!url) { toast.error("Não foi possível gerar o link do anexo."); return; }
+    if (!url) { toast.error("Não foi possível baixar o anexo. Se o problema continuar, verifique as permissões do storage."); return; }
     window.open(url, "_blank", "noopener");
   };
 
