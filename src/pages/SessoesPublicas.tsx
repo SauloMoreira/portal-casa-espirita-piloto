@@ -800,6 +800,118 @@ export default function SessoesPublicas() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Nova Sessão Pública */}
+      <Dialog open={showNovaSessao} onOpenChange={setShowNovaSessao}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nova Sessão Pública</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>Trabalho público *</Label>
+              <Select
+                value={novaSessao.tratamento_id}
+                onValueChange={(v) => atualizarNovaSessao("tratamento_id", v)}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione o trabalho público" /></SelectTrigger>
+                <SelectContent>
+                  {tratamentos.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Apenas trabalhos marcados como públicos aparecem aqui.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Data *</Label>
+                <Input
+                  type="date"
+                  value={novaSessao.data_sessao}
+                  onChange={(e) => atualizarNovaSessao("data_sessao", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Status</Label>
+                <Select
+                  value={novaSessao.status}
+                  onValueChange={(v) => atualizarNovaSessao("status", v as NovaSessaoForm["status"])}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="agendada">Agendada</SelectItem>
+                    <SelectItem value="aberta">Aberta</SelectItem>
+                    <SelectItem value="encerrada">Encerrada</SelectItem>
+                    <SelectItem value="cancelada">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Horário de início</Label>
+                <Input
+                  type="time"
+                  value={novaSessao.horario_inicio}
+                  onChange={(e) => atualizarNovaSessao("horario_inicio", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Horário de término</Label>
+                <Input
+                  type="time"
+                  value={novaSessao.horario_fim}
+                  onChange={(e) => atualizarNovaSessao("horario_fim", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Local</Label>
+                <Input
+                  placeholder="Sala, salão, etc."
+                  value={novaSessao.local}
+                  onChange={(e) => atualizarNovaSessao("local", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Capacidade</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Opcional"
+                  value={novaSessao.capacidade}
+                  onChange={(e) => atualizarNovaSessao("capacidade", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Observações</Label>
+              <Textarea
+                rows={3}
+                placeholder="Notas internas sobre esta sessão (opcional)"
+                value={novaSessao.observacoes}
+                onChange={(e) => atualizarNovaSessao("observacoes", e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNovaSessao(false)} disabled={salvandoSessao}>
+              Cancelar
+            </Button>
+            <Button onClick={criarSessao} disabled={salvandoSessao}>
+              {salvandoSessao ? "Salvando..." : "Criar sessão"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
