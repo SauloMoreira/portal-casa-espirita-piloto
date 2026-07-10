@@ -474,9 +474,11 @@ export default function SessoesPublicas() {
                           {format(new Date(s.data_sessao + "T12:00:00"), "dd/MM/yyyy")}
                         </p>
                       </div>
-                      <Badge variant={s.status === "aberta" ? "default" : "outline"}>
-                        {s.status === "aberta" ? "Aberta" : "Encerrada"}
-                      </Badge>
+                      {statusBadge(s.status)}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      {s.horario_inicio && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{s.horario_inicio.slice(0,5)}{s.horario_fim ? `–${s.horario_fim.slice(0,5)}` : ""}</span>}
+                      {s.local && <span className="truncate">• {s.local}</span>}
                     </div>
                     <div className="flex items-center justify-between mt-3">
                       <Badge variant="secondary" className="gap-1 text-sm">
