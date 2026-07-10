@@ -273,13 +273,15 @@ export async function enviarAnexo(
 ): Promise<ChamadoAnexo> {
   const err = validarArquivo(file);
   if (err) throw new Error(err);
+  const mime = resolveMimeType(file);
+  if (!mime) throw new Error("Tipo de arquivo não permitido. Envie PNG, JPG, PDF, DOCX, XLSX ou TXT.");
   const { data: userRes } = await supabase.auth.getUser();
   const uid = userRes.user?.id;
   if (!uid) throw new Error("AUTH_REQUIRED");
 
   const path = buildStoragePath(chamado.instituicao_id, chamado.id, file);
   const up = await supabase.storage.from("suporte-anexos").upload(path, file, {
-    contentType: file.type,
+    contentType: mime,
     upsert: false,
   });
   if (up.error) throw up.error;
@@ -293,7 +295,7 @@ export async function enviarAnexo(
       enviado_por_user_id: uid,
       nome_arquivo: file.name,
       storage_path: path,
-      mime_type: file.type,
+      mime_type: mime,
       tamanho_bytes: file.size,
     })
     .select("*")
