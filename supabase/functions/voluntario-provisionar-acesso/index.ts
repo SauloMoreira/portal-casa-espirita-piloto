@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
     await admin.from("voluntarios").update(updateVol).eq("id", voluntario_id);
 
     // 7. Concede papel operacional via RPC oficial (mantém auditoria centralizada).
-    const { data: grantData, error: grantErr } = await admin.rpc(
+    const { data: grantData, error: grantErr } = await callerClient.rpc(
       "fn_conceder_acesso_operacional",
       {
         p_target_user_id: userId!,
