@@ -153,7 +153,13 @@ export default function Usuarios() {
 
   };
 
+  const fetchOrfaos = async () => {
+    if (!selecionada?.id) { setOrfaos([]); return; }
+    setOrfaos(await fetchVoluntariosOrfaosDoTenant(selecionada.id));
+  };
+
   useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchOrfaos(); }, [selecionada?.id]);
 
   const validate = (isNew: boolean): FormErrors => {
     const e: FormErrors = {};
