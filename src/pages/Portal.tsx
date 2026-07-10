@@ -139,6 +139,10 @@ export default function Portal() {
         )}
 
 
+      {(() => {
+        const ativos = instituicoes.filter((i) => i.vinculo_status === "ativo");
+        const inativos = instituicoes.filter((i) => i.vinculo_status !== "ativo");
+        return (
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           <Card>
@@ -147,23 +151,29 @@ export default function Portal() {
                 <Building2 className="h-5 w-5 text-primary" />
                 <CardTitle className="text-base">Minhas instituições</CardTitle>
               </div>
-              <Badge variant="secondary">{instituicoes.length}</Badge>
+              <Badge variant="secondary">{ativos.length}</Badge>
             </CardHeader>
             <CardContent>
-              {instituicoes.length === 0 ? (
+              {ativos.length === 0 ? (
                 <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  Você ainda não está vinculado a nenhuma instituição.
-                  <br />
-                  Peça ao administrador da sua casa espírita para criar o seu vínculo.
+                  {isPlatformAdmin
+                    ? "Você não possui vínculo ativo com nenhuma instituição. Como administrador da plataforma, use o Portal Admin e a Central de Assinaturas para gerir todas as instituições."
+                    : (
+                      <>
+                        Você ainda não está vinculado a nenhuma instituição.
+                        <br />
+                        Peça ao administrador da sua casa espírita para criar o seu vínculo.
+                      </>
+                    )}
                 </div>
               ) : (
                 <InstituicaoSelector
-                  instituicoes={instituicoes}
+                  instituicoes={ativos}
                   selectedId={selectedInstituicaoId}
                   onSelect={selectInstituicao}
                 />
               )}
-              {instituicoes.length > 0 && (
+              {ativos.length > 0 && (
                 <div className="mt-4 flex justify-end">
                   <Button asChild variant="ghost" size="sm">
                     <Link to={ROUTES.portalInstituicoes}>Ver todas</Link>
@@ -172,6 +182,47 @@ export default function Portal() {
               )}
             </CardContent>
           </Card>
+
+          {/* SAAS-06-C1-FIX11 — vínculos locais inativos ficam em seção separada
+              para não confundir com instituições operacionais acessíveis. */}
+          {inativos.length > 0 && (
+            <Card className="border-dashed">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-base text-muted-foreground">
+                    Vínculos locais inativos
+                  </CardTitle>
+                </div>
+                <Badge variant="outline">{inativos.length}</Badge>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Estes vínculos não estão ativos e por isso não permitem acesso operacional.
+                  {isPlatformAdmin && " Como administrador da plataforma, você ainda pode acessar essas instituições pela visão global."}
+                </p>
+                <ul className="space-y-2 text-sm">
+                  {inativos.map((inst) => (
+                    <li
+                      key={inst.id}
+                      className="flex items-center justify-between rounded-md border border-dashed px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-foreground/80">{inst.nome}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {[inst.cidade, inst.uf].filter(Boolean).join(" · ") || "—"}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] uppercase">
+                        {inst.vinculo_status}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
