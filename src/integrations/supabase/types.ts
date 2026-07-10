@@ -3166,6 +3166,7 @@ export type Database = {
       }
       sessoes_publicas: {
         Row: {
+          capacidade: number | null
           created_at: string
           criado_por: string | null
           data_sessao: string
@@ -3173,6 +3174,8 @@ export type Database = {
           horario_inicio: string | null
           id: string
           instituicao_id: string
+          local: string | null
+          observacoes: string | null
           status: string
           token: string
           total_presentes: number
@@ -3180,6 +3183,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          capacidade?: number | null
           created_at?: string
           criado_por?: string | null
           data_sessao: string
@@ -3187,6 +3191,8 @@ export type Database = {
           horario_inicio?: string | null
           id?: string
           instituicao_id: string
+          local?: string | null
+          observacoes?: string | null
           status?: string
           token?: string
           total_presentes?: number
@@ -3194,6 +3200,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          capacidade?: number | null
           created_at?: string
           criado_por?: string | null
           data_sessao?: string
@@ -3201,6 +3208,8 @@ export type Database = {
           horario_inicio?: string | null
           id?: string
           instituicao_id?: string
+          local?: string | null
+          observacoes?: string | null
           status?: string
           token?: string
           total_presentes?: number

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
@@ -8,11 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { QrCode, Plus, Users, Search, UserPlus, Maximize2, Sparkles, Clock, ChevronRight, CheckCircle2 } from "lucide-react";
+import { QrCode, Plus, Users, Search, UserPlus, Maximize2, Sparkles, Clock, ChevronRight, CheckCircle2, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { withRetry, isTransientError } from "@/lib/resilience";
@@ -37,8 +39,40 @@ interface Sessao {
   total_presentes: number;
   horario_inicio: string | null;
   horario_fim: string | null;
+  local: string | null;
+  capacidade: number | null;
+  observacoes: string | null;
   tipos_tratamento?: { nome: string } | null;
 }
+
+type NovaSessaoForm = {
+  tratamento_id: string;
+  data_sessao: string;
+  horario_inicio: string;
+  horario_fim: string;
+  local: string;
+  capacidade: string;
+  observacoes: string;
+  status: "agendada" | "aberta" | "encerrada" | "cancelada";
+};
+
+const hojeISO = () => format(new Date(), "yyyy-MM-dd");
+const statusPadraoParaData = (data: string): NovaSessaoForm["status"] =>
+  data === hojeISO() ? "aberta" : data > hojeISO() ? "agendada" : "encerrada";
+
+const novaSessaoInicial = (): NovaSessaoForm => {
+  const data = hojeISO();
+  return {
+    tratamento_id: "",
+    data_sessao: data,
+    horario_inicio: "",
+    horario_fim: "",
+    local: "",
+    capacidade: "",
+    observacoes: "",
+    status: statusPadraoParaData(data),
+  };
+};
 
 interface Checkin {
   id: string;
@@ -60,6 +94,9 @@ export default function SessoesPublicas() {
   const [showQr, setShowQr] = useState(false);
   const [qrFull, setQrFull] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  const [showNovaSessao, setShowNovaSessao] = useState(false);
+  const [novaSessao, setNovaSessao] = useState<NovaSessaoForm>(novaSessaoInicial());
+  const [salvandoSessao, setSalvandoSessao] = useState(false);
   const [manualSearch, setManualSearch] = useState("");
   const [manualResults, setManualResults] = useState<any[]>([]);
   const [quickForm, setQuickForm] = useState({ nome: "", celular: "", faixa_etaria: "" });
@@ -68,6 +105,7 @@ export default function SessoesPublicas() {
   const [pulse, setPulse] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const selectedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -115,20 +153,49 @@ export default function SessoesPublicas() {
   };
 
   const fetchSessoes = async () => {
-    const today = format(new Date(), "yyyy-MM-dd");
     const { data } = await supabase
       .from("sessoes_publicas")
       .select("*, tipos_tratamento:tratamento_id(nome)")
-      .gte("data_sessao", today)
-      .order("data_sessao", { ascending: true }) as any;
+      .order("data_sessao", { ascending: false })
+      .order("horario_inicio", { ascending: true, nullsFirst: true })
+      .limit(200) as any;
     if (data) setSessoes(data);
+  };
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, { label: string; variant: "default" | "outline" | "secondary" | "destructive" }> = {
+      agendada: { label: "Agendada", variant: "secondary" },
+      aberta: { label: "Aberta", variant: "default" },
+      encerrada: { label: "Encerrada", variant: "outline" },
+      cancelada: { label: "Cancelada", variant: "destructive" },
+    };
+    const cfg = map[status] ?? { label: status, variant: "outline" as const };
+    return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
   };
 
   const { selectedInstituicaoId } = useInstituicaoAtiva();
 
-  const criarSessaoHoje = async (tratamentoId: string) => {
-    // SAAS-06-C1-FIX09 — fail-closed: sem instituição ativa, não persiste.
-    // Também valida contra o espelho `currentTenant` (defesa em profundidade).
+  const abrirNovaSessao = () => {
+    setNovaSessao(novaSessaoInicial());
+    setShowNovaSessao(true);
+  };
+
+  const atualizarNovaSessao = <K extends keyof NovaSessaoForm>(campo: K, valor: NovaSessaoForm[K]) => {
+    setNovaSessao((prev) => {
+      const proximo = { ...prev, [campo]: valor };
+      // Ajusta status padrão automaticamente ao trocar a data, se o usuário
+      // ainda não personalizou (mantém padrão coerente com hoje/futuro).
+      if (campo === "data_sessao") {
+        const padraoAtual = statusPadraoParaData(prev.data_sessao);
+        if (prev.status === padraoAtual) {
+          proximo.status = statusPadraoParaData(valor as string);
+        }
+      }
+      return proximo;
+    });
+  };
+
+  const criarSessao = async () => {
     try {
       requireInstituicaoId();
     } catch {
@@ -139,68 +206,103 @@ export default function SessoesPublicas() {
       toast({ title: TENANT_AUSENTE_ERROR.message, variant: "destructive" });
       return;
     }
-
-
-    const today = format(new Date(), "yyyy-MM-dd");
-    const { data: existing } = await supabase
-      .from("sessoes_publicas")
-      .select("id")
-      .eq("tratamento_id", tratamentoId)
-      .eq("data_sessao", today)
-      .eq("instituicao_id", selectedInstituicaoId)
-      .maybeSingle();
-
-    if (existing) {
-      toast({ title: "Sessão já existe para hoje", variant: "destructive" });
+    if (!novaSessao.tratamento_id) {
+      toast({ title: "Selecione um trabalho público", variant: "destructive" });
+      return;
+    }
+    if (!novaSessao.data_sessao) {
+      toast({ title: "Informe a data da sessão", variant: "destructive" });
+      return;
+    }
+    if (novaSessao.horario_inicio && novaSessao.horario_fim && novaSessao.horario_fim <= novaSessao.horario_inicio) {
+      toast({ title: "Horário de término deve ser após o início", variant: "destructive" });
+      return;
+    }
+    const capacidadeNum = novaSessao.capacidade ? Number(novaSessao.capacidade) : null;
+    if (capacidadeNum !== null && (!Number.isFinite(capacidadeNum) || capacidadeNum < 0)) {
+      toast({ title: "Capacidade inválida", variant: "destructive" });
       return;
     }
 
-    const { error } = await supabase.from("sessoes_publicas").insert({
-      tratamento_id: tratamentoId,
-      data_sessao: today,
-      criado_por: user?.id,
-      instituicao_id: selectedInstituicaoId,
-    });
+    setSalvandoSessao(true);
+    try {
+      // Duplicidade: mesma instituição + trabalho + data (+ horário se informado).
+      let dupQuery = supabase
+        .from("sessoes_publicas")
+        .select("id, horario_inicio")
+        .eq("tratamento_id", novaSessao.tratamento_id)
+        .eq("data_sessao", novaSessao.data_sessao)
+        .eq("instituicao_id", selectedInstituicaoId);
+      const { data: existentes } = await dupQuery;
+      const duplicada = (existentes ?? []).some((s: any) => {
+        if (!novaSessao.horario_inicio) return true; // sem horário: qualquer sessão do dia bloqueia
+        return s.horario_inicio === novaSessao.horario_inicio;
+      });
+      if (duplicada) {
+        toast({
+          title: "Já existe uma sessão cadastrada para este trabalho nesta data/horário.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (error) {
-      const friendly = toFriendlyError(error, {
-        operacao: "criar_sessao_publica",
-        entidade: "sessoes_publicas",
-        acao: "INSERT",
-        instituicaoId: selectedInstituicaoId,
-      });
-      console.error("[sessoes_publicas:create]", friendly.code, friendly.raw);
-      toast({
-        title: friendly.message,
-        description: `Detalhes técnicos para suporte:\n${formatSupportDetails(friendly)}`,
-        variant: "destructive",
-        action: (
-          <ToastAction
-            altText="Abrir chamado técnico"
-            onClick={async () => {
-              const { copiado } = await abrirChamadoTecnico({
-                origem: "Sessões Públicas",
-                friendly,
-                instituicaoId: selectedInstituicaoId,
-                userId: user?.id ?? null,
-              });
-              toast({
-                title: copiado
-                  ? "Detalhes do chamado copiados"
-                  : "Detalhes do chamado prontos",
-                description: copiado
-                  ? "Cole em um chamado ou envie ao administrador geral da plataforma."
-                  : "Copie os detalhes técnicos exibidos e envie ao administrador geral da plataforma.",
-              });
-            }}
-          >
-            Abrir chamado técnico
-          </ToastAction>
-        ),
-      });
-    } else {
-      toast({ title: "Sessão criada com sucesso" });
+      const payload: Record<string, unknown> = {
+        tratamento_id: novaSessao.tratamento_id,
+        data_sessao: novaSessao.data_sessao,
+        status: novaSessao.status,
+        horario_inicio: novaSessao.horario_inicio || null,
+        horario_fim: novaSessao.horario_fim || null,
+        local: novaSessao.local.trim() || null,
+        capacidade: capacidadeNum,
+        observacoes: novaSessao.observacoes.trim() || null,
+        criado_por: user?.id,
+        instituicao_id: selectedInstituicaoId,
+      };
+
+      const { error } = await supabase.from("sessoes_publicas").insert(payload as any);
+      if (error) {
+        const friendly = toFriendlyError(error, {
+          operacao: "criar_sessao_publica",
+          entidade: "sessoes_publicas",
+          acao: "INSERT",
+          instituicaoId: selectedInstituicaoId,
+        });
+        console.error("[sessoes_publicas:create]", friendly.code, friendly.raw);
+        toast({
+          title: friendly.message,
+          description: `Detalhes técnicos para suporte:\n${formatSupportDetails(friendly)}`,
+          variant: "destructive",
+          action: (
+            <ToastAction
+              altText="Abrir chamado técnico"
+              onClick={async () => {
+                const { copiado } = await abrirChamadoTecnico({
+                  origem: "Sessões Públicas",
+                  friendly,
+                  instituicaoId: selectedInstituicaoId,
+                  userId: user?.id ?? null,
+                });
+                toast({
+                  title: copiado ? "Detalhes do chamado copiados" : "Detalhes do chamado prontos",
+                  description: copiado
+                    ? "Cole em um chamado ou envie ao administrador geral da plataforma."
+                    : "Copie os detalhes técnicos exibidos e envie ao administrador geral da plataforma.",
+                });
+              }}
+            >
+              Abrir chamado técnico
+            </ToastAction>
+          ),
+        });
+        return;
+      }
+
+      toast({ title: "Sessão pública criada com sucesso" });
+      setShowNovaSessao(false);
+      setNovaSessao(novaSessaoInicial());
       fetchSessoes();
+    } finally {
+      setSalvandoSessao(false);
     }
   };
 
@@ -311,22 +413,38 @@ export default function SessoesPublicas() {
         <p className="text-sm text-muted-foreground mt-1">Gerencie sessões de trabalhos públicos e controle de presença</p>
       </div>
 
-      {/* Quick create sessions for today */}
+      {/* Criação formal de nova sessão pública */}
       <Card className="glass-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Criar Sessão para Hoje</CardTitle>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Nova Sessão Pública</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cadastre a sessão a partir dos Trabalhos Públicos já configurados nesta instituição.
+            </p>
+          </div>
+          <Button
+            className="gap-2"
+            onClick={abrirNovaSessao}
+            disabled={tratamentos.length === 0}
+          >
+            <Plus className="h-4 w-4" /> Nova sessão
+          </Button>
         </CardHeader>
         <CardContent>
           {tratamentos.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum trabalho configurado como público. Configure em Gestão de Tratamentos.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {tratamentos.map((t) => (
-                <Button key={t.id} variant="outline" className="gap-2 h-11" onClick={() => criarSessaoHoje(t.id)}>
-                  <Plus className="h-4 w-4" /> {t.nome}
-                </Button>
-              ))}
+            <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Nenhum Trabalho Público está cadastrado para esta instituição. Cadastre um trabalho público
+                (ex.: Palestra Pública, Passe Público) antes de criar sessões.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => navigate("/tratamentos")}>
+                Ir para Gestão de Tratamentos
+              </Button>
             </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {tratamentos.length} trabalho(s) público(s) disponível(is) para agendamento.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -356,9 +474,11 @@ export default function SessoesPublicas() {
                           {format(new Date(s.data_sessao + "T12:00:00"), "dd/MM/yyyy")}
                         </p>
                       </div>
-                      <Badge variant={s.status === "aberta" ? "default" : "outline"}>
-                        {s.status === "aberta" ? "Aberta" : "Encerrada"}
-                      </Badge>
+                      {statusBadge(s.status)}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      {s.horario_inicio && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{s.horario_inicio.slice(0,5)}{s.horario_fim ? `–${s.horario_fim.slice(0,5)}` : ""}</span>}
+                      {s.local && <span className="truncate">• {s.local}</span>}
                     </div>
                     <div className="flex items-center justify-between mt-3">
                       <Badge variant="secondary" className="gap-1 text-sm">
@@ -387,6 +507,8 @@ export default function SessoesPublicas() {
                     <TableRow>
                       <TableHead>Trabalho</TableHead>
                       <TableHead>Data</TableHead>
+                      <TableHead>Horário</TableHead>
+                      <TableHead>Local</TableHead>
                       <TableHead>Presentes</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-10"></TableHead>
@@ -397,14 +519,14 @@ export default function SessoesPublicas() {
                       <TableRow key={s.id} className="cursor-pointer" onClick={() => openSessao(s)}>
                         <TableCell className="font-medium">{sessaoNome(s)}</TableCell>
                         <TableCell>{format(new Date(s.data_sessao + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {s.horario_inicio ? `${s.horario_inicio.slice(0,5)}${s.horario_fim ? `–${s.horario_fim.slice(0,5)}` : ""}` : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{s.local || "—"}</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" />{s.total_presentes}</Badge>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={s.status === "aberta" ? "default" : "outline"}>
-                            {s.status === "aberta" ? "Aberta" : "Encerrada"}
-                          </Badge>
-                        </TableCell>
+                        <TableCell>{statusBadge(s.status)}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedSessao(s); setShowQr(true); }}>
                             <QrCode className="h-4 w-4" />
@@ -676,6 +798,118 @@ export default function SessoesPublicas() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nova Sessão Pública */}
+      <Dialog open={showNovaSessao} onOpenChange={setShowNovaSessao}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nova Sessão Pública</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>Trabalho público *</Label>
+              <Select
+                value={novaSessao.tratamento_id}
+                onValueChange={(v) => atualizarNovaSessao("tratamento_id", v)}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione o trabalho público" /></SelectTrigger>
+                <SelectContent>
+                  {tratamentos.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Apenas trabalhos marcados como públicos aparecem aqui.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Data *</Label>
+                <Input
+                  type="date"
+                  value={novaSessao.data_sessao}
+                  onChange={(e) => atualizarNovaSessao("data_sessao", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Status</Label>
+                <Select
+                  value={novaSessao.status}
+                  onValueChange={(v) => atualizarNovaSessao("status", v as NovaSessaoForm["status"])}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="agendada">Agendada</SelectItem>
+                    <SelectItem value="aberta">Aberta</SelectItem>
+                    <SelectItem value="encerrada">Encerrada</SelectItem>
+                    <SelectItem value="cancelada">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Horário de início</Label>
+                <Input
+                  type="time"
+                  value={novaSessao.horario_inicio}
+                  onChange={(e) => atualizarNovaSessao("horario_inicio", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Horário de término</Label>
+                <Input
+                  type="time"
+                  value={novaSessao.horario_fim}
+                  onChange={(e) => atualizarNovaSessao("horario_fim", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Local</Label>
+                <Input
+                  placeholder="Sala, salão, etc."
+                  value={novaSessao.local}
+                  onChange={(e) => atualizarNovaSessao("local", e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Capacidade</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Opcional"
+                  value={novaSessao.capacidade}
+                  onChange={(e) => atualizarNovaSessao("capacidade", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Observações</Label>
+              <Textarea
+                rows={3}
+                placeholder="Notas internas sobre esta sessão (opcional)"
+                value={novaSessao.observacoes}
+                onChange={(e) => atualizarNovaSessao("observacoes", e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNovaSessao(false)} disabled={salvandoSessao}>
+              Cancelar
+            </Button>
+            <Button onClick={criarSessao} disabled={salvandoSessao}>
+              {salvandoSessao ? "Salvando..." : "Criar sessão"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
