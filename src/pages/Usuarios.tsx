@@ -518,6 +518,56 @@ export default function Usuarios() {
         </CardContent>
       </Card>
 
+      {orfaos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <UsersIcon className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-lg font-semibold">Sem login / e-mail pendente</h2>
+              <Badge variant="secondary">{orfaos.length}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Voluntários desta instituição sem conta de acesso. Para gerar acesso,
+              informe um e-mail real na Gestão de Acesso.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead className="hidden md:table-cell">CPF</TableHead>
+                    <TableHead className="hidden md:table-cell">Celular</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead className="w-40 text-right"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orfaos.map((o) => (
+                    <TableRow key={o.voluntario_id}>
+                      <TableCell className="font-medium">{o.nome_completo}</TableCell>
+                      <TableCell className="hidden md:table-cell font-mono text-xs">{o.cpf ? maskCPF(o.cpf) : "—"}</TableCell>
+                      <TableCell className="hidden md:table-cell">{o.celular ? maskPhone(o.celular) : "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50">
+                          Sem login / e-mail pendente
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="outline" onClick={() => navigate("/governanca-acessos")}>
+                          <ShieldCheck className="h-4 w-4 mr-2" /> Gerar acesso
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {resetTarget && (
         <ResetPasswordDialog
           open={resetOpen}
