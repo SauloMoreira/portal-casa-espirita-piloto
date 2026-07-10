@@ -128,6 +128,10 @@ export function toFriendlyError(
     return { ...base, message: MSG_CAMPO_OBRIG, code: makeCode(ctx, "REQUIRED") };
   }
 
+  if (err.code === "23503") {
+    return { ...base, message: MSG_FK, code: makeCode(ctx, "FK") };
+  }
+
   return { ...base, message: MSG_INESPERADO, code: makeCode(ctx, "UNEXPECTED") };
 }
 
