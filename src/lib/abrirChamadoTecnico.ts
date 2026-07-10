@@ -1,14 +1,16 @@
 /**
- * SAAS-06-C1-FIX09 — Stub para "Abrir chamado técnico".
+ * SAAS-06-C1-FIX10 — Helper "Abrir chamado técnico".
  *
- * A Central de Chamados definitiva é entregue no FIX10 (SAAS-06-C1). Enquanto
- * a UI/tabela de chamados não existe, este helper apenas:
- *  1. Copia os detalhes técnicos amigáveis para a área de transferência.
- *  2. Loga um marcador estruturado no console para diagnóstico interno.
- *
- * Quando o FIX10 aterrissar, este helper passa a persistir em
- * `chamados_suporte` + `chamado_mensagens` sem alterar callers.
+ * Comportamento:
+ *  1. Se houver `instituicaoId` e sessão autenticada, chama a RPC
+ *     `fn_abrir_chamado_tecnico` (SECURITY DEFINER, revoga anon) que grava um
+ *     `chamados_suporte` do tipo `tecnico` com origem, código técnico e
+ *     metadata seguros (rota atual, operação, entidade).
+ *  2. Independentemente do sucesso do backend, copia um resumo técnico para a
+ *     área de transferência como fallback UX.
+ *  3. Nunca expõe o erro cru — todos os erros são logados internamente.
  */
+import { supabase } from "@/integrations/supabase/client";
 import type { FriendlyError } from "@/lib/supabaseFriendlyErrors";
 import { formatSupportDetails } from "@/lib/supabaseFriendlyErrors";
 
@@ -19,13 +21,22 @@ export interface AbrirChamadoInput {
   userId?: string | null;
 }
 
+export interface AbrirChamadoResult {
+  copiado: boolean;
+  texto: string;
+  chamadoId: string | null;
+  persisted: boolean;
+}
+
 export async function abrirChamadoTecnico(
   input: AbrirChamadoInput,
-): Promise<{ copiado: boolean; texto: string }> {
+): Promise<AbrirChamadoResult> {
+  const rota = typeof window !== "undefined" ? window.location.pathname : "";
   const linhas = [
     "Chamado técnico — SaaS Casa Espírita",
     `Origem: ${input.origem}`,
     formatSupportDetails(input.friendly),
+    `Rota: ${rota}`,
     `Instituição: ${input.instituicaoId ?? "—"}`,
     `Usuário: ${input.userId ?? "—"}`,
     `Data/hora: ${new Date().toISOString()}`,
@@ -33,14 +44,55 @@ export async function abrirChamadoTecnico(
   ];
   const texto = linhas.join("\n");
 
-  // Log estruturado interno (não exibido ao usuário final).
-  console.warn("[chamado-tecnico:pending-fix10]", {
+  let chamadoId: string | null = null;
+  let persisted = false;
+
+  if (input.instituicaoId) {
+    try {
+      const assunto = `Erro técnico em ${input.origem}`.slice(0, 200);
+      const descricao = [
+        input.friendly.message,
+        "",
+        `Operação: ${input.friendly.operacao}`,
+        `Entidade: ${input.friendly.entidade}`,
+        `Rota: ${rota}`,
+      ].join("\n");
+      // Nota: `fn_abrir_chamado_tecnico` é uma RPC SECURITY DEFINER com REVOKE de anon.
+      // A tipagem gerada pode não conhecê-la ainda; usamos cast controlado.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.rpc as any)("fn_abrir_chamado_tecnico", {
+        p_instituicao_id: input.instituicaoId,
+        p_origem: input.origem,
+        p_assunto: assunto,
+        p_descricao: descricao,
+        p_codigo_tecnico: input.friendly.code,
+        p_metadata: {
+          rota,
+          operacao: input.friendly.operacao,
+          entidade: input.friendly.entidade,
+          codigo: input.friendly.code,
+        },
+      });
+      if (!error && data) {
+        chamadoId = typeof data === "string" ? data : (data as { id?: string })?.id ?? null;
+        persisted = !!chamadoId;
+      } else if (error) {
+        console.warn("[chamado-tecnico:persist-failed]", error.message);
+      }
+    } catch (e) {
+      console.warn("[chamado-tecnico:persist-exception]", e);
+    }
+  }
+
+  console.warn("[chamado-tecnico]", {
     origem: input.origem,
     codigo: input.friendly.code,
     operacao: input.friendly.operacao,
     entidade: input.friendly.entidade,
     instituicaoId: input.instituicaoId,
     userId: input.userId,
+    chamadoId,
+    persisted,
   });
 
   let copiado = false;
@@ -52,5 +104,5 @@ export async function abrirChamadoTecnico(
   } catch {
     copiado = false;
   }
-  return { copiado, texto };
+  return { copiado, texto, chamadoId, persisted };
 }
