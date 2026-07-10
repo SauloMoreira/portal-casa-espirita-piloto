@@ -39,8 +39,40 @@ interface Sessao {
   total_presentes: number;
   horario_inicio: string | null;
   horario_fim: string | null;
+  local: string | null;
+  capacidade: number | null;
+  observacoes: string | null;
   tipos_tratamento?: { nome: string } | null;
 }
+
+type NovaSessaoForm = {
+  tratamento_id: string;
+  data_sessao: string;
+  horario_inicio: string;
+  horario_fim: string;
+  local: string;
+  capacidade: string;
+  observacoes: string;
+  status: "agendada" | "aberta" | "encerrada" | "cancelada";
+};
+
+const hojeISO = () => format(new Date(), "yyyy-MM-dd");
+const statusPadraoParaData = (data: string): NovaSessaoForm["status"] =>
+  data === hojeISO() ? "aberta" : data > hojeISO() ? "agendada" : "encerrada";
+
+const novaSessaoInicial = (): NovaSessaoForm => {
+  const data = hojeISO();
+  return {
+    tratamento_id: "",
+    data_sessao: data,
+    horario_inicio: "",
+    horario_fim: "",
+    local: "",
+    capacidade: "",
+    observacoes: "",
+    status: statusPadraoParaData(data),
+  };
+};
 
 interface Checkin {
   id: string;
