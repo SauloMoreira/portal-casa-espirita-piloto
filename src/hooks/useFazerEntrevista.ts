@@ -339,10 +339,35 @@ export function useFazerEntrevista() {
       return;
     }
 
-    // Holístico exige horário da consulta (validação UI; backend revalida).
+    // Regra FIX15: horário só é obrigatório quando o entrevistador informa data.
+    // Tratamentos agendados pelo coordenador (modo agendado_por_data_inicial)
+    // sem data vão para lista de espera do coordenador — sem exigir horário.
+    // Para tratamentos holísticos NÃO agendados por data inicial, mantém-se
+    // a exigência de horário (execução em dia/hora fixos).
     for (const tratId of Object.keys(quantidades)) {
       const trat = tratamentoMap[tratId];
       if (!trat) continue;
+      const isAgendadoCoordenador =
+        trat.modo_agendamento === MODO_AGENDAMENTO.agendadoPorDataInicial;
+      const temData = !!datasIniciais[tratId];
+      const horarioInformado = !!horarios[tratId]?.trim();
+
+      if (isAgendadoCoordenador) {
+        // Sem data → lista de espera, horário opcional.
+        if (!temData) continue;
+        // Com data → horário obrigatório.
+        if (!horarioInformado) {
+          toast({
+            title: "Horário obrigatório",
+            description: `Informe o horário da consulta para "${trat.nome}" ou remova a data para deixar o agendamento com o coordenador.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        continue;
+      }
+
+      // Holístico fora do modo coordenador → mantém regra antiga.
       if (
         isTratamentoHolistico(trat.tipo) &&
         !validarHorarioHolistico({ holistico: true, horario: horarios[tratId] }).valido
