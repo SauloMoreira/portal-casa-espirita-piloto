@@ -43,8 +43,10 @@ const MSG_CAMPO_OBRIG =
   "Preencha os campos obrigatórios antes de continuar.";
 const MSG_DUPLICIDADE =
   "Já existe um cadastro com essas informações.";
+const MSG_FK =
+  "Não foi possível concluir a ação porque há informações relacionadas pendentes ou inválidas.";
 const MSG_INESPERADO =
-  "Não foi possível salvar no momento. Tente novamente. Se o problema continuar, envie este erro ao administrador geral da plataforma.";
+  "Não foi possível concluir esta ação no momento. Se o problema continuar, abra um chamado técnico para o administrador geral da plataforma.";
 
 /**
  * Erro sinalizado pelo front quando não há instituição ativa. Não vem do banco.
