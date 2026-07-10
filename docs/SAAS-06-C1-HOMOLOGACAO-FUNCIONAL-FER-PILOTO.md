@@ -576,3 +576,38 @@ Nenhuma tabela/bucket/UI de chamados é criada neste ciclo — apenas o design a
 ### Critério de aceite
 - FIX09: admin local da FER Piloto cria sessão pública sem erro RLS; falha (se ocorrer) gera mensagem amigável + código técnico + botão "Abrir chamado técnico". Isolamento por tenant preservado.
 - FIX10: preparação registrada em documento próprio, pronto para virar recorte de implementação.
+
+## SAAS-06-C1-FIX11 — Separação clara entre visão global do platform_admin e contexto de tenant
+
+### Erro observado
+Ao logar como `saulocmoreira@gmail.com` (platform_admin com vínculo local **inativo** com a FER Piloto), o Portal reconhecia corretamente o papel global ("Você é administrador da plataforma"), porém o **shell** continuava estampando branding institucional:
+
+- Header: `FER Piloto — Sistema de Gestão`.
+- Sidebar: logo/nome da instituição pilotada.
+- Bloco "Minhas instituições": FER Piloto aparecia como "indisponível" misturada com instituições operacionais reais.
+
+### Causa raiz
+O header (`AppLayout`) e a sidebar (`AppSidebar`) faziam `select` cru em `instituicao_config` sem passar pelo `InstituicaoContext`. Como a RLS de `instituicao_config` para platform_admin permite ver linhas de várias instituições, o primeiro registro retornado virava rótulo do shell — independentemente de haver ou não instituição selecionada. Resultado: platform_admin sem tenant ativo herdava marca de tenant qualquer.
+
+### Regra adotada
+1. **Fonte única do branding do shell é o `InstituicaoContext` + `useTenantBranding`**. Não há mais leitura direta de `instituicao_config` no `AppLayout`/`AppSidebar`.
+2. **Sem tenant selecionado + platform_admin** → header e sidebar exibem branding global do Portal (`Portal Casa Espírita — Administração da Plataforma`).
+3. **Sem tenant selecionado + usuário comum** → branding neutro do SaaS (`Portal Casa Espírita — Acolhimento · Organização · Renovação`).
+4. **Com tenant selecionado** (necessariamente `vinculo_status = ativo`, garantido por `useSelectedInstituicao` + `allowedIds`) → branding do próprio tenant.
+5. **Vínculos locais inativos** aparecem no Portal em um card separado ("Vínculos locais inativos"), com aviso explícito ao platform_admin de que a gestão dessas instituições continua acessível pela visão global.
+
+### Comportamento esperado
+- **Platform admin**: cai em visão global; pode acessar Portal Admin, Central de Assinaturas, Chamados globais e Instituições; para operar dentro de uma casa, precisa selecionar explicitamente uma instituição ativa via `TenantSwitcher` ou pela lista do Portal.
+- **Admin local**: shell reflete a instituição ativa; vínculos inativos não permitem operar; visão global permanece bloqueada (mantido por `PlatformAdminRoute`).
+- **Assistido**: comportamento inalterado (redirect para dashboard).
+
+### Segurança
+- Nenhuma alteração de RLS, RPC, GRANT ou migração.
+- `useSelectedInstituicao` continua fail-closed: id fora de `allowedIds` é descartado do `localStorage` e ignorado por `storage` events.
+- Nenhum vínculo ativado automaticamente. Nenhum papel concedido automaticamente.
+- Projeto Tratamentos FER original: não tocado.
+
+### Arquivos alterados
+- `src/components/AppLayout.tsx` — header consumido de `useInstituicaoAtiva` + `useTenantBranding`; removida leitura direta de `instituicao_config`.
+- `src/components/AppSidebar.tsx` — mesmo tratamento no cabeçalho da sidebar.
+- `src/pages/Portal.tsx` — separação visual entre vínculos ativos e inativos.
