@@ -43,23 +43,36 @@ import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { toFriendlyError } from "@/lib/supabaseFriendlyErrors";
 import {
   ACCEPT_ATTR,
+  CHAMADO_FECHAMENTO_CATEGORIA_LABEL,
   CHAMADO_PRIORIDADE_LABEL,
+  CHAMADO_RESOLUCAO_TIPO_LABEL,
   CHAMADO_STATUS_LABEL,
   CHAMADO_TIPO_LABEL,
   MAX_ARQUIVOS_POR_ENVIO,
+  STATUS_OPCOES_MANUAIS,
+  assumirChamado,
   atualizarStatus,
+  cancelarChamado,
   criarChamado,
   enviarAnexo,
   enviarMensagem,
+  fecharChamadoAdministrativo,
+  fecharChamadoCliente,
+  isEncerrado,
   listarChamados,
+  marcarChamadoResolvido,
   obterAnexos,
   obterMensagens,
+  reabrirChamado,
+  solicitarDocumentoChamado,
   urlAssinadaAnexo,
   validarArquivo,
   type Chamado,
   type ChamadoAnexo,
+  type ChamadoFechamentoCategoria,
   type ChamadoMensagem,
   type ChamadoPrioridade,
+  type ChamadoResolucaoTipo,
   type ChamadoStatus,
   type ChamadoTipo,
 } from "@/lib/chamados";
@@ -79,10 +92,34 @@ const STATUS_OPCOES: ChamadoStatus[] = [
   "aguardando_cliente",
   "aguardando_administrador_global",
   "aguardando_documento",
-  "resolvido",
+  "resolvido_pelo_suporte",
+  "reaberto",
+  "fechado_pelo_cliente",
+  "fechado_administrativo",
   "cancelado",
 ];
+const RESOLUCAO_TIPOS: ChamadoResolucaoTipo[] = [
+  "correcao_tecnica_aplicada",
+  "orientacao_operacional",
+  "configuracao_ajustada",
+  "documento_recebido",
+  "solicitacao_comercial_tratada",
+  "nao_reproduzido",
+  "fora_do_escopo",
+  "duplicidade",
+  "outro",
+];
+const FECHAMENTO_CATEGORIAS: ChamadoFechamentoCategoria[] = [
+  "sem_retorno_cliente",
+  "duplicidade",
+  "chamado_cancelado",
+  "fora_do_escopo",
+  "resolvido_sem_confirmacao",
+  "erro_nao_reproduzido",
+  "outro",
+];
 const PRIORIDADES: ChamadoPrioridade[] = ["baixa", "normal", "alta", "critica"];
+
 
 function statusVariant(status: ChamadoStatus): "default" | "secondary" | "outline" | "destructive" {
   if (status === "resolvido") return "secondary";
