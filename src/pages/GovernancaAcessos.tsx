@@ -155,6 +155,48 @@ export default function GovernancaAcessos() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  const fetchOrfaos = useCallback(async () => {
+    if (!selecionada?.id) { setOrfaos([]); return; }
+    setOrfaos(await fetchVoluntariosOrfaosDoTenant(selecionada.id));
+  }, [selecionada?.id]);
+  useEffect(() => { fetchOrfaos(); }, [fetchOrfaos]);
+
+  const openProvisionar = (o: VoluntarioOrfao) => {
+    setProvOrfao(o);
+    setProvEmail(o.email ?? "");
+    setProvRole("tarefeiro");
+    setProvMotivo("");
+    setProvOpen(true);
+  };
+
+  const handleProvisionar = async () => {
+    if (!provOrfao) return;
+    if (!isEmailValido(provEmail)) {
+      toast({ title: "Informe um e-mail válido para criar o acesso ao sistema.", variant: "destructive" });
+      return;
+    }
+    setProvLoading(true);
+    try {
+      const r = await provisionarAcessoVoluntario({
+        voluntarioId: provOrfao.voluntario_id,
+        email: provEmail,
+        role: provRole,
+        motivo: provMotivo.trim() || null,
+      });
+      toast({
+        title: r.userCriado ? "Acesso criado" : "Acesso vinculado",
+        description: `${OPERATIONAL_ROLE_LABELS[provRole]} concedido a ${provOrfao.nome_completo}.`,
+      });
+      setProvOpen(false);
+      setProvOrfao(null);
+      await Promise.all([fetchAll(), fetchOrfaos()]);
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setProvLoading(false);
+    }
+  };
+
   const handleSolicitar = async () => {
     if (!targetUserId || justificativa.trim().length < 5) {
       toast({ title: "Selecione um usuário e informe a justificativa.", variant: "destructive" });
