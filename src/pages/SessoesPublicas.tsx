@@ -153,13 +153,24 @@ export default function SessoesPublicas() {
   };
 
   const fetchSessoes = async () => {
-    const today = format(new Date(), "yyyy-MM-dd");
     const { data } = await supabase
       .from("sessoes_publicas")
       .select("*, tipos_tratamento:tratamento_id(nome)")
-      .gte("data_sessao", today)
-      .order("data_sessao", { ascending: true }) as any;
+      .order("data_sessao", { ascending: false })
+      .order("horario_inicio", { ascending: true, nullsFirst: true })
+      .limit(200) as any;
     if (data) setSessoes(data);
+  };
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, { label: string; variant: "default" | "outline" | "secondary" | "destructive" }> = {
+      agendada: { label: "Agendada", variant: "secondary" },
+      aberta: { label: "Aberta", variant: "default" },
+      encerrada: { label: "Encerrada", variant: "outline" },
+      cancelada: { label: "Cancelada", variant: "destructive" },
+    };
+    const cfg = map[status] ?? { label: status, variant: "outline" as const };
+    return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
   };
 
   const { selectedInstituicaoId } = useInstituicaoAtiva();
