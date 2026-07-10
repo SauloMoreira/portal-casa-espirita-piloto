@@ -712,22 +712,54 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
               <p className="text-sm whitespace-pre-wrap">{chamado.descricao}</p>
             </div>
 
-            {isPlatformAdmin && (
+            {isPlatformAdmin && !isEncerrado(chamado.status) && (
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <Label className="text-xs">Alterar status</Label>
+                  <Label className="text-xs">Alterar status (interno)</Label>
                   <Select value={novoStatus} onValueChange={(v) => setNovoStatus(v as ChamadoStatus)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {STATUS_OPCOES.map((s) => (
+                      {STATUS_OPCOES_MANUAIS.map((s) => (
                         <SelectItem key={s} value={s}>{CHAMADO_STATUS_LABEL[s]}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <Button size="sm" onClick={handleAtualizarStatus} disabled={!podeEditarStatus}>Salvar</Button>
+                <Button size="sm" variant="outline" onClick={handleAtualizarStatus} disabled={!podeEditarStatus}>Salvar</Button>
               </div>
             )}
+
+            <WorkflowActions
+              chamado={chamado}
+              isPlatformAdmin={isPlatformAdmin}
+              currentUserId={currentUserId}
+              onChanged={() => load(chamado.id)}
+            />
+
+            {chamado.resolucao_em && (
+              <div className="rounded-md border p-3 bg-emerald-50 border-emerald-200">
+                <div className="text-xs text-emerald-900 font-medium">Solução aplicada pelo suporte</div>
+                {chamado.resolucao_tipo && (
+                  <div className="text-xs text-emerald-800">
+                    Tipo: {CHAMADO_RESOLUCAO_TIPO_LABEL[chamado.resolucao_tipo]}
+                  </div>
+                )}
+                <p className="text-sm text-emerald-900 mt-1 whitespace-pre-wrap">{chamado.resolucao_texto}</p>
+              </div>
+            )}
+
+            {chamado.fechado_em && (
+              <div className="rounded-md border p-3 bg-muted">
+                <div className="text-xs font-medium">Fechamento</div>
+                {chamado.fechamento_categoria && (
+                  <div className="text-xs text-muted-foreground">
+                    Categoria: {CHAMADO_FECHAMENTO_CATEGORIA_LABEL[chamado.fechamento_categoria]}
+                  </div>
+                )}
+                <p className="text-sm mt-1 whitespace-pre-wrap">{chamado.fechamento_texto}</p>
+              </div>
+            )}
+
 
             <div>
               <div className="text-xs font-medium mb-2 text-muted-foreground uppercase">Histórico</div>
