@@ -598,11 +598,13 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
 
   const handleAnexar = async (fl: FileList | null) => {
     if (!chamado || !fl || fl.length === 0) return;
+    let sucessos = 0;
     for (const f of Array.from(fl).slice(0, MAX_ARQUIVOS_POR_ENVIO)) {
       const err = validarArquivo(f);
       if (err) { toast.error(`${f.name}: ${err}`); continue; }
       try {
         await enviarAnexo(chamado, f);
+        sucessos += 1;
       } catch (e) {
         const fr = toFriendlyError(e, {
           operacao: "enviar_anexo_chamado",
@@ -613,6 +615,9 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
       }
     }
     setAnexos(await obterAnexos(chamado.id));
+    if (sucessos > 0) {
+      toast.success(sucessos === 1 ? "Anexo enviado com sucesso." : `${sucessos} anexos enviados.`);
+    }
   };
 
   const handleBaixar = async (a: ChamadoAnexo) => {
