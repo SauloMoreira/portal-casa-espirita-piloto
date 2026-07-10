@@ -42,11 +42,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { toFriendlyError } from "@/lib/supabaseFriendlyErrors";
 import {
+  ACCEPT_ATTR,
   CHAMADO_PRIORIDADE_LABEL,
   CHAMADO_STATUS_LABEL,
   CHAMADO_TIPO_LABEL,
   MAX_ARQUIVOS_POR_ENVIO,
-  MIME_PERMITIDOS,
   atualizarStatus,
   criarChamado,
   enviarAnexo,
