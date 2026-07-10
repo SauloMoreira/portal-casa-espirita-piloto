@@ -128,10 +128,18 @@ export default function SessoesPublicas() {
 
   const criarSessaoHoje = async (tratamentoId: string) => {
     // SAAS-06-C1-FIX09 — fail-closed: sem instituição ativa, não persiste.
+    // Também valida contra o espelho `currentTenant` (defesa em profundidade).
+    try {
+      requireInstituicaoId();
+    } catch {
+      toast({ title: TENANT_AUSENTE_ERROR.message, variant: "destructive" });
+      return;
+    }
     if (!selectedInstituicaoId) {
       toast({ title: TENANT_AUSENTE_ERROR.message, variant: "destructive" });
       return;
     }
+
 
     const today = format(new Date(), "yyyy-MM-dd");
     const { data: existing } = await supabase
