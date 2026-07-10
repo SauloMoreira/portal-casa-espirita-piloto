@@ -108,11 +108,48 @@ export const CHAMADO_STATUS_LABEL: Record<ChamadoStatus, string> = {
   aberto: "Aberto",
   em_analise: "Em análise",
   aguardando_cliente: "Aguardando cliente",
-  aguardando_administrador_global: "Aguardando administrador",
+  aguardando_administrador_global: "Aguardando administrador global",
   aguardando_documento: "Aguardando documento",
   resolvido: "Resolvido",
+  resolvido_pelo_suporte: "Resolvido pelo suporte",
+  reaberto: "Reaberto",
+  fechado_pelo_cliente: "Fechado pelo cliente",
+  fechado_administrativo: "Fechado administrativo",
   cancelado: "Cancelado",
 };
+
+export const CHAMADO_RESOLUCAO_TIPO_LABEL: Record<ChamadoResolucaoTipo, string> = {
+  correcao_tecnica_aplicada: "Correção técnica aplicada",
+  orientacao_operacional: "Orientação operacional",
+  configuracao_ajustada: "Configuração ajustada",
+  documento_recebido: "Documento recebido",
+  solicitacao_comercial_tratada: "Solicitação comercial tratada",
+  nao_reproduzido: "Não reproduzido",
+  fora_do_escopo: "Fora do escopo",
+  duplicidade: "Duplicidade",
+  outro: "Outro",
+};
+
+export const CHAMADO_FECHAMENTO_CATEGORIA_LABEL: Record<ChamadoFechamentoCategoria, string> = {
+  sem_retorno_cliente: "Sem retorno do cliente",
+  duplicidade: "Duplicidade",
+  chamado_cancelado: "Chamado cancelado",
+  fora_do_escopo: "Fora do escopo",
+  resolvido_sem_confirmacao: "Resolvido sem confirmação",
+  erro_nao_reproduzido: "Erro não reproduzido",
+  outro: "Outro",
+};
+
+export const STATUS_ENCERRADOS: ReadonlyArray<ChamadoStatus> = [
+  "fechado_pelo_cliente",
+  "fechado_administrativo",
+  "cancelado",
+];
+
+export function isEncerrado(s: ChamadoStatus): boolean {
+  return STATUS_ENCERRADOS.includes(s);
+}
+
 
 export const CHAMADO_PRIORIDADE_LABEL: Record<ChamadoPrioridade, string> = {
   baixa: "Baixa",
