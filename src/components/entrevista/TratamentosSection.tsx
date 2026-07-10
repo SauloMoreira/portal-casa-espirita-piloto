@@ -106,6 +106,7 @@ function TratamentoCard({
             type="date"
             value={startDateVal}
             onChange={(e) => onSetDataInicial(t.id, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
             className="h-8 text-sm"
           />
           {startDateVal &&
@@ -115,10 +116,29 @@ function TratamentoCard({
             )}
           {!startDateVal && (
             <p className="text-xs text-muted-foreground">
-              Sem data → lista de espera do coordenador
+              Sem data → este tratamento será encaminhado para agendamento pelo coordenador.
             </p>
+          )}
+          {startDateVal && (
+            <div className="space-y-1 pt-1">
+              <Label className="text-xs">Horário da consulta *</Label>
+              <Input
+                type="time"
+                value={horarioVal}
+                onChange={(e) => onSetHorario(t.id, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="h-8 text-sm w-32"
+              />
+              {!horarioVal && (
+                <p className="text-xs text-destructive">
+                  Informe o horário da consulta ou remova a data para deixar o agendamento com o coordenador.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       )}
-      {isHolistico && isActive && (
+      {!needsStartDate && isHolistico && isActive && (
         <div className="space-y-1">
           <Label className="text-xs">Horário da consulta *</Label>
           <Input
@@ -130,11 +150,9 @@ function TratamentoCard({
           />
           {!horarioVal && (
             <p className="text-xs text-destructive">
-              Tratamentos holísticos exigem o horário da consulta
+              Informe o horário da consulta para este tratamento.
             </p>
           )}
-        </div>
-      )}
         </div>
       )}
     </div>
