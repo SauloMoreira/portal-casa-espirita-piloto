@@ -86,7 +86,7 @@ type FormErrors = Partial<Record<string, string>>;
 
 export default function Usuarios() {
   const [users, setUsers] = useState<MergedUser[]>([]);
-  const [orfaos, setOrfaos] = useState<import("@/lib/voluntarioAcessoProvisioning").VoluntarioOrfao[]>([]);
+  const [orfaos, setOrfaos] = useState<VoluntarioOrfao[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -101,7 +101,8 @@ export default function Usuarios() {
   const [statusBusy, setStatusBusy] = useState(false);
   const { user, role } = useAuth();
   const { toast } = useToast();
-  const { selecionada } = require("@/contexts/InstituicaoContext").useInstituicaoAtiva();
+  const { selecionada } = useInstituicaoAtiva();
+  const navigate = useNavigate();
 
   const changeStatus = async (targetUserId: string, toStatus: "ativo" | "inativo", motivo?: string) => {
     setStatusBusy(true);
