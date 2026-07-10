@@ -109,6 +109,11 @@ export default function PortalAdmin() {
               <Send className="h-4 w-4 mr-2" /> Solicitações comerciais
             </Link>
           </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link to={ROUTES.portalChamados}>
+              <LifeBuoy className="h-4 w-4 mr-2" /> Chamados
+            </Link>
+          </Button>
         </div>
       </header>
 
