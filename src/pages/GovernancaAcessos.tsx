@@ -405,6 +405,82 @@ export default function GovernancaAcessos() {
             </Dialog>
           </div>
 
+          {orfaos.length > 0 && (
+            <Card className="glass-card border-amber-200">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <UserCog className="h-4 w-4 text-amber-600" />
+                  Pessoas pendentes de acesso
+                  <Badge variant="secondary">{orfaos.length}</Badge>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Voluntários cadastrados nesta instituição sem conta de acesso ao sistema.
+                  Para gerar acesso, informe um e-mail real — o sistema não usa e-mail
+                  fictício ou placeholder.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {orfaos.map((o) => (
+                  <div key={o.voluntario_id} className="rounded-xl border p-3 flex items-center justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{o.nome_completo}</p>
+                      <p className="text-xs text-amber-700">Informe um e-mail para gerar acesso</p>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => openProvisionar(o)} className="gap-2">
+                      <ShieldCheck className="h-4 w-4" /> Gerar acesso
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          <Dialog open={provOpen} onOpenChange={setProvOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Gerar acesso — {provOrfao?.nome_completo}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Este voluntário ainda não tem conta de acesso. Informe um <strong>e-mail real</strong>
+                    para criar o acesso ao sistema. Não é permitido usar e-mail fictício.
+                  </AlertDescription>
+                </Alert>
+                <div className="space-y-2">
+                  <Label>E-mail real *</Label>
+                  <Input
+                    type="email"
+                    value={provEmail}
+                    onChange={(e) => setProvEmail(e.target.value)}
+                    placeholder="pessoa@exemplo.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Acesso operacional *</Label>
+                  <Select value={provRole} onValueChange={(v) => setProvRole(v as OperationalRole)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {OPERATIONAL_ROLES.map((r) => (
+                        <SelectItem key={r} value={r}>{OPERATIONAL_ROLE_LABELS[r]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Justificativa (opcional)</Label>
+                  <Textarea value={provMotivo} onChange={(e) => setProvMotivo(e.target.value)} rows={3} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleProvisionar} disabled={provLoading} className="w-full">
+                  {provLoading ? "Gerando acesso..." : "Gerar acesso"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Card className="glass-card">
             <CardHeader><CardTitle className="text-base">Acessos operacionais ativos</CardTitle></CardHeader>
             <CardContent className="space-y-3">
