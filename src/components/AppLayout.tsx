@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AssistidoMobileNav } from "@/components/AssistidoMobileNav";
 import { Outlet, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
 import { HelpButton } from "@/components/help/HelpButton";
 import { OnboardingTour } from "@/components/help/OnboardingTour";
@@ -13,26 +12,54 @@ import { LifeBuoy } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { InstituicaoProvider } from "@/contexts/InstituicaoContext";
+import { InstituicaoProvider, useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { TenantSwitcher } from "@/components/TenantSwitcher";
+import { SAAS_BRANDING } from "@/config/saasBranding";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
 
-export function AppLayout() {
-  const [nomeFantasia, setNomeFantasia] = useState<string | null>(null);
+/**
+ * SAAS-06-C1-FIX11 — Título do header respeita o contexto ativo.
+ *
+ * - Com tenant selecionado: "{nome_fantasia} — Sistema de Gestão".
+ * - Sem tenant + platform_admin: branding global do Portal (Administração da Plataforma).
+ * - Sem tenant + usuário comum: branding neutro do SaaS.
+ * Nunca herda tenant anterior via cache/localStorage — fonte é o contexto,
+ * cujo id é validado por `useSelectedInstituicao` contra `allowedIds`.
+ */
+function HeaderTitle() {
+  const { selecionada, isPlatformAdmin } = useInstituicaoAtiva();
+  const branding = useTenantBranding();
+
+  if (selecionada) {
+    return (
+      <>
+        <span className="truncate">{branding.nome}</span>
+        <span className="text-muted-foreground"> — Sistema de Gestão</span>
+      </>
+    );
+  }
+
+  if (isPlatformAdmin) {
+    return (
+      <>
+        <span className="truncate">{SAAS_BRANDING.name}</span>
+        <span className="text-muted-foreground"> — Administração da Plataforma</span>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span className="truncate">{SAAS_BRANDING.name}</span>
+      <span className="text-muted-foreground"> — {SAAS_BRANDING.tagline}</span>
+    </>
+  );
+}
+
+function AppLayoutInner() {
   const { toast } = useToast();
   const { role } = useAuth();
   const isAssistido = role === "assistido";
-
-  const fetchInst = () => {
-    supabase.from("instituicao_config").select("nome_fantasia").limit(1).then(({ data }) => {
-      if (data && data.length > 0) setNomeFantasia((data[0] as any).nome_fantasia);
-    });
-  };
-
-  useEffect(() => {
-    fetchInst();
-    window.addEventListener("instituicao-updated", fetchInst);
-    return () => window.removeEventListener("instituicao-updated", fetchInst);
-  }, []);
 
   // Push notification toasts
   useEffect(() => {
@@ -50,36 +77,42 @@ export function AppLayout() {
   }, [toast]);
 
   return (
-    <InstituicaoProvider>
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AppSidebar />
-          <div className="flex-1 flex flex-col min-w-0">
-            <header className="h-14 flex items-center border-b bg-card px-4 shrink-0 gap-2">
-              <SidebarTrigger className="mr-2" />
-              <h1 className="text-sm font-medium text-foreground truncate flex-1 min-w-0">
-                {nomeFantasia || "Casa Espírita"} — Sistema de Gestão
-              </h1>
-              <div className="flex items-center gap-1">
-                {!isAssistido && <TenantSwitcher />}
-                <HelpButton variant="ghost" size="icon" />
-                <Button asChild variant="ghost" size="icon" aria-label="Central de Ajuda">
-                  <Link to={ROUTES.ajuda}>
-                    <LifeBuoy className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <NotificationBell />
-              </div>
-            </header>
-            <main className={`flex-1 overflow-auto p-4 md:p-6 ${isAssistido ? "pb-24 md:pb-6" : ""}`}>
-              <Outlet />
-            </main>
-          </div>
-          {isAssistido && <AssistidoMobileNav />}
-          <FaleConoscoButton />
-          <OnboardingTour />
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-14 flex items-center border-b bg-card px-4 shrink-0 gap-2">
+            <SidebarTrigger className="mr-2" />
+            <h1 className="text-sm font-medium text-foreground truncate flex-1 min-w-0">
+              <HeaderTitle />
+            </h1>
+            <div className="flex items-center gap-1">
+              {!isAssistido && <TenantSwitcher />}
+              <HelpButton variant="ghost" size="icon" />
+              <Button asChild variant="ghost" size="icon" aria-label="Central de Ajuda">
+                <Link to={ROUTES.ajuda}>
+                  <LifeBuoy className="h-4 w-4" />
+                </Link>
+              </Button>
+              <NotificationBell />
+            </div>
+          </header>
+          <main className={`flex-1 overflow-auto p-4 md:p-6 ${isAssistido ? "pb-24 md:pb-6" : ""}`}>
+            <Outlet />
+          </main>
         </div>
-      </SidebarProvider>
+        {isAssistido && <AssistidoMobileNav />}
+        <FaleConoscoButton />
+        <OnboardingTour />
+      </div>
+    </SidebarProvider>
+  );
+}
+
+export function AppLayout() {
+  return (
+    <InstituicaoProvider>
+      <AppLayoutInner />
     </InstituicaoProvider>
   );
 }
