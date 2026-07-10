@@ -116,6 +116,15 @@ export default function GovernancaAcessos() {
   const [opRole, setOpRole] = useState<OperationalRole>("entrevistador");
   const [opMotivo, setOpMotivo] = useState("");
 
+  // Órfãos (voluntários sem auth.users) — SAAS-06-C1-FIX16
+  const [orfaos, setOrfaos] = useState<VoluntarioOrfao[]>([]);
+  const [provOpen, setProvOpen] = useState(false);
+  const [provOrfao, setProvOrfao] = useState<VoluntarioOrfao | null>(null);
+  const [provEmail, setProvEmail] = useState("");
+  const [provRole, setProvRole] = useState<OperationalRole>("tarefeiro");
+  const [provMotivo, setProvMotivo] = useState("");
+  const [provLoading, setProvLoading] = useState(false);
+
   const nameOf = useCallback(
     (id: string) => profiles.find((p) => p.user_id === id)?.nome_completo || id.substring(0, 8) + "…",
     [profiles],
