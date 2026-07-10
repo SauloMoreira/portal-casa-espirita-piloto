@@ -132,3 +132,32 @@ podem ser adicionados via triggers em iteração futura sem quebrar contratos.
 - Nenhum GRANT novo para `anon`/`PUBLIC`.
 - Ninguém, além de `platform_admin`, altera status de chamado de outra
   instituição.
+
+## 11. FIX12 — Suporte a .txt e download seguro
+
+Durante a homologação manual, um chamado com anexo `.txt` mostrava "Sem anexos"
+porque o CHECK `chamado_anexos_mime` e o validador do cliente rejeitavam
+`text/plain`. Correções:
+
+- **Migração:** `chamado_anexos_mime` agora aceita
+  `text/plain` além dos tipos anteriores. Limite de 10 MB e demais políticas RLS
+  permanecem inalterados.
+- **Client (`src/lib/chamados.ts`):** `MIME_PERMITIDOS` inclui `text/plain`;
+  `ACCEPT_ATTR` combina MIME + extensões (`.txt`, `.png`, `.jpg`, `.jpeg`,
+  `.pdf`, `.docx`, `.xlsx`) para navegadores que enviam MIME vazio;
+  `resolveMimeType` normaliza o `contentType` do upload e o `mime_type`
+  gravado, evitando falhas silenciosas quando o browser reporta
+  `application/octet-stream`.
+- **Mensagem amigável:** "Tipo de arquivo não permitido. Envie PNG, JPG, PDF,
+  DOCX, XLSX ou TXT."
+- **Download:** `urlAssinadaAnexo` usa `createSignedUrl(..., { download })`,
+  forçando download com o nome original — corrige o caso do platform_admin
+  que abria `.txt` inline. TTL segue em 5 min, bucket segue privado.
+- **UX:** ao anexar no detalhe do chamado, agora exibimos toast de sucesso
+  ("Anexo enviado com sucesso.") e mensagem de erro amigável no download
+  ("Não foi possível baixar o anexo. Se o problema continuar, verifique as
+  permissões do storage.").
+
+Sem alteração de RLS/GRANT/bucket/policies. Escopo global (platform_admin) e
+local (admin da instituição/criador) permanece o mesmo — apenas o CHECK de
+MIME foi ampliado e o cliente foi endurecido contra `file.type` vazio.
