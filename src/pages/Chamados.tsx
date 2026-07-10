@@ -495,7 +495,7 @@ function NovoChamadoDialog(props: NovoChamadoDialogProps) {
             <Input
               type="file"
               multiple
-              accept={MIME_PERMITIDOS.join(",")}
+              accept={ACCEPT_ATTR}
               onChange={(e) => handleArquivos(e.target.files)}
             />
             {arquivos.length > 0 && (
