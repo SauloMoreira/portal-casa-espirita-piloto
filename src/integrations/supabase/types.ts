@@ -3872,6 +3872,7 @@ export type Database = {
               tratado_por: string
             }[]
           }
+      fn_backfill_fix16_vinculos_voluntarios: { Args: never; Returns: Json }
       fn_buscar_pessoa_para_voluntario:
         | {
             Args: { p_termo: string }
@@ -4268,6 +4269,20 @@ export type Database = {
       fn_voluntario_pendencias_cadastro: {
         Args: { p_voluntario_id: string }
         Returns: string[]
+      }
+      fn_voluntarios_orfaos_do_tenant: {
+        Args: { p_instituicao_id: string }
+        Returns: {
+          celular: string
+          cpf: string
+          created_at: string
+          email: string
+          nome_completo: string
+          possui_email: boolean
+          status: string
+          tipos_voluntario: string[]
+          voluntario_id: string
+        }[]
       }
       gerenciar_termo_voluntario:
         | {
