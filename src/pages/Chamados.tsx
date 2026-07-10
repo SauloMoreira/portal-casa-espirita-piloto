@@ -843,3 +843,255 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
     </Sheet>
   );
 }
+
+// ---------------------------------------------------------------------------
+// SAAS-06-C1-FIX13 — Ações formais de workflow (assumir, resolver, fechar,
+// reabrir, cancelar). Substitui a mudança livre de status para transições
+// terminais e força justificativa auditável.
+// ---------------------------------------------------------------------------
+
+interface WorkflowActionsProps {
+  chamado: Chamado;
+  isPlatformAdmin: boolean;
+  currentUserId: string | null;
+  onChanged: () => void;
+}
+
+type WorkflowAction =
+  | "resolver"
+  | "fechar_admin"
+  | "cancelar"
+  | "reabrir"
+  | "confirmar_cliente"
+  | "solicitar_doc";
+
+function WorkflowActions({ chamado, isPlatformAdmin, currentUserId, onChanged }: WorkflowActionsProps) {
+  const [busy, setBusy] = useState(false);
+  const [action, setAction] = useState<WorkflowAction | null>(null);
+
+  const isOwner = chamado.criado_por_user_id === currentUserId;
+  const encerrado = isEncerrado(chamado.status);
+
+  const assumir = async () => {
+    setBusy(true);
+    try {
+      await assumirChamado(chamado.id);
+      toast.success("Chamado assumido.");
+      onChanged();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2 border-t pt-3">
+        {isPlatformAdmin && !encerrado && (
+          <>
+            {!chamado.responsavel_user_id && (
+              <Button size="sm" variant="outline" onClick={assumir} disabled={busy}>
+                Assumir chamado
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => setAction("solicitar_doc")}>
+              Solicitar documento/informação
+            </Button>
+            <Button size="sm" onClick={() => setAction("resolver")}>
+              Marcar como resolvido
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setAction("fechar_admin")}>
+              Fechar administrativamente
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setAction("cancelar")}>
+              Cancelar chamado
+            </Button>
+          </>
+        )}
+
+        {chamado.status === "resolvido_pelo_suporte" && (isOwner || isPlatformAdmin) && (
+          <Button size="sm" onClick={() => setAction("confirmar_cliente")}>
+            Confirmar / rejeitar solução
+          </Button>
+        )}
+
+        {isPlatformAdmin && encerrado && chamado.status !== "cancelado" && (
+          <Button size="sm" variant="outline" onClick={() => setAction("reabrir")}>
+            Reabrir chamado
+          </Button>
+        )}
+      </div>
+
+      <WorkflowDialog
+        chamado={chamado}
+        action={action}
+        onClose={() => setAction(null)}
+        onDone={() => { setAction(null); onChanged(); }}
+      />
+    </>
+  );
+}
+
+interface WorkflowDialogProps {
+  chamado: Chamado;
+  action: WorkflowAction | null;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+function WorkflowDialog({ chamado, action, onClose, onDone }: WorkflowDialogProps) {
+  const [texto, setTexto] = useState("");
+  const [observacao, setObservacao] = useState("");
+  const [tipoRes, setTipoRes] = useState<ChamadoResolucaoTipo>("correcao_tecnica_aplicada");
+  const [categoria, setCategoria] = useState<ChamadoFechamentoCategoria>("sem_retorno_cliente");
+  const [atendido, setAtendido] = useState<"sim" | "nao">("sim");
+  const [apenasInfo, setApenasInfo] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (action) {
+      setTexto("");
+      setObservacao("");
+      setTipoRes("correcao_tecnica_aplicada");
+      setCategoria("sem_retorno_cliente");
+      setAtendido("sim");
+      setApenasInfo(false);
+    }
+  }, [action]);
+
+  if (!action) return null;
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      if (action === "resolver") {
+        if (!texto.trim()) { toast.error("Descreva a solução aplicada."); return; }
+        await marcarChamadoResolvido(chamado.id, texto, tipoRes, observacao || undefined);
+        toast.success("Chamado marcado como resolvido. Cliente será notificado.");
+      } else if (action === "fechar_admin") {
+        if (!texto.trim()) { toast.error("Informe o motivo do fechamento."); return; }
+        await fecharChamadoAdministrativo(chamado.id, texto, categoria, observacao || undefined);
+        toast.success("Chamado fechado administrativamente.");
+      } else if (action === "cancelar") {
+        if (!texto.trim()) { toast.error("Informe o motivo do cancelamento."); return; }
+        await cancelarChamado(chamado.id, texto);
+        toast.success("Chamado cancelado.");
+      } else if (action === "reabrir") {
+        if (!texto.trim()) { toast.error("Informe o motivo da reabertura."); return; }
+        await reabrirChamado(chamado.id, texto);
+        toast.success("Chamado reaberto.");
+      } else if (action === "confirmar_cliente") {
+        if (!texto.trim()) { toast.error("Informe um comentário."); return; }
+        await fecharChamadoCliente(chamado.id, atendido === "sim", texto);
+        toast.success(
+          atendido === "sim"
+            ? "Solução confirmada. Chamado fechado."
+            : "Retorno registrado. Chamado reaberto para o suporte.",
+        );
+      } else if (action === "solicitar_doc") {
+        if (!texto.trim()) { toast.error("Informe a mensagem para o cliente."); return; }
+        await solicitarDocumentoChamado(chamado.id, texto, apenasInfo);
+        toast.success("Solicitação enviada ao cliente.");
+      }
+      onDone();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const titles: Record<WorkflowAction, string> = {
+    resolver: "Marcar chamado como resolvido",
+    fechar_admin: "Fechar chamado administrativamente",
+    cancelar: "Cancelar chamado",
+    reabrir: "Reabrir chamado",
+    confirmar_cliente: "Confirmar ou rejeitar a solução",
+    solicitar_doc: "Solicitar documento ou informação",
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v && !busy) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{titles[action]}</DialogTitle>
+          <DialogDescription>
+            A ação é registrada em auditoria e aparece no histórico do chamado.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {action === "resolver" && (
+            <div>
+              <Label className="text-xs">Tipo de solução</Label>
+              <Select value={tipoRes} onValueChange={(v) => setTipoRes(v as ChamadoResolucaoTipo)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {RESOLUCAO_TIPOS.map((t) => (
+                    <SelectItem key={t} value={t}>{CHAMADO_RESOLUCAO_TIPO_LABEL[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {action === "fechar_admin" && (
+            <div>
+              <Label className="text-xs">Categoria</Label>
+              <Select value={categoria} onValueChange={(v) => setCategoria(v as ChamadoFechamentoCategoria)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FECHAMENTO_CATEGORIAS.map((c) => (
+                    <SelectItem key={c} value={c}>{CHAMADO_FECHAMENTO_CATEGORIA_LABEL[c]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {action === "confirmar_cliente" && (
+            <div>
+              <Label className="text-xs">A solução resolveu?</Label>
+              <Select value={atendido} onValueChange={(v) => setAtendido(v as "sim" | "nao")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sim">Sim — pode fechar o chamado</SelectItem>
+                  <SelectItem value="nao">Não — quero reabrir</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {action === "solicitar_doc" && (
+            <label className="flex items-center gap-2 text-xs">
+              <input type="checkbox" checked={apenasInfo} onChange={(e) => setApenasInfo(e.target.checked)} />
+              Solicitar apenas informação (não é documento formal)
+            </label>
+          )}
+          <div>
+            <Label className="text-xs">
+              {action === "resolver"
+                ? "Descrição da solução (visível ao cliente)"
+                : action === "confirmar_cliente"
+                  ? "Comentário para o histórico"
+                  : action === "solicitar_doc"
+                    ? "Mensagem para o cliente"
+                    : "Motivo (visível ao cliente)"}
+            </Label>
+            <Textarea rows={4} value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={5000} />
+          </div>
+          {(action === "resolver" || action === "fechar_admin") && (
+            <div>
+              <Label className="text-xs">Observação interna (opcional, apenas suporte)</Label>
+              <Textarea rows={2} value={observacao} onChange={(e) => setObservacao(e.target.value)} maxLength={2000} />
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancelar</Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Confirmar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
