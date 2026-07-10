@@ -9,6 +9,7 @@ import {
   DIAS_SEMANA,
   EMPTY_ASSISTIDO_FORM,
   ENTREVISTA_MESSAGES,
+  MODO_AGENDAMENTO,
 } from "@/constants/fazerEntrevista";
 import {
   fetchInitialData,
