@@ -122,9 +122,10 @@ const PRIORIDADES: ChamadoPrioridade[] = ["baixa", "normal", "alta", "critica"];
 
 
 function statusVariant(status: ChamadoStatus): "default" | "secondary" | "outline" | "destructive" {
-  if (status === "resolvido") return "secondary";
-  if (status === "cancelado") return "outline";
-  if (status === "aberto") return "default";
+  if (status === "resolvido" || status === "resolvido_pelo_suporte" || status === "fechado_pelo_cliente")
+    return "secondary";
+  if (status === "cancelado" || status === "fechado_administrativo") return "outline";
+  if (status === "aberto" || status === "reaberto") return "default";
   return "outline";
 }
 
