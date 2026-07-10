@@ -164,9 +164,27 @@ export default function SessoesPublicas() {
 
   const { selectedInstituicaoId } = useInstituicaoAtiva();
 
-  const criarSessaoHoje = async (tratamentoId: string) => {
-    // SAAS-06-C1-FIX09 — fail-closed: sem instituição ativa, não persiste.
-    // Também valida contra o espelho `currentTenant` (defesa em profundidade).
+  const abrirNovaSessao = () => {
+    setNovaSessao(novaSessaoInicial());
+    setShowNovaSessao(true);
+  };
+
+  const atualizarNovaSessao = <K extends keyof NovaSessaoForm>(campo: K, valor: NovaSessaoForm[K]) => {
+    setNovaSessao((prev) => {
+      const proximo = { ...prev, [campo]: valor };
+      // Ajusta status padrão automaticamente ao trocar a data, se o usuário
+      // ainda não personalizou (mantém padrão coerente com hoje/futuro).
+      if (campo === "data_sessao") {
+        const padraoAtual = statusPadraoParaData(prev.data_sessao);
+        if (prev.status === padraoAtual) {
+          proximo.status = statusPadraoParaData(valor as string);
+        }
+      }
+      return proximo;
+    });
+  };
+
+  const criarSessao = async () => {
     try {
       requireInstituicaoId();
     } catch {
@@ -177,68 +195,103 @@ export default function SessoesPublicas() {
       toast({ title: TENANT_AUSENTE_ERROR.message, variant: "destructive" });
       return;
     }
-
-
-    const today = format(new Date(), "yyyy-MM-dd");
-    const { data: existing } = await supabase
-      .from("sessoes_publicas")
-      .select("id")
-      .eq("tratamento_id", tratamentoId)
-      .eq("data_sessao", today)
-      .eq("instituicao_id", selectedInstituicaoId)
-      .maybeSingle();
-
-    if (existing) {
-      toast({ title: "Sessão já existe para hoje", variant: "destructive" });
+    if (!novaSessao.tratamento_id) {
+      toast({ title: "Selecione um trabalho público", variant: "destructive" });
+      return;
+    }
+    if (!novaSessao.data_sessao) {
+      toast({ title: "Informe a data da sessão", variant: "destructive" });
+      return;
+    }
+    if (novaSessao.horario_inicio && novaSessao.horario_fim && novaSessao.horario_fim <= novaSessao.horario_inicio) {
+      toast({ title: "Horário de término deve ser após o início", variant: "destructive" });
+      return;
+    }
+    const capacidadeNum = novaSessao.capacidade ? Number(novaSessao.capacidade) : null;
+    if (capacidadeNum !== null && (!Number.isFinite(capacidadeNum) || capacidadeNum < 0)) {
+      toast({ title: "Capacidade inválida", variant: "destructive" });
       return;
     }
 
-    const { error } = await supabase.from("sessoes_publicas").insert({
-      tratamento_id: tratamentoId,
-      data_sessao: today,
-      criado_por: user?.id,
-      instituicao_id: selectedInstituicaoId,
-    });
+    setSalvandoSessao(true);
+    try {
+      // Duplicidade: mesma instituição + trabalho + data (+ horário se informado).
+      let dupQuery = supabase
+        .from("sessoes_publicas")
+        .select("id, horario_inicio")
+        .eq("tratamento_id", novaSessao.tratamento_id)
+        .eq("data_sessao", novaSessao.data_sessao)
+        .eq("instituicao_id", selectedInstituicaoId);
+      const { data: existentes } = await dupQuery;
+      const duplicada = (existentes ?? []).some((s: any) => {
+        if (!novaSessao.horario_inicio) return true; // sem horário: qualquer sessão do dia bloqueia
+        return s.horario_inicio === novaSessao.horario_inicio;
+      });
+      if (duplicada) {
+        toast({
+          title: "Já existe uma sessão cadastrada para este trabalho nesta data/horário.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (error) {
-      const friendly = toFriendlyError(error, {
-        operacao: "criar_sessao_publica",
-        entidade: "sessoes_publicas",
-        acao: "INSERT",
-        instituicaoId: selectedInstituicaoId,
-      });
-      console.error("[sessoes_publicas:create]", friendly.code, friendly.raw);
-      toast({
-        title: friendly.message,
-        description: `Detalhes técnicos para suporte:\n${formatSupportDetails(friendly)}`,
-        variant: "destructive",
-        action: (
-          <ToastAction
-            altText="Abrir chamado técnico"
-            onClick={async () => {
-              const { copiado } = await abrirChamadoTecnico({
-                origem: "Sessões Públicas",
-                friendly,
-                instituicaoId: selectedInstituicaoId,
-                userId: user?.id ?? null,
-              });
-              toast({
-                title: copiado
-                  ? "Detalhes do chamado copiados"
-                  : "Detalhes do chamado prontos",
-                description: copiado
-                  ? "Cole em um chamado ou envie ao administrador geral da plataforma."
-                  : "Copie os detalhes técnicos exibidos e envie ao administrador geral da plataforma.",
-              });
-            }}
-          >
-            Abrir chamado técnico
-          </ToastAction>
-        ),
-      });
-    } else {
-      toast({ title: "Sessão criada com sucesso" });
+      const payload: Record<string, unknown> = {
+        tratamento_id: novaSessao.tratamento_id,
+        data_sessao: novaSessao.data_sessao,
+        status: novaSessao.status,
+        horario_inicio: novaSessao.horario_inicio || null,
+        horario_fim: novaSessao.horario_fim || null,
+        local: novaSessao.local.trim() || null,
+        capacidade: capacidadeNum,
+        observacoes: novaSessao.observacoes.trim() || null,
+        criado_por: user?.id,
+        instituicao_id: selectedInstituicaoId,
+      };
+
+      const { error } = await supabase.from("sessoes_publicas").insert(payload as any);
+      if (error) {
+        const friendly = toFriendlyError(error, {
+          operacao: "criar_sessao_publica",
+          entidade: "sessoes_publicas",
+          acao: "INSERT",
+          instituicaoId: selectedInstituicaoId,
+        });
+        console.error("[sessoes_publicas:create]", friendly.code, friendly.raw);
+        toast({
+          title: friendly.message,
+          description: `Detalhes técnicos para suporte:\n${formatSupportDetails(friendly)}`,
+          variant: "destructive",
+          action: (
+            <ToastAction
+              altText="Abrir chamado técnico"
+              onClick={async () => {
+                const { copiado } = await abrirChamadoTecnico({
+                  origem: "Sessões Públicas",
+                  friendly,
+                  instituicaoId: selectedInstituicaoId,
+                  userId: user?.id ?? null,
+                });
+                toast({
+                  title: copiado ? "Detalhes do chamado copiados" : "Detalhes do chamado prontos",
+                  description: copiado
+                    ? "Cole em um chamado ou envie ao administrador geral da plataforma."
+                    : "Copie os detalhes técnicos exibidos e envie ao administrador geral da plataforma.",
+                });
+              }}
+            >
+              Abrir chamado técnico
+            </ToastAction>
+          ),
+        });
+        return;
+      }
+
+      toast({ title: "Sessão pública criada com sucesso" });
+      setShowNovaSessao(false);
+      setNovaSessao(novaSessaoInicial());
       fetchSessoes();
+    } finally {
+      setSalvandoSessao(false);
     }
   };
 
