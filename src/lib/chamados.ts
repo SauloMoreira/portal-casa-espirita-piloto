@@ -23,7 +23,32 @@ export type ChamadoStatus =
   | "aguardando_administrador_global"
   | "aguardando_documento"
   | "resolvido"
+  | "resolvido_pelo_suporte"
+  | "reaberto"
+  | "fechado_pelo_cliente"
+  | "fechado_administrativo"
   | "cancelado";
+
+export type ChamadoResolucaoTipo =
+  | "correcao_tecnica_aplicada"
+  | "orientacao_operacional"
+  | "configuracao_ajustada"
+  | "documento_recebido"
+  | "solicitacao_comercial_tratada"
+  | "nao_reproduzido"
+  | "fora_do_escopo"
+  | "duplicidade"
+  | "outro";
+
+export type ChamadoFechamentoCategoria =
+  | "sem_retorno_cliente"
+  | "duplicidade"
+  | "chamado_cancelado"
+  | "fora_do_escopo"
+  | "resolvido_sem_confirmacao"
+  | "erro_nao_reproduzido"
+  | "outro";
+
 
 export type ChamadoPrioridade = "baixa" | "normal" | "alta" | "critica";
 
@@ -44,7 +69,16 @@ export interface Chamado {
   created_at: string;
   updated_at: string;
   concluido_em: string | null;
+  resolucao_texto?: string | null;
+  resolucao_tipo?: ChamadoResolucaoTipo | null;
+  resolucao_por_user_id?: string | null;
+  resolucao_em?: string | null;
+  fechamento_texto?: string | null;
+  fechamento_categoria?: ChamadoFechamentoCategoria | null;
+  fechado_por_user_id?: string | null;
+  fechado_em?: string | null;
 }
+
 
 export interface ChamadoMensagem {
   id: string;
@@ -83,11 +117,48 @@ export const CHAMADO_STATUS_LABEL: Record<ChamadoStatus, string> = {
   aberto: "Aberto",
   em_analise: "Em análise",
   aguardando_cliente: "Aguardando cliente",
-  aguardando_administrador_global: "Aguardando administrador",
+  aguardando_administrador_global: "Aguardando administrador global",
   aguardando_documento: "Aguardando documento",
   resolvido: "Resolvido",
+  resolvido_pelo_suporte: "Resolvido pelo suporte",
+  reaberto: "Reaberto",
+  fechado_pelo_cliente: "Fechado pelo cliente",
+  fechado_administrativo: "Fechado administrativo",
   cancelado: "Cancelado",
 };
+
+export const CHAMADO_RESOLUCAO_TIPO_LABEL: Record<ChamadoResolucaoTipo, string> = {
+  correcao_tecnica_aplicada: "Correção técnica aplicada",
+  orientacao_operacional: "Orientação operacional",
+  configuracao_ajustada: "Configuração ajustada",
+  documento_recebido: "Documento recebido",
+  solicitacao_comercial_tratada: "Solicitação comercial tratada",
+  nao_reproduzido: "Não reproduzido",
+  fora_do_escopo: "Fora do escopo",
+  duplicidade: "Duplicidade",
+  outro: "Outro",
+};
+
+export const CHAMADO_FECHAMENTO_CATEGORIA_LABEL: Record<ChamadoFechamentoCategoria, string> = {
+  sem_retorno_cliente: "Sem retorno do cliente",
+  duplicidade: "Duplicidade",
+  chamado_cancelado: "Chamado cancelado",
+  fora_do_escopo: "Fora do escopo",
+  resolvido_sem_confirmacao: "Resolvido sem confirmação",
+  erro_nao_reproduzido: "Erro não reproduzido",
+  outro: "Outro",
+};
+
+export const STATUS_ENCERRADOS: ReadonlyArray<ChamadoStatus> = [
+  "fechado_pelo_cliente",
+  "fechado_administrativo",
+  "cancelado",
+];
+
+export function isEncerrado(s: ChamadoStatus): boolean {
+  return STATUS_ENCERRADOS.includes(s);
+}
+
 
 export const CHAMADO_PRIORIDADE_LABEL: Record<ChamadoPrioridade, string> = {
   baixa: "Baixa",
@@ -336,3 +407,116 @@ export async function atribuirResponsavel(chamadoId: string, userId: string | nu
     .eq("id", chamadoId);
   if (error) throw error;
 }
+
+// ---------------------------------------------------------------------------
+// SAAS-06-C1-FIX13 — Workflow RPCs
+// ---------------------------------------------------------------------------
+
+/** Extrai mensagem amigável a partir de PostgrestError com códigos de negócio. */
+function mapWorkflowError(err: unknown): Error {
+  const msg = (err as { message?: string })?.message ?? "";
+  const map: Record<string, string> = {
+    AUTH_REQUIRED: "Sessão expirada. Faça login novamente.",
+    PERMISSAO_NEGADA: "Você não tem permissão para executar esta ação.",
+    CHAMADO_NAO_ENCONTRADO: "Chamado não encontrado.",
+    CHAMADO_JA_ENCERRADO: "Este chamado já foi encerrado.",
+    COMENTARIO_OBRIGATORIO: "Informe um comentário antes de continuar.",
+    MENSAGEM_OBRIGATORIA: "Informe a mensagem antes de continuar.",
+    SOLUCAO_OBRIGATORIA: "Descreva a solução aplicada.",
+    TIPO_SOLUCAO_OBRIGATORIO: "Selecione o tipo de solução.",
+    MOTIVO_OBRIGATORIO: "Informe o motivo antes de continuar.",
+    CATEGORIA_OBRIGATORIA: "Selecione a categoria de fechamento.",
+    REABERTURA_NAO_PERMITIDA: "O chamado não pode ser reaberto neste estado.",
+  };
+  for (const k of Object.keys(map)) {
+    if (msg.includes(k)) return new Error(map[k]);
+  }
+  return err instanceof Error ? err : new Error("Não foi possível concluir a ação.");
+}
+
+export async function assumirChamado(chamadoId: string): Promise<void> {
+  const { error } = await supabase.rpc("fn_chamado_assumir", { p_chamado_id: chamadoId });
+  if (error) throw mapWorkflowError(error);
+}
+
+export async function solicitarDocumentoChamado(
+  chamadoId: string,
+  mensagem: string,
+  apenasInformacao = false,
+): Promise<void> {
+  const { error } = await supabase.rpc("fn_chamado_solicitar_documento", {
+    p_chamado_id: chamadoId,
+    p_mensagem: mensagem,
+    p_apenas_informacao: apenasInformacao,
+  });
+  if (error) throw mapWorkflowError(error);
+}
+
+export async function marcarChamadoResolvido(
+  chamadoId: string,
+  solucao: string,
+  tipo: ChamadoResolucaoTipo,
+  observacaoInterna?: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("fn_chamado_marcar_resolvido", {
+    p_chamado_id: chamadoId,
+    p_solucao: solucao,
+    p_tipo: tipo,
+    p_observacao_interna: observacaoInterna ?? null,
+  });
+  if (error) throw mapWorkflowError(error);
+}
+
+export async function fecharChamadoCliente(
+  chamadoId: string,
+  atendido: boolean,
+  comentario: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("fn_chamado_fechar_cliente", {
+    p_chamado_id: chamadoId,
+    p_atendido: atendido,
+    p_comentario: comentario,
+  });
+  if (error) throw mapWorkflowError(error);
+}
+
+export async function fecharChamadoAdministrativo(
+  chamadoId: string,
+  motivo: string,
+  categoria: ChamadoFechamentoCategoria,
+  observacaoInterna?: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("fn_chamado_fechar_administrativo", {
+    p_chamado_id: chamadoId,
+    p_motivo: motivo,
+    p_categoria: categoria,
+    p_observacao_interna: observacaoInterna ?? null,
+  });
+  if (error) throw mapWorkflowError(error);
+}
+
+export async function cancelarChamado(chamadoId: string, motivo: string): Promise<void> {
+  const { error } = await supabase.rpc("fn_chamado_cancelar", {
+    p_chamado_id: chamadoId,
+    p_motivo: motivo,
+  });
+  if (error) throw mapWorkflowError(error);
+}
+
+export async function reabrirChamado(chamadoId: string, motivo: string): Promise<void> {
+  const { error } = await supabase.rpc("fn_chamado_reabrir", {
+    p_chamado_id: chamadoId,
+    p_motivo: motivo,
+  });
+  if (error) throw mapWorkflowError(error);
+}
+
+/** Retorna a lista de status disponíveis para o seletor manual (compat com edições antigas). */
+export const STATUS_OPCOES_MANUAIS: ChamadoStatus[] = [
+  "aberto",
+  "em_analise",
+  "aguardando_cliente",
+  "aguardando_administrador_global",
+  "aguardando_documento",
+];
+

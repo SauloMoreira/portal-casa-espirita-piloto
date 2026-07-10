@@ -984,11 +984,23 @@ export type Database = {
           created_at: string
           criado_por_user_id: string
           descricao: string
+          fechado_em: string | null
+          fechado_por_user_id: string | null
+          fechamento_categoria:
+            | Database["public"]["Enums"]["chamado_fechamento_categoria"]
+            | null
+          fechamento_texto: string | null
           id: string
           instituicao_id: string
           metadata: Json
           origem: string | null
           prioridade: Database["public"]["Enums"]["chamado_prioridade"]
+          resolucao_em: string | null
+          resolucao_por_user_id: string | null
+          resolucao_texto: string | null
+          resolucao_tipo:
+            | Database["public"]["Enums"]["chamado_resolucao_tipo"]
+            | null
           responsavel_user_id: string | null
           status: Database["public"]["Enums"]["chamado_status"]
           tipo: Database["public"]["Enums"]["chamado_tipo"]
@@ -1002,11 +1014,23 @@ export type Database = {
           created_at?: string
           criado_por_user_id: string
           descricao: string
+          fechado_em?: string | null
+          fechado_por_user_id?: string | null
+          fechamento_categoria?:
+            | Database["public"]["Enums"]["chamado_fechamento_categoria"]
+            | null
+          fechamento_texto?: string | null
           id?: string
           instituicao_id: string
           metadata?: Json
           origem?: string | null
           prioridade?: Database["public"]["Enums"]["chamado_prioridade"]
+          resolucao_em?: string | null
+          resolucao_por_user_id?: string | null
+          resolucao_texto?: string | null
+          resolucao_tipo?:
+            | Database["public"]["Enums"]["chamado_resolucao_tipo"]
+            | null
           responsavel_user_id?: string | null
           status?: Database["public"]["Enums"]["chamado_status"]
           tipo?: Database["public"]["Enums"]["chamado_tipo"]
@@ -1020,11 +1044,23 @@ export type Database = {
           created_at?: string
           criado_por_user_id?: string
           descricao?: string
+          fechado_em?: string | null
+          fechado_por_user_id?: string | null
+          fechamento_categoria?:
+            | Database["public"]["Enums"]["chamado_fechamento_categoria"]
+            | null
+          fechamento_texto?: string | null
           id?: string
           instituicao_id?: string
           metadata?: Json
           origem?: string | null
           prioridade?: Database["public"]["Enums"]["chamado_prioridade"]
+          resolucao_em?: string | null
+          resolucao_por_user_id?: string | null
+          resolucao_texto?: string | null
+          resolucao_tipo?:
+            | Database["public"]["Enums"]["chamado_resolucao_tipo"]
+            | null
           responsavel_user_id?: string | null
           status?: Database["public"]["Enums"]["chamado_status"]
           tipo?: Database["public"]["Enums"]["chamado_tipo"]
@@ -3673,6 +3709,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _chamado_auditar: {
+        Args: {
+          p_actor: string
+          p_chamado_id: string
+          p_instituicao_id: string
+          p_marcador: string
+          p_payload: Json
+        }
+        Returns: undefined
+      }
+      _chamado_registrar_evento: {
+        Args: {
+          p_autor: string
+          p_chamado_id: string
+          p_instituicao_id: string
+          p_interno?: boolean
+          p_mensagem: string
+        }
+        Returns: string
+      }
       agendar_entrevista_fraterna:
         | {
             Args: {
@@ -3852,6 +3908,49 @@ export type Database = {
               user_id: string
             }[]
           }
+      fn_chamado_assumir: { Args: { p_chamado_id: string }; Returns: undefined }
+      fn_chamado_cancelar: {
+        Args: { p_chamado_id: string; p_motivo: string }
+        Returns: undefined
+      }
+      fn_chamado_fechar_administrativo: {
+        Args: {
+          p_categoria: Database["public"]["Enums"]["chamado_fechamento_categoria"]
+          p_chamado_id: string
+          p_motivo: string
+          p_observacao_interna?: string
+        }
+        Returns: undefined
+      }
+      fn_chamado_fechar_cliente: {
+        Args: {
+          p_atendido: boolean
+          p_chamado_id: string
+          p_comentario: string
+        }
+        Returns: undefined
+      }
+      fn_chamado_marcar_resolvido: {
+        Args: {
+          p_chamado_id: string
+          p_observacao_interna?: string
+          p_solucao: string
+          p_tipo: Database["public"]["Enums"]["chamado_resolucao_tipo"]
+        }
+        Returns: undefined
+      }
+      fn_chamado_reabrir: {
+        Args: { p_chamado_id: string; p_motivo: string }
+        Returns: undefined
+      }
+      fn_chamado_solicitar_documento: {
+        Args: {
+          p_apenas_informacao?: boolean
+          p_chamado_id: string
+          p_mensagem: string
+        }
+        Returns: undefined
+      }
       fn_conceder_acesso_operacional: {
         Args: {
           p_instituicao_id?: string
@@ -4552,7 +4651,25 @@ export type Database = {
         | "assistido"
         | "coordenador_de_tratamento"
         | "administrador_master"
+      chamado_fechamento_categoria:
+        | "sem_retorno_cliente"
+        | "duplicidade"
+        | "chamado_cancelado"
+        | "fora_do_escopo"
+        | "resolvido_sem_confirmacao"
+        | "erro_nao_reproduzido"
+        | "outro"
       chamado_prioridade: "baixa" | "normal" | "alta" | "critica"
+      chamado_resolucao_tipo:
+        | "correcao_tecnica_aplicada"
+        | "orientacao_operacional"
+        | "configuracao_ajustada"
+        | "documento_recebido"
+        | "solicitacao_comercial_tratada"
+        | "nao_reproduzido"
+        | "fora_do_escopo"
+        | "duplicidade"
+        | "outro"
       chamado_status:
         | "aberto"
         | "em_analise"
@@ -4561,6 +4678,10 @@ export type Database = {
         | "aguardando_documento"
         | "resolvido"
         | "cancelado"
+        | "resolvido_pelo_suporte"
+        | "reaberto"
+        | "fechado_pelo_cliente"
+        | "fechado_administrativo"
       chamado_tipo:
         | "tecnico"
         | "operacional"
@@ -4762,7 +4883,27 @@ export const Constants = {
         "coordenador_de_tratamento",
         "administrador_master",
       ],
+      chamado_fechamento_categoria: [
+        "sem_retorno_cliente",
+        "duplicidade",
+        "chamado_cancelado",
+        "fora_do_escopo",
+        "resolvido_sem_confirmacao",
+        "erro_nao_reproduzido",
+        "outro",
+      ],
       chamado_prioridade: ["baixa", "normal", "alta", "critica"],
+      chamado_resolucao_tipo: [
+        "correcao_tecnica_aplicada",
+        "orientacao_operacional",
+        "configuracao_ajustada",
+        "documento_recebido",
+        "solicitacao_comercial_tratada",
+        "nao_reproduzido",
+        "fora_do_escopo",
+        "duplicidade",
+        "outro",
+      ],
       chamado_status: [
         "aberto",
         "em_analise",
@@ -4771,6 +4912,10 @@ export const Constants = {
         "aguardando_documento",
         "resolvido",
         "cancelado",
+        "resolvido_pelo_suporte",
+        "reaberto",
+        "fechado_pelo_cliente",
+        "fechado_administrativo",
       ],
       chamado_tipo: [
         "tecnico",

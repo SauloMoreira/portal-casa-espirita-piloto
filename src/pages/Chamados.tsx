@@ -43,23 +43,36 @@ import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { toFriendlyError } from "@/lib/supabaseFriendlyErrors";
 import {
   ACCEPT_ATTR,
+  CHAMADO_FECHAMENTO_CATEGORIA_LABEL,
   CHAMADO_PRIORIDADE_LABEL,
+  CHAMADO_RESOLUCAO_TIPO_LABEL,
   CHAMADO_STATUS_LABEL,
   CHAMADO_TIPO_LABEL,
   MAX_ARQUIVOS_POR_ENVIO,
+  STATUS_OPCOES_MANUAIS,
+  assumirChamado,
   atualizarStatus,
+  cancelarChamado,
   criarChamado,
   enviarAnexo,
   enviarMensagem,
+  fecharChamadoAdministrativo,
+  fecharChamadoCliente,
+  isEncerrado,
   listarChamados,
+  marcarChamadoResolvido,
   obterAnexos,
   obterMensagens,
+  reabrirChamado,
+  solicitarDocumentoChamado,
   urlAssinadaAnexo,
   validarArquivo,
   type Chamado,
   type ChamadoAnexo,
+  type ChamadoFechamentoCategoria,
   type ChamadoMensagem,
   type ChamadoPrioridade,
+  type ChamadoResolucaoTipo,
   type ChamadoStatus,
   type ChamadoTipo,
 } from "@/lib/chamados";
@@ -79,15 +92,40 @@ const STATUS_OPCOES: ChamadoStatus[] = [
   "aguardando_cliente",
   "aguardando_administrador_global",
   "aguardando_documento",
-  "resolvido",
+  "resolvido_pelo_suporte",
+  "reaberto",
+  "fechado_pelo_cliente",
+  "fechado_administrativo",
   "cancelado",
+];
+const RESOLUCAO_TIPOS: ChamadoResolucaoTipo[] = [
+  "correcao_tecnica_aplicada",
+  "orientacao_operacional",
+  "configuracao_ajustada",
+  "documento_recebido",
+  "solicitacao_comercial_tratada",
+  "nao_reproduzido",
+  "fora_do_escopo",
+  "duplicidade",
+  "outro",
+];
+const FECHAMENTO_CATEGORIAS: ChamadoFechamentoCategoria[] = [
+  "sem_retorno_cliente",
+  "duplicidade",
+  "chamado_cancelado",
+  "fora_do_escopo",
+  "resolvido_sem_confirmacao",
+  "erro_nao_reproduzido",
+  "outro",
 ];
 const PRIORIDADES: ChamadoPrioridade[] = ["baixa", "normal", "alta", "critica"];
 
+
 function statusVariant(status: ChamadoStatus): "default" | "secondary" | "outline" | "destructive" {
-  if (status === "resolvido") return "secondary";
-  if (status === "cancelado") return "outline";
-  if (status === "aberto") return "default";
+  if (status === "resolvido" || status === "resolvido_pelo_suporte" || status === "fechado_pelo_cliente")
+    return "secondary";
+  if (status === "cancelado" || status === "fechado_administrativo") return "outline";
+  if (status === "aberto" || status === "reaberto") return "default";
   return "outline";
 }
 
@@ -674,22 +712,54 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
               <p className="text-sm whitespace-pre-wrap">{chamado.descricao}</p>
             </div>
 
-            {isPlatformAdmin && (
+            {isPlatformAdmin && !isEncerrado(chamado.status) && (
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <Label className="text-xs">Alterar status</Label>
+                  <Label className="text-xs">Alterar status (interno)</Label>
                   <Select value={novoStatus} onValueChange={(v) => setNovoStatus(v as ChamadoStatus)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {STATUS_OPCOES.map((s) => (
+                      {STATUS_OPCOES_MANUAIS.map((s) => (
                         <SelectItem key={s} value={s}>{CHAMADO_STATUS_LABEL[s]}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <Button size="sm" onClick={handleAtualizarStatus} disabled={!podeEditarStatus}>Salvar</Button>
+                <Button size="sm" variant="outline" onClick={handleAtualizarStatus} disabled={!podeEditarStatus}>Salvar</Button>
               </div>
             )}
+
+            <WorkflowActions
+              chamado={chamado}
+              isPlatformAdmin={isPlatformAdmin}
+              currentUserId={currentUserId}
+              onChanged={() => load(chamado.id)}
+            />
+
+            {chamado.resolucao_em && (
+              <div className="rounded-md border p-3 bg-emerald-50 border-emerald-200">
+                <div className="text-xs text-emerald-900 font-medium">Solução aplicada pelo suporte</div>
+                {chamado.resolucao_tipo && (
+                  <div className="text-xs text-emerald-800">
+                    Tipo: {CHAMADO_RESOLUCAO_TIPO_LABEL[chamado.resolucao_tipo]}
+                  </div>
+                )}
+                <p className="text-sm text-emerald-900 mt-1 whitespace-pre-wrap">{chamado.resolucao_texto}</p>
+              </div>
+            )}
+
+            {chamado.fechado_em && (
+              <div className="rounded-md border p-3 bg-muted">
+                <div className="text-xs font-medium">Fechamento</div>
+                {chamado.fechamento_categoria && (
+                  <div className="text-xs text-muted-foreground">
+                    Categoria: {CHAMADO_FECHAMENTO_CATEGORIA_LABEL[chamado.fechamento_categoria]}
+                  </div>
+                )}
+                <p className="text-sm mt-1 whitespace-pre-wrap">{chamado.fechamento_texto}</p>
+              </div>
+            )}
+
 
             <div>
               <div className="text-xs font-medium mb-2 text-muted-foreground uppercase">Histórico</div>
@@ -746,23 +816,282 @@ function DetalheChamadoSheet({ chamadoId, onClose, isPlatformAdmin, currentUserI
               </div>
             </div>
 
-            <div className="space-y-2 border-t pt-3">
-              <Label className="text-xs">Nova resposta</Label>
-              <Textarea rows={4} value={resposta} onChange={(e) => setResposta(e.target.value)} maxLength={5000} />
-              {isPlatformAdmin && (
-                <label className="flex items-center gap-2 text-xs">
-                  <input type="checkbox" checked={interno} onChange={(e) => setInterno(e.target.checked)} />
-                  Nota interna (visível apenas para administradores da plataforma)
-                </label>
-              )}
-              <Button onClick={handleEnviar} disabled={enviando || !resposta.trim()}>
-                {enviando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Enviar
-              </Button>
-            </div>
+            {isEncerrado(chamado.status) ? (
+              <div className="border-t pt-3 text-xs text-muted-foreground">
+                Chamado encerrado. Para novas tratativas, abra um novo chamado ou peça a reabertura ao administrador da plataforma.
+              </div>
+            ) : (
+              <div className="space-y-2 border-t pt-3">
+                <Label className="text-xs">Nova resposta</Label>
+                <Textarea rows={4} value={resposta} onChange={(e) => setResposta(e.target.value)} maxLength={5000} />
+                {isPlatformAdmin && (
+                  <label className="flex items-center gap-2 text-xs">
+                    <input type="checkbox" checked={interno} onChange={(e) => setInterno(e.target.checked)} />
+                    Nota interna (visível apenas para administradores da plataforma)
+                  </label>
+                )}
+                <Button onClick={handleEnviar} disabled={enviando || !resposta.trim()}>
+                  {enviando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Enviar
+                </Button>
+              </div>
+            )}
+
           </div>
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SAAS-06-C1-FIX13 — Ações formais de workflow (assumir, resolver, fechar,
+// reabrir, cancelar). Substitui a mudança livre de status para transições
+// terminais e força justificativa auditável.
+// ---------------------------------------------------------------------------
+
+interface WorkflowActionsProps {
+  chamado: Chamado;
+  isPlatformAdmin: boolean;
+  currentUserId: string | null;
+  onChanged: () => void;
+}
+
+type WorkflowAction =
+  | "resolver"
+  | "fechar_admin"
+  | "cancelar"
+  | "reabrir"
+  | "confirmar_cliente"
+  | "solicitar_doc";
+
+function WorkflowActions({ chamado, isPlatformAdmin, currentUserId, onChanged }: WorkflowActionsProps) {
+  const [busy, setBusy] = useState(false);
+  const [action, setAction] = useState<WorkflowAction | null>(null);
+
+  const isOwner = chamado.criado_por_user_id === currentUserId;
+  const encerrado = isEncerrado(chamado.status);
+
+  const assumir = async () => {
+    setBusy(true);
+    try {
+      await assumirChamado(chamado.id);
+      toast.success("Chamado assumido.");
+      onChanged();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2 border-t pt-3">
+        {isPlatformAdmin && !encerrado && (
+          <>
+            {!chamado.responsavel_user_id && (
+              <Button size="sm" variant="outline" onClick={assumir} disabled={busy}>
+                Assumir chamado
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => setAction("solicitar_doc")}>
+              Solicitar documento/informação
+            </Button>
+            <Button size="sm" onClick={() => setAction("resolver")}>
+              Marcar como resolvido
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setAction("fechar_admin")}>
+              Fechar administrativamente
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => setAction("cancelar")}>
+              Cancelar chamado
+            </Button>
+          </>
+        )}
+
+        {chamado.status === "resolvido_pelo_suporte" && (isOwner || isPlatformAdmin) && (
+          <Button size="sm" onClick={() => setAction("confirmar_cliente")}>
+            Confirmar / rejeitar solução
+          </Button>
+        )}
+
+        {isPlatformAdmin && encerrado && chamado.status !== "cancelado" && (
+          <Button size="sm" variant="outline" onClick={() => setAction("reabrir")}>
+            Reabrir chamado
+          </Button>
+        )}
+      </div>
+
+      <WorkflowDialog
+        chamado={chamado}
+        action={action}
+        onClose={() => setAction(null)}
+        onDone={() => { setAction(null); onChanged(); }}
+      />
+    </>
+  );
+}
+
+interface WorkflowDialogProps {
+  chamado: Chamado;
+  action: WorkflowAction | null;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+function WorkflowDialog({ chamado, action, onClose, onDone }: WorkflowDialogProps) {
+  const [texto, setTexto] = useState("");
+  const [observacao, setObservacao] = useState("");
+  const [tipoRes, setTipoRes] = useState<ChamadoResolucaoTipo>("correcao_tecnica_aplicada");
+  const [categoria, setCategoria] = useState<ChamadoFechamentoCategoria>("sem_retorno_cliente");
+  const [atendido, setAtendido] = useState<"sim" | "nao">("sim");
+  const [apenasInfo, setApenasInfo] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (action) {
+      setTexto("");
+      setObservacao("");
+      setTipoRes("correcao_tecnica_aplicada");
+      setCategoria("sem_retorno_cliente");
+      setAtendido("sim");
+      setApenasInfo(false);
+    }
+  }, [action]);
+
+  if (!action) return null;
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      if (action === "resolver") {
+        if (!texto.trim()) { toast.error("Descreva a solução aplicada."); return; }
+        await marcarChamadoResolvido(chamado.id, texto, tipoRes, observacao || undefined);
+        toast.success("Chamado marcado como resolvido. Cliente será notificado.");
+      } else if (action === "fechar_admin") {
+        if (!texto.trim()) { toast.error("Informe o motivo do fechamento."); return; }
+        await fecharChamadoAdministrativo(chamado.id, texto, categoria, observacao || undefined);
+        toast.success("Chamado fechado administrativamente.");
+      } else if (action === "cancelar") {
+        if (!texto.trim()) { toast.error("Informe o motivo do cancelamento."); return; }
+        await cancelarChamado(chamado.id, texto);
+        toast.success("Chamado cancelado.");
+      } else if (action === "reabrir") {
+        if (!texto.trim()) { toast.error("Informe o motivo da reabertura."); return; }
+        await reabrirChamado(chamado.id, texto);
+        toast.success("Chamado reaberto.");
+      } else if (action === "confirmar_cliente") {
+        if (!texto.trim()) { toast.error("Informe um comentário."); return; }
+        await fecharChamadoCliente(chamado.id, atendido === "sim", texto);
+        toast.success(
+          atendido === "sim"
+            ? "Solução confirmada. Chamado fechado."
+            : "Retorno registrado. Chamado reaberto para o suporte.",
+        );
+      } else if (action === "solicitar_doc") {
+        if (!texto.trim()) { toast.error("Informe a mensagem para o cliente."); return; }
+        await solicitarDocumentoChamado(chamado.id, texto, apenasInfo);
+        toast.success("Solicitação enviada ao cliente.");
+      }
+      onDone();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const titles: Record<WorkflowAction, string> = {
+    resolver: "Marcar chamado como resolvido",
+    fechar_admin: "Fechar chamado administrativamente",
+    cancelar: "Cancelar chamado",
+    reabrir: "Reabrir chamado",
+    confirmar_cliente: "Confirmar ou rejeitar a solução",
+    solicitar_doc: "Solicitar documento ou informação",
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v && !busy) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{titles[action]}</DialogTitle>
+          <DialogDescription>
+            A ação é registrada em auditoria e aparece no histórico do chamado.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {action === "resolver" && (
+            <div>
+              <Label className="text-xs">Tipo de solução</Label>
+              <Select value={tipoRes} onValueChange={(v) => setTipoRes(v as ChamadoResolucaoTipo)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {RESOLUCAO_TIPOS.map((t) => (
+                    <SelectItem key={t} value={t}>{CHAMADO_RESOLUCAO_TIPO_LABEL[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {action === "fechar_admin" && (
+            <div>
+              <Label className="text-xs">Categoria</Label>
+              <Select value={categoria} onValueChange={(v) => setCategoria(v as ChamadoFechamentoCategoria)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FECHAMENTO_CATEGORIAS.map((c) => (
+                    <SelectItem key={c} value={c}>{CHAMADO_FECHAMENTO_CATEGORIA_LABEL[c]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {action === "confirmar_cliente" && (
+            <div>
+              <Label className="text-xs">A solução resolveu?</Label>
+              <Select value={atendido} onValueChange={(v) => setAtendido(v as "sim" | "nao")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sim">Sim — pode fechar o chamado</SelectItem>
+                  <SelectItem value="nao">Não — quero reabrir</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {action === "solicitar_doc" && (
+            <label className="flex items-center gap-2 text-xs">
+              <input type="checkbox" checked={apenasInfo} onChange={(e) => setApenasInfo(e.target.checked)} />
+              Solicitar apenas informação (não é documento formal)
+            </label>
+          )}
+          <div>
+            <Label className="text-xs">
+              {action === "resolver"
+                ? "Descrição da solução (visível ao cliente)"
+                : action === "confirmar_cliente"
+                  ? "Comentário para o histórico"
+                  : action === "solicitar_doc"
+                    ? "Mensagem para o cliente"
+                    : "Motivo (visível ao cliente)"}
+            </Label>
+            <Textarea rows={4} value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={5000} />
+          </div>
+          {(action === "resolver" || action === "fechar_admin") && (
+            <div>
+              <Label className="text-xs">Observação interna (opcional, apenas suporte)</Label>
+              <Textarea rows={2} value={observacao} onChange={(e) => setObservacao(e.target.value)} maxLength={2000} />
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancelar</Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Confirmar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
