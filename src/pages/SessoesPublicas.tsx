@@ -402,22 +402,38 @@ export default function SessoesPublicas() {
         <p className="text-sm text-muted-foreground mt-1">Gerencie sessões de trabalhos públicos e controle de presença</p>
       </div>
 
-      {/* Quick create sessions for today */}
+      {/* Criação formal de nova sessão pública */}
       <Card className="glass-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Criar Sessão para Hoje</CardTitle>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Nova Sessão Pública</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cadastre a sessão a partir dos Trabalhos Públicos já configurados nesta instituição.
+            </p>
+          </div>
+          <Button
+            className="gap-2"
+            onClick={abrirNovaSessao}
+            disabled={tratamentos.length === 0}
+          >
+            <Plus className="h-4 w-4" /> Nova sessão
+          </Button>
         </CardHeader>
         <CardContent>
           {tratamentos.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum trabalho configurado como público. Configure em Gestão de Tratamentos.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {tratamentos.map((t) => (
-                <Button key={t.id} variant="outline" className="gap-2 h-11" onClick={() => criarSessaoHoje(t.id)}>
-                  <Plus className="h-4 w-4" /> {t.nome}
-                </Button>
-              ))}
+            <div className="rounded-lg border border-dashed p-6 text-center space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Nenhum Trabalho Público está cadastrado para esta instituição. Cadastre um trabalho público
+                (ex.: Palestra Pública, Passe Público) antes de criar sessões.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => navigate("/tratamentos")}>
+                Ir para Gestão de Tratamentos
+              </Button>
             </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {tratamentos.length} trabalho(s) público(s) disponível(is) para agendamento.
+            </p>
           )}
         </CardContent>
       </Card>
