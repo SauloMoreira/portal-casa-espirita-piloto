@@ -47,7 +47,10 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth, AppRole } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
+import { useTenantBranding } from "@/hooks/useTenantBranding";
+import { SAAS_BRANDING } from "@/config/saasBranding";
+
 import {
   Sidebar,
   SidebarContent,
