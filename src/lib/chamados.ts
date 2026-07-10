@@ -147,19 +147,20 @@ export async function criarChamado(input: CreateChamadoInput): Promise<Chamado> 
   const { data: userRes } = await supabase.auth.getUser();
   const uid = userRes.user?.id;
   if (!uid) throw new Error("AUTH_REQUIRED");
+  const payload = {
+    instituicao_id: input.instituicaoId,
+    criado_por_user_id: uid,
+    tipo: input.tipo,
+    assunto: input.assunto.trim(),
+    descricao: input.descricao.trim(),
+    origem: input.origem ?? null,
+    codigo_tecnico: input.codigoTecnico ?? null,
+    prioridade: input.prioridade ?? "normal",
+    metadata: (input.metadata ?? {}) as unknown as never,
+  };
   const { data, error } = await supabase
     .from("chamados_suporte")
-    .insert({
-      instituicao_id: input.instituicaoId,
-      criado_por_user_id: uid,
-      tipo: input.tipo,
-      assunto: input.assunto.trim(),
-      descricao: input.descricao.trim(),
-      origem: input.origem ?? null,
-      codigo_tecnico: input.codigoTecnico ?? null,
-      prioridade: input.prioridade ?? "normal",
-      metadata: input.metadata ?? {},
-    })
+    .insert(payload)
     .select("*")
     .single();
   if (error) throw error;
