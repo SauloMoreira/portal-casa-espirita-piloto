@@ -507,6 +507,8 @@ export default function SessoesPublicas() {
                     <TableRow>
                       <TableHead>Trabalho</TableHead>
                       <TableHead>Data</TableHead>
+                      <TableHead>Horário</TableHead>
+                      <TableHead>Local</TableHead>
                       <TableHead>Presentes</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-10"></TableHead>
@@ -517,14 +519,14 @@ export default function SessoesPublicas() {
                       <TableRow key={s.id} className="cursor-pointer" onClick={() => openSessao(s)}>
                         <TableCell className="font-medium">{sessaoNome(s)}</TableCell>
                         <TableCell>{format(new Date(s.data_sessao + "T12:00:00"), "dd/MM/yyyy")}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {s.horario_inicio ? `${s.horario_inicio.slice(0,5)}${s.horario_fim ? `–${s.horario_fim.slice(0,5)}` : ""}` : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{s.local || "—"}</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="gap-1"><Users className="h-3 w-3" />{s.total_presentes}</Badge>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={s.status === "aberta" ? "default" : "outline"}>
-                            {s.status === "aberta" ? "Aberta" : "Encerrada"}
-                          </Badge>
-                        </TableCell>
+                        <TableCell>{statusBadge(s.status)}</TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedSessao(s); setShowQr(true); }}>
                             <QrCode className="h-4 w-4" />
