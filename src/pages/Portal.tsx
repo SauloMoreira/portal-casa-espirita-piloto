@@ -250,6 +250,9 @@ export default function Portal() {
 
         <PlanoResumo instituicao={selecionada} />
       </section>
+        );
+      })()}
     </div>
+
   );
 }
