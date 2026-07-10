@@ -283,12 +283,11 @@ export async function atualizarStatus(
   chamadoId: string,
   status: ChamadoStatus,
 ): Promise<void> {
-  const patch: Record<string, unknown> = { status };
-  if (status === "resolvido" || status === "cancelado") {
-    patch.concluido_em = new Date().toISOString();
-  } else {
-    patch.concluido_em = null;
-  }
+  const patch: { status: ChamadoStatus; concluido_em: string | null } = {
+    status,
+    concluido_em:
+      status === "resolvido" || status === "cancelado" ? new Date().toISOString() : null,
+  };
   const { error } = await supabase.from("chamados_suporte").update(patch).eq("id", chamadoId);
   if (error) throw error;
 }
