@@ -870,6 +870,177 @@ export type Database = {
           },
         ]
       }
+      chamado_anexos: {
+        Row: {
+          chamado_id: string
+          created_at: string
+          enviado_por_user_id: string
+          id: string
+          instituicao_id: string
+          mensagem_id: string | null
+          mime_type: string
+          nome_arquivo: string
+          storage_path: string
+          tamanho_bytes: number
+        }
+        Insert: {
+          chamado_id: string
+          created_at?: string
+          enviado_por_user_id: string
+          id?: string
+          instituicao_id: string
+          mensagem_id?: string | null
+          mime_type: string
+          nome_arquivo: string
+          storage_path: string
+          tamanho_bytes: number
+        }
+        Update: {
+          chamado_id?: string
+          created_at?: string
+          enviado_por_user_id?: string
+          id?: string
+          instituicao_id?: string
+          mensagem_id?: string | null
+          mime_type?: string
+          nome_arquivo?: string
+          storage_path?: string
+          tamanho_bytes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chamado_anexos_chamado_id_fkey"
+            columns: ["chamado_id"]
+            isOneToOne: false
+            referencedRelation: "chamados_suporte"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chamado_anexos_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chamado_anexos_mensagem_id_fkey"
+            columns: ["mensagem_id"]
+            isOneToOne: false
+            referencedRelation: "chamado_mensagens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chamado_mensagens: {
+        Row: {
+          autor_user_id: string
+          chamado_id: string
+          created_at: string
+          id: string
+          instituicao_id: string
+          interno: boolean
+          mensagem: string
+        }
+        Insert: {
+          autor_user_id: string
+          chamado_id: string
+          created_at?: string
+          id?: string
+          instituicao_id: string
+          interno?: boolean
+          mensagem: string
+        }
+        Update: {
+          autor_user_id?: string
+          chamado_id?: string
+          created_at?: string
+          id?: string
+          instituicao_id?: string
+          interno?: boolean
+          mensagem?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chamado_mensagens_chamado_id_fkey"
+            columns: ["chamado_id"]
+            isOneToOne: false
+            referencedRelation: "chamados_suporte"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chamado_mensagens_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chamados_suporte: {
+        Row: {
+          assunto: string
+          codigo_tecnico: string | null
+          concluido_em: string | null
+          created_at: string
+          criado_por_user_id: string
+          descricao: string
+          id: string
+          instituicao_id: string
+          metadata: Json
+          origem: string | null
+          prioridade: Database["public"]["Enums"]["chamado_prioridade"]
+          responsavel_user_id: string | null
+          status: Database["public"]["Enums"]["chamado_status"]
+          tipo: Database["public"]["Enums"]["chamado_tipo"]
+          updated_at: string
+          visibilidade: Database["public"]["Enums"]["chamado_visibilidade"]
+        }
+        Insert: {
+          assunto: string
+          codigo_tecnico?: string | null
+          concluido_em?: string | null
+          created_at?: string
+          criado_por_user_id: string
+          descricao: string
+          id?: string
+          instituicao_id: string
+          metadata?: Json
+          origem?: string | null
+          prioridade?: Database["public"]["Enums"]["chamado_prioridade"]
+          responsavel_user_id?: string | null
+          status?: Database["public"]["Enums"]["chamado_status"]
+          tipo?: Database["public"]["Enums"]["chamado_tipo"]
+          updated_at?: string
+          visibilidade?: Database["public"]["Enums"]["chamado_visibilidade"]
+        }
+        Update: {
+          assunto?: string
+          codigo_tecnico?: string | null
+          concluido_em?: string | null
+          created_at?: string
+          criado_por_user_id?: string
+          descricao?: string
+          id?: string
+          instituicao_id?: string
+          metadata?: Json
+          origem?: string | null
+          prioridade?: Database["public"]["Enums"]["chamado_prioridade"]
+          responsavel_user_id?: string | null
+          status?: Database["public"]["Enums"]["chamado_status"]
+          tipo?: Database["public"]["Enums"]["chamado_tipo"]
+          updated_at?: string
+          visibilidade?: Database["public"]["Enums"]["chamado_visibilidade"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chamados_suporte_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checkin_tentativas: {
         Row: {
           created_at: string
@@ -3574,6 +3745,17 @@ export type Database = {
               total_pendentes: number
             }[]
           }
+      fn_abrir_chamado_tecnico: {
+        Args: {
+          p_assunto: string
+          p_codigo_tecnico: string
+          p_descricao: string
+          p_instituicao_id: string
+          p_metadata?: Json
+          p_origem: string
+        }
+        Returns: string
+      }
       fn_add_business_hours: {
         Args: { _base: string; _hours: number }
         Returns: string
@@ -3833,6 +4015,15 @@ export type Database = {
             Args: { p_instituicao_id?: string; p_janela?: string }
             Returns: Json
           }
+      fn_pode_ver_chamado: {
+        Args: {
+          _chamado_id: string
+          _criador: string
+          _inst: string
+          _user: string
+        }
+        Returns: boolean
+      }
       fn_presenca_classificacao: { Args: { p_status: string }; Returns: Json }
       fn_processar_alertas_comerciais: {
         Args: never
@@ -4361,6 +4552,24 @@ export type Database = {
         | "assistido"
         | "coordenador_de_tratamento"
         | "administrador_master"
+      chamado_prioridade: "baixa" | "normal" | "alta" | "critica"
+      chamado_status:
+        | "aberto"
+        | "em_analise"
+        | "aguardando_cliente"
+        | "aguardando_administrador_global"
+        | "aguardando_documento"
+        | "resolvido"
+        | "cancelado"
+      chamado_tipo:
+        | "tecnico"
+        | "operacional"
+        | "comercial"
+        | "cobranca"
+        | "contrato_documento"
+        | "melhoria"
+        | "incidente"
+      chamado_visibilidade: "instituicao" | "autor_e_platform_admin"
       conversa_status: "ativa" | "encerrada"
       handoff_status: "aberto" | "em_atendimento" | "fechado"
       notif_canal: "whatsapp"
@@ -4553,6 +4762,26 @@ export const Constants = {
         "coordenador_de_tratamento",
         "administrador_master",
       ],
+      chamado_prioridade: ["baixa", "normal", "alta", "critica"],
+      chamado_status: [
+        "aberto",
+        "em_analise",
+        "aguardando_cliente",
+        "aguardando_administrador_global",
+        "aguardando_documento",
+        "resolvido",
+        "cancelado",
+      ],
+      chamado_tipo: [
+        "tecnico",
+        "operacional",
+        "comercial",
+        "cobranca",
+        "contrato_documento",
+        "melhoria",
+        "incidente",
+      ],
+      chamado_visibilidade: ["instituicao", "autor_e_platform_admin"],
       conversa_status: ["ativa", "encerrada"],
       handoff_status: ["aberto", "em_atendimento", "fechado"],
       notif_canal: ["whatsapp"],

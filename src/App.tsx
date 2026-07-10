@@ -80,6 +80,8 @@ const PortalAdmin = lazy(() => import("./pages/PortalAdmin"));
 const PortalAssinaturas = lazy(() => import("./pages/PortalAssinaturas"));
 const PortalPlanoAssinatura = lazy(() => import("./pages/PortalPlanoAssinatura"));
 const PortalSolicitacoesComerciais = lazy(() => import("./pages/PortalSolicitacoesComerciais"));
+const PortalChamados = lazy(() => import("./pages/PortalChamados"));
+const Chamados = lazy(() => import("./pages/Chamados"));
 
 const queryClient = new QueryClient();
 
@@ -177,7 +179,9 @@ const App = () => (
                  <Route path={ROUTES.portalAdmin} element={<PlatformAdminRoute>{guard(<PortalAdmin />, "Portal · Administração")}</PlatformAdminRoute>} />
                  <Route path={ROUTES.portalAssinaturas} element={<PlatformAdminRoute>{guard(<PortalAssinaturas />, "Portal · Assinaturas")}</PlatformAdminRoute>} />
                  <Route path={ROUTES.portalSolicitacoes} element={<PlatformAdminRoute>{guard(<PortalSolicitacoesComerciais />, "Portal · Solicitações")}</PlatformAdminRoute>} />
+                 <Route path={ROUTES.portalChamados} element={<PlatformAdminRoute>{guard(<PortalChamados />, "Portal · Chamados")}</PlatformAdminRoute>} />
                  <Route path={ROUTES.portalPlanoAssinatura} element={guard(<PortalPlanoAssinatura />, "Portal · Plano e Assinatura")} />
+                 <Route path={ROUTES.chamados} element={<ProtectedRoute>{tenant(guard(<Chamados scope="local" />, "Chamados"))}</ProtectedRoute>} />
 
 
                 </Route>
