@@ -94,6 +94,9 @@ export default function SessoesPublicas() {
   const [showQr, setShowQr] = useState(false);
   const [qrFull, setQrFull] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  const [showNovaSessao, setShowNovaSessao] = useState(false);
+  const [novaSessao, setNovaSessao] = useState<NovaSessaoForm>(novaSessaoInicial());
+  const [salvandoSessao, setSalvandoSessao] = useState(false);
   const [manualSearch, setManualSearch] = useState("");
   const [manualResults, setManualResults] = useState<any[]>([]);
   const [quickForm, setQuickForm] = useState({ nome: "", celular: "", faixa_etaria: "" });
@@ -102,6 +105,7 @@ export default function SessoesPublicas() {
   const [pulse, setPulse] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const selectedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
