@@ -81,12 +81,18 @@ interface NavGroup {
   label: string;
   icon: React.ElementType;
   items: NavItem[];
+  /**
+   * SAAS-06-C1-FIX17 — Grupos operacionais só aparecem quando há tenant ativo
+   * selecionado. Grupos globais (Início) permanecem sempre visíveis.
+   */
+  tenantScoped?: boolean;
 }
 
 export const navGroups: NavGroup[] = [
   {
     label: "Início",
     icon: Home,
+    tenantScoped: false,
     items: [
       { title: "Painel Inicial", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "entrevistador", "tarefeiro", "assistido", "coordenador_de_tratamento"] },
       { title: "Notificações", url: "/notificacoes", icon: Bell, roles: ["admin", "entrevistador", "tarefeiro", "assistido", "coordenador_de_tratamento"] },
