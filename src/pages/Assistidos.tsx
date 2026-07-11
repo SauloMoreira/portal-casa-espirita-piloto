@@ -21,6 +21,7 @@ import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { getRange, DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
+import { criarAssistidoTenant } from "@/services/assistidos/criarAssistidoTenant";
 import {
   toFriendlyError,
   formatSupportDetails,
