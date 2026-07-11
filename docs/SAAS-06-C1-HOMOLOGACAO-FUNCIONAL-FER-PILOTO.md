@@ -611,3 +611,24 @@ O header (`AppLayout`) e a sidebar (`AppSidebar`) faziam `select` cru em `instit
 - `src/components/AppLayout.tsx` — header consumido de `useInstituicaoAtiva` + `useTenantBranding`; removida leitura direta de `instituicao_config`.
 - `src/components/AppSidebar.tsx` — mesmo tratamento no cabeçalho da sidebar.
 - `src/pages/Portal.tsx` — separação visual entre vínculos ativos e inativos.
+
+## FIX17 — Correção de regressão de navegação/contexto entre visão global e tenant
+
+**Erro encontrado.** Após os FIXes anteriores, o `platform_admin` (saulocmoreira@gmail.com), ao logar sem escolher instituição, era colocado automaticamente no contexto operacional da FER Piloto. O header exibia "INSTITUIÇÃO ATUAL: Fraternidade Espírita Ramatis — Pil...", a sidebar mostrava menus operacionais (Atendimento, Pessoas, Acesso e Segurança), e clicar nesses itens redirecionava para `/portal` porque a rota estava guardada por `RequireInstituicao`. Contexto híbrido, visão global misturada com tenant.
+
+**Causa técnica.**
+- `useSelectedInstituicao` fazia dois autos que ignoravam o perfil global: (i) restaurava o `selectedInstituicaoId` de sessões anteriores via `localStorage`; (ii) auto-selecionava quando havia exatamente 1 `allowedIds`. Para o `platform_admin` com vínculo local em uma única casa, isso equivalia a entrar sozinho no tenant.
+- `AppSidebar` renderizava todos os grupos filtrados só por papel, sem checar se havia tenant ativo. O menu operacional aparecia mesmo sem `selecionada`.
+- `TenantSwitcher` não oferecia ação de "sair da instituição" e não distinguia visão global de contexto de tenant.
+
+**Correção aplicada (cirúrgica).**
+- `src/hooks/useSelectedInstituicao.ts`: opções `autoRestore` e `autoSelectSingle` (default `true`, preservando comportamento legado). Provider passa `false` para ambas quando `isPlatformAdmin`.
+- `src/contexts/InstituicaoContext.tsx`: `useSelectedInstituicao(allowedIds, { autoRestore: !isPlatformAdmin, autoSelectSingle: !isPlatformAdmin })`.
+- `src/components/AppSidebar.tsx`: novo flag `tenantScoped` no `NavGroup`. Grupo "Início" marcado como `tenantScoped: false` (Painel, Notificações, Chamados, Ajuda). Todos os demais grupos permanecem `tenantScoped` implícito e só aparecem quando há `selecionada`.
+- `src/components/TenantSwitcher.tsx`: sempre renderiza dropdown para `platform_admin`; item "Sair da instituição (visão global)" quando há tenant ativo; rótulo do trigger passa a ser "Visão global" quando nenhuma instituição está ativa.
+
+**Regra de visão global (sem tenant ativo).** Sem `selecionada`: header exibe "Portal Casa Espírita — Administração da Plataforma" (para platform_admin) ou branding neutro do SaaS; sidebar mostra apenas o grupo Início; sem badge "Instituição atual"; sem branding de tenant; rotas operacionais permanecem guardadas por `RequireInstituicao`.
+
+**Regra de contexto tenant.** Só após ação explícita no `TenantSwitcher` ("Entrar na instituição" / seleção no dropdown): `selectedInstituicao` é definida, sidebar renderiza grupos operacionais, header exibe "{nome} — Sistema de Gestão" e badge "Instituição atual", branding do tenant é aplicado.
+
+**Não alterado.** RLS, RPCs, GRANTs, módulos, planos, assinaturas, Central de Chamados, cadastros de assistidos/voluntários, sessões públicas, fluxo de entrevista, projeto Tratamentos FER.

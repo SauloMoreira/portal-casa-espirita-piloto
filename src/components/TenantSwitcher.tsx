@@ -11,7 +11,7 @@
  * pelo `useSelectedInstituicao`. A RLS no backend continua sendo a verdade.
  */
 import { Link } from "react-router-dom";
-import { Building2, Check, ChevronDown, ExternalLink } from "lucide-react";
+import { Building2, Check, ChevronDown, ExternalLink, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -27,15 +27,23 @@ import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
 
 export function TenantSwitcher() {
-  const { instituicoes, selecionada, selectInstituicao, isLoading } =
-    useInstituicaoAtiva();
+  const {
+    instituicoes,
+    selecionada,
+    selectInstituicao,
+    isLoading,
+    isPlatformAdmin,
+  } = useInstituicaoAtiva();
 
-  if (isLoading || instituicoes.length === 0) return null;
+  if (isLoading) return null;
 
   const ativas = instituicoes.filter((i) => i.vinculo_status === "ativo");
 
-  // Caso simples: 1 instituição — badge informativo (não é dropdown).
-  if (ativas.length <= 1 && instituicoes.length === 1) {
+  // SAAS-06-C1-FIX17 — Sem nenhum vínculo e sem ser platform_admin: nada a mostrar.
+  if (instituicoes.length === 0 && !isPlatformAdmin) return null;
+
+  // Usuário não-admin com exatamente 1 instituição: badge estático.
+  if (!isPlatformAdmin && ativas.length <= 1 && instituicoes.length === 1) {
     const inst = instituicoes[0];
     return (
       <div
@@ -56,8 +64,13 @@ export function TenantSwitcher() {
     );
   }
 
-
-  const rotuloAtual = selecionada?.nome ?? "Selecionar instituição";
+  // SAAS-06-C1-FIX17 — Rótulo do trigger reflete o contexto real. Sem tenant,
+  // deixa claro que a visão é global; com tenant, mostra a instituição atual.
+  const rotuloAtual = selecionada
+    ? selecionada.nome
+    : isPlatformAdmin
+      ? "Visão global"
+      : "Entrar na instituição";
 
   return (
     <DropdownMenu>
@@ -66,23 +79,45 @@ export function TenantSwitcher() {
           variant="outline"
           size="sm"
           className="h-8 cursor-pointer gap-2"
-          aria-label="Trocar instituição"
-          title="Trocar instituição"
+          aria-label={selecionada ? "Trocar instituição" : "Entrar na instituição"}
+          title={selecionada ? "Trocar instituição" : "Entrar na instituição"}
+          data-testid="tenant-switcher-trigger"
         >
-
           <Building2 className="h-3.5 w-3.5 text-primary" />
-          <span className="max-w-[160px] truncate">{rotuloAtual}</span>
+          <span className="max-w-[180px] truncate">{rotuloAtual}</span>
           <ChevronDown className="h-3.5 w-3.5 opacity-70" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="text-xs">
-          Suas instituições
+          {isPlatformAdmin ? "Contexto de instituição" : "Suas instituições"}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {selecionada && (
+          <>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                selectInstituicao(null);
+              }}
+              className="flex items-center gap-2 py-2 text-xs"
+              data-testid="tenant-switcher-exit"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sair da instituição (visão global)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        {instituicoes.length === 0 && (
+          <div className="px-2 py-3 text-xs text-muted-foreground">
+            Nenhum vínculo local ativo. Use o Portal Admin para gerir instituições.
+          </div>
+        )}
         {instituicoes.map((inst) => {
           const isSelected = inst.id === selecionada?.id;
-          const podeSelecionar = inst.vinculo_status === "ativo";
+          const podeSelecionar =
+            inst.vinculo_status === "ativo" || isPlatformAdmin;
           return (
             <DropdownMenuItem
               key={inst.id}
@@ -107,7 +142,7 @@ export function TenantSwitcher() {
                   <span className="truncate text-sm font-medium">
                     {inst.nome}
                   </span>
-                  {!podeSelecionar && (
+                  {inst.vinculo_status !== "ativo" && (
                     <Badge variant="outline" className="shrink-0 text-[10px]">
                       {inst.vinculo_status}
                     </Badge>

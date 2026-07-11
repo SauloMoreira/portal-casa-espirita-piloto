@@ -33,8 +33,29 @@ function writeStorage(id: string | null) {
   }
 }
 
-export function useSelectedInstituicao(allowedIds: string[]) {
-  const [selectedId, setSelectedIdState] = useState<string | null>(readInitial);
+export interface UseSelectedInstituicaoOptions {
+  /**
+   * SAAS-06-C1-FIX17 — Restaurar seleção persistida no localStorage no mount.
+   * Default: true. Desabilite para platform_admin: entrada em tenant deve ser
+   * sempre explícita, sem herdar contexto de sessões anteriores.
+   */
+  autoRestore?: boolean;
+  /**
+   * SAAS-06-C1-FIX17 — Auto-selecionar quando houver exatamente 1 permitido.
+   * Default: true. Desabilite para platform_admin: mesmo tendo vínculo local,
+   * a visão global não deve entrar sozinha no tenant.
+   */
+  autoSelectSingle?: boolean;
+}
+
+export function useSelectedInstituicao(
+  allowedIds: string[],
+  opts: UseSelectedInstituicaoOptions = {},
+) {
+  const { autoRestore = true, autoSelectSingle = true } = opts;
+  const [selectedId, setSelectedIdState] = useState<string | null>(() =>
+    autoRestore ? readInitial() : null,
+  );
 
   // Fail-closed: descarta seleção que não está mais permitida.
   useEffect(() => {
@@ -46,12 +67,13 @@ export function useSelectedInstituicao(allowedIds: string[]) {
 
   // Auto-seleciona quando há exatamente uma instituição permitida.
   useEffect(() => {
+    if (!autoSelectSingle) return;
     if (!selectedId && allowedIds.length === 1) {
       const only = allowedIds[0];
       setSelectedIdState(only);
       writeStorage(only);
     }
-  }, [allowedIds, selectedId]);
+  }, [allowedIds, selectedId, autoSelectSingle]);
 
   // Sincroniza entre abas: outra aba mudou a seleção → reflete aqui.
   useEffect(() => {

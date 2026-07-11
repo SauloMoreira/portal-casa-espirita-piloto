@@ -81,12 +81,18 @@ interface NavGroup {
   label: string;
   icon: React.ElementType;
   items: NavItem[];
+  /**
+   * SAAS-06-C1-FIX17 — Grupos operacionais só aparecem quando há tenant ativo
+   * selecionado. Grupos globais (Início) permanecem sempre visíveis.
+   */
+  tenantScoped?: boolean;
 }
 
 export const navGroups: NavGroup[] = [
   {
     label: "Início",
     icon: Home,
+    tenantScoped: false,
     items: [
       { title: "Painel Inicial", url: "/dashboard", icon: LayoutDashboard, roles: ["admin", "entrevistador", "tarefeiro", "assistido", "coordenador_de_tratamento"] },
       { title: "Notificações", url: "/notificacoes", icon: Bell, roles: ["admin", "entrevistador", "tarefeiro", "assistido", "coordenador_de_tratamento"] },
@@ -241,7 +247,11 @@ export function AppSidebar() {
   };
 
   // Filter groups: only show groups that have at least one visible item
+  // SAAS-06-C1-FIX17 — Sem tenant ativo selecionado, esconder grupos
+  // operacionais (tenantScoped != false). Isso evita que platform_admin veja
+  // menus de Atendimento/Pessoas/etc. herdados de contexto anterior.
   const visibleGroups = navGroups
+    .filter((group) => group.tenantScoped === false || !!selecionada)
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => role && item.roles.includes(role)),
