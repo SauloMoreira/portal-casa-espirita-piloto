@@ -210,12 +210,12 @@ export default function Assistidos() {
     if (editId) {
       ({ error } = await supabase.from("assistidos").update(payload as any).eq("id", editId));
     } else {
-      // SAAS-06-C1-FIX08 — vincula sempre à instituição ativa (fail-closed acima).
-      ({ error } = await supabase.from("assistidos").insert({
-        ...payload,
-        created_by: user!.id,
-        instituicao_id: selectedInstituicaoId!,
-      } as any));
+      // SAAS-06-C1-STAB02 — camada única de criação tenant-aware (FIX08).
+      ({ error } = await criarAssistidoTenant({
+        payload: payload as any,
+        instituicaoId: selectedInstituicaoId!,
+        userId: user!.id,
+      }));
     }
 
     if (error) {
