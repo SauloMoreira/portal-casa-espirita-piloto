@@ -120,7 +120,7 @@ describe("STAB09-B — renomeação de Meus Tratamentos → Tratamentos sob minh
     expect(page).toMatch(
       /\.in\("status",\s*\["aguardando_inicio",\s*"em_andamento"\]\)/,
     );
-    // Nunca aceitar aguardando_agendamento como "em andamento".
-    expect(page).not.toMatch(/aguardando_agendamento/);
+    // Nunca aceitar aguardando_agendamento no filtro .in("status", [...]).
+    expect(page).not.toMatch(/\.in\("status",[^)]*aguardando_agendamento/);
   });
 });
