@@ -318,6 +318,36 @@ export default function GovernancaAcessos() {
       .sort((a, b) => nameOf(a.userId).localeCompare(nameOf(b.userId)));
   })();
 
+  // Roles already held by the selected candidate user, used to filter the
+  // operational grant dialog so it never proposes duplicates (idempotência).
+  const rolesDoUsuario = (uid: string): OperationalRole[] => {
+    if (!uid) return [];
+    return roles
+      .filter((r) => r.user_id === uid && isOperationalRole(r.role))
+      .map((r) => r.role as OperationalRole);
+  };
+  const opAvailableRoles: OperationalRole[] = opUserId
+    ? OPERATIONAL_ROLES.filter((r) => !rolesDoUsuario(opUserId).includes(r))
+    : OPERATIONAL_ROLES;
+
+  // Abre o mesmo diálogo de concessão pré-selecionando o usuário e o primeiro
+  // papel operacional ainda não concedido — permite adicionar papel
+  // complementar sem remover o(s) existente(s) (STAB03).
+  const openAdicionarPapel = (userId: string, current: OperationalRole[]) => {
+    const proximo = OPERATIONAL_ROLES.find((r) => !current.includes(r));
+    if (!proximo) {
+      toast({
+        title: "Sem papéis para adicionar",
+        description: "Este usuário já possui todos os acessos operacionais disponíveis.",
+      });
+      return;
+    }
+    setOpUserId(userId);
+    setOpRole(proximo);
+    setOpMotivo("");
+    setOpOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div>
