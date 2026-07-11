@@ -632,3 +632,41 @@ O header (`AppLayout`) e a sidebar (`AppSidebar`) faziam `select` cru em `instit
 **Regra de contexto tenant.** Só após ação explícita no `TenantSwitcher` ("Entrar na instituição" / seleção no dropdown): `selectedInstituicao` é definida, sidebar renderiza grupos operacionais, header exibe "{nome} — Sistema de Gestão" e badge "Instituição atual", branding do tenant é aplicado.
 
 **Não alterado.** RLS, RPCs, GRANTs, módulos, planos, assinaturas, Central de Chamados, cadastros de assistidos/voluntários, sessões públicas, fluxo de entrevista, projeto Tratamentos FER.
+
+## STAB01 — Estabilização cirúrgica do cadastro rápido de assistido na entrevista
+
+**Problema.** Em Atendimento → Realizar Entrevista → Novo, o cadastro rápido de assistido falhava com "Não foi possível cadastrar o assistido. Verifique os dados e tente novamente.", enquanto Atendimento → Assistidos → Novo já funcionava.
+
+**Diagnóstico.**
+- Cadastro principal (`src/pages/Assistidos.tsx`): `supabase.from("assistidos").insert({ ...payload, instituicao_id: selectedInstituicaoId })` + `toFriendlyError` + `formatSupportDetails` (FIX08).
+- Cadastro rápido (`src/hooks/useFazerEntrevista.ts` → `insertAssistido` em `src/services/entrevistas/fazerEntrevista.ts`): montava payload **sem** `instituicao_id`, com fallback de erro genérico.
+- Causa raiz: a RLS `admin_instituicao gerencia assistidos do tenant` (FIX08) exige `instituicao_id = fn_admin_instituicao_do_usuario(auth.uid())`. Sem esse campo, o INSERT era barrado pela política e o hook exibia uma mensagem opaca sem trilha técnica.
+
+**Correção cirúrgica (mesma regra do cadastro principal, sem duplicar service).**
+- `src/hooks/useFazerEntrevista.ts`
+  - Passa a consumir `useInstituicaoAtiva` e, antes de salvar, aplica o mesmo fail-closed do FIX08 (`TENANT_AUSENTE_ERROR` quando não há instituição ativa).
+  - Injeta `instituicao_id: selectedInstituicaoId` no payload enviado a `insertAssistido` (a mesma coluna que o cadastro principal envia).
+  - Substitui o toast genérico por `toFriendlyError` + `showFriendlyErrorToast` (código `ASSISTIDO_RAPIDO_ENTREVISTA_CREATE_*`) — mesmo padrão de mensagens amigáveis, detalhes técnicos e ação "Abrir chamado técnico" já usado em Assistidos e Sessões Públicas.
+- `src/lib/toastChamadoTecnico.tsx` (novo, isolado)
+  - Extrai apenas a montagem do toast com `ToastAction` → `abrirChamadoTecnico`, porque o hook é `.ts` e não emite JSX. Zero mudança de comportamento em outras telas.
+
+**Reutilização, não duplicação.** O cadastro rápido continua chamando `insertAssistido` (o único ponto de INSERT em `assistidos` fora do cadastro principal); o alinhamento ao "fluxo principal" foi feito pelo lado do chamador (mesmas regras: tenant obrigatório + `toFriendlyError` + ação de chamado). O cadastro principal em `src/pages/Assistidos.tsx` não foi tocado.
+
+**Arquivos alterados.**
+- `src/hooks/useFazerEntrevista.ts` — imports, `useInstituicaoAtiva`, fail-closed de tenant, `instituicao_id` no payload, `toFriendlyError` + `showFriendlyErrorToast`.
+- `src/lib/toastChamadoTecnico.tsx` — helper novo (JSX do toast de erro amigável com "Abrir chamado técnico"), sem side-effects em outras telas.
+
+**Não alterado.** Nenhuma migração, RLS, RPC, GRANT, bucket, edge function, módulo, plano, assinatura, Central de Chamados, Sessões Públicas, voluntários, Governança de Acessos, AppLayout, AppSidebar, `useSelectedInstituicao`, cadastro principal de assistidos, projeto Tratamentos FER original.
+
+**Congelamento de escopo respeitado.** Somente o cadastro rápido dentro da entrevista foi ajustado; nenhuma nova funcionalidade, nenhuma refatoração ampla, nenhuma alteração de regra já aprovada.
+
+**Comportamento esperado após STAB01.**
+- Admin local FER Piloto abre Realizar Entrevista → Novo → preenche nome/celular → salva → assistido é criado com `instituicao_id = FER Piloto`, aparece imediatamente selecionado na entrevista e também em Atendimento → Assistidos.
+- Sem instituição ativa (visão global de platform_admin): toast "Não foi possível identificar a instituição atual. Selecione uma instituição e tente novamente." (`TENANT_AUSENTE`).
+- Erro técnico (RLS, unique, FK, campo obrigatório): toast amigável + código `ASSISTIDO_RAPIDO_ENTREVISTA_CREATE_{DENIED|DUPLICATE|FK|REQUIRED|UNEXPECTED}` + botão "Abrir chamado técnico" (mesmo pipeline de `abrirChamadoTecnico`).
+- Nenhuma mensagem crua com "row-level security", "violates policy", SQLSTATE, nome de tabela ou PostgREST.
+
+**Anti-regressão (verificação manual sugerida).**
+- Fase 1–3: login global, admin local, branding, badge, isolamento, guardas de rota — inalterados (nenhum arquivo dessas trilhas tocado).
+- Fase 4: cadastro/edição/busca de assistido principal, voluntários, Governança de Acessos, Sessões Públicas, Central de Chamados/anexos/fechamento — inalterados.
+- Fase 5: agendamento de entrevista — inalterado; cadastro rápido agora funciona.
