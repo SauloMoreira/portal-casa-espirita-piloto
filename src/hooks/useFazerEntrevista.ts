@@ -305,11 +305,14 @@ export function useFazerEntrevista() {
       foto_url: assistidoForm.foto_url || null,
       observacoes: assistidoForm.observacoes || null,
       status: "ativo",
-      created_by: user!.id,
-      instituicao_id: selectedInstituicaoId,
     };
 
-    const { data: newAssist, error } = await insertAssistido(payload);
+    // SAAS-06-C1-STAB02 — mesma camada do cadastro principal (FIX08).
+    const { error } = await criarAssistidoTenant({
+      payload: payload as any,
+      instituicaoId: selectedInstituicaoId,
+      userId: user!.id,
+    });
     if (error) {
       const isDupCelular =
         error.message.includes("uq_assistidos_celular") ||
@@ -319,8 +322,6 @@ export function useFazerEntrevista() {
         setSavingAssistido(false);
         return;
       }
-      // SAAS-06-C1-FIX18 — erros técnicos passam pelo mapa amigável e oferecem
-      // o botão "Abrir chamado técnico" (mesmo padrão de Assistidos/SessoesPublicas).
       const friendly = toFriendlyError(error, {
         operacao: "cadastro_rapido_assistido",
         entidade: "assistidos",
@@ -336,12 +337,28 @@ export function useFazerEntrevista() {
         instituicaoId: selectedInstituicaoId,
         userId: user?.id ?? null,
       });
-    } else if (newAssist) {
-      setAssistidos((prev) => [...prev, newAssist].sort((a, b) => a.nome.localeCompare(b.nome)));
-      setSelectedAssistido(newAssist);
+      setSavingAssistido(false);
+      return;
+    }
+
+    // Busca o recém-criado (SELECT separado, não depende do retorno do INSERT).
+    const { data: newAssist } = await fetchAssistidoRecemCriado(
+      selectedInstituicaoId,
+      celClean
+    );
+    if (newAssist) {
+      setAssistidos((prev) =>
+        [...prev, newAssist as EntrevistaAssistido].sort((a, b) => a.nome.localeCompare(b.nome))
+      );
+      setSelectedAssistido(newAssist as EntrevistaAssistido);
       setNovoAssistidoOpen(false);
       setAssistidoForm(EMPTY_ASSISTIDO_FORM);
       toast({ title: "Assistido cadastrado com sucesso" });
+    } else {
+      toast({
+        title: "Assistido cadastrado, mas não foi possível carregá-lo automaticamente. Selecione-o na lista.",
+      });
+      setNovoAssistidoOpen(false);
     }
     setSavingAssistido(false);
   }, [assistidoForm, assistidos, user, toast, selectedInstituicaoId]);
