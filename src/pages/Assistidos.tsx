@@ -417,15 +417,34 @@ export default function Assistidos() {
           </div>
         </CardHeader>
         <CardContent>
-          {listLoading && filtered.length === 0 ? (
+          {authLoading || instLoading ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <p className="text-sm">Carregando...</p>
+              <p className="text-sm">Carregando assistidos...</p>
+            </div>
+          ) : !selectedInstituicaoId ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <p className="text-sm">Selecione uma instituição para visualizar os assistidos.</p>
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              <p className="text-sm text-destructive font-medium">
+                Não foi possível carregar os assistidos. Tente novamente ou abra um chamado técnico.
+              </p>
+              <p className="text-xs text-muted-foreground font-mono">Código: {loadError}</p>
+              <Button variant="outline" size="sm" onClick={() => fetchAssistidos()}>
+                Tentar novamente
+              </Button>
+            </div>
+          ) : listLoading && filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <p className="text-sm">Carregando assistidos...</p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <HandHeart className="h-10 w-10 mb-3 opacity-30" />
-              <p className="text-sm font-medium">Nenhum assistido encontrado</p>
+              <p className="text-sm font-medium">Nenhum assistido encontrado.</p>
             </div>
+
           ) : (
             <div className="overflow-x-auto -mx-6">
               <Table>
