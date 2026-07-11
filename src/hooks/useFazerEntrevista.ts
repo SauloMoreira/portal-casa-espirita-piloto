@@ -17,11 +17,13 @@ import {
 import {
   fetchInitialData,
   fetchEntrevistaContext,
-  
-  insertAssistido,
   submitEntrevista,
   validateDatasIniciais,
 } from "@/services/entrevistas/fazerEntrevista";
+import {
+  criarAssistidoTenant,
+  fetchAssistidoRecemCriado,
+} from "@/services/assistidos/criarAssistidoTenant";
 import type {
   EntrevistaAssistido,
   EntrevistaTipoTratamento,
