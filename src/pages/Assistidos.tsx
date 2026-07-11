@@ -88,50 +88,94 @@ export default function Assistidos() {
   const [acessoAssistido, setAcessoAssistido] = useState<Assistido | null>(null);
   const [resetAssistido, setResetAssistido] = useState<Assistido | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
-  const { user, role } = useAuth();
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { user, role, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const { selectedInstituicaoId } = useInstituicaoAtiva();
+  const { selectedInstituicaoId, isLoading: instLoading } = useInstituicaoAtiva();
 
-  // Paginação real (server-side) respeitando busca e filtro de status.
-  const fetchAssistidos = async (opts?: { page?: number }) => {
-    const targetPage = opts?.page ?? page;
-    setListLoading(true);
-    const { from, to } = getRange(targetPage, pageSize);
-    let q = supabase
-      .from("assistidos")
-      .select("*", { count: "exact" })
-      .is("deleted_at", null);
+  // SAAS-06-C1-STAB08 — sequência de requisições para descartar respostas fora
+  // de ordem quando o usuário troca de tenant/filtro rapidamente.
+  const reqSeqRef = useRef(0);
 
-    if (statusFilter !== "todos") q = q.eq("status", statusFilter);
+  // Contexto pronto: autenticação hidratada, user disponível e tenant ativo válido.
+  const contextoPronto = !authLoading && !!user?.id && !!selectedInstituicaoId;
 
-    const term = search.trim();
-    if (term) {
-      const digits = term.replace(/\D/g, "");
-      const ors = [`nome.ilike.%${term}%`];
-      if (digits) ors.push(`cpf.ilike.%${digits}%`, `celular.ilike.%${digits}%`);
-      q = q.or(ors.join(","));
-    }
+  // Paginação real (server-side) respeitando busca, filtro de status e tenant ativo.
+  const fetchAssistidos = useCallback(
+    async (opts?: { page?: number }) => {
+      if (!contextoPronto || !selectedInstituicaoId) return;
+      const targetPage = opts?.page ?? page;
+      const mySeq = ++reqSeqRef.current;
+      setListLoading(true);
+      setLoadError(null);
+      const { from, to } = getRange(targetPage, pageSize);
+      let q = supabase
+        .from("assistidos")
+        .select("*", { count: "exact" })
+        // SAAS-06-C1-STAB08 — filtro tenant explícito (RLS continua sendo barreira).
+        .eq("instituicao_id", selectedInstituicaoId)
+        .is("deleted_at", null);
 
-    const { data, count } = await q.order("nome").range(from, to);
-    setAssistidos((data as any) || []);
-    setTotal(count ?? 0);
-    setListLoading(false);
-  };
+      if (statusFilter !== "todos") q = q.eq("status", statusFilter);
+
+      const term = search.trim();
+      if (term) {
+        const digits = term.replace(/\D/g, "");
+        const ors = [`nome.ilike.%${term}%`];
+        if (digits) ors.push(`cpf.ilike.%${digits}%`, `celular.ilike.%${digits}%`);
+        q = q.or(ors.join(","));
+      }
+
+      const { data, error, count } = await q.order("nome").range(from, to);
+
+      // Ignora respostas fora de ordem (troca de tenant/filtro no meio do voo).
+      if (mySeq !== reqSeqRef.current) return;
+
+      if (error) {
+        console.error("[ASSISTIDOS_LIST_LOAD_FAILED]", {
+          code: (error as any).code,
+          message: error.message,
+          instituicaoId: selectedInstituicaoId,
+        });
+        setLoadError("ASSISTIDOS_LIST_LOAD_FAILED");
+        setListLoading(false);
+        return;
+      }
+
+      setAssistidos((data as any) || []);
+      setTotal(count ?? 0);
+      setListLoading(false);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [contextoPronto, selectedInstituicaoId, page, pageSize, statusFilter, search],
+  );
+
+  // Ao trocar de tenant/usuário: limpar dados anteriores imediatamente.
+  useEffect(() => {
+    reqSeqRef.current++;
+    setAssistidos([]);
+    setTotal(0);
+    setLoadError(null);
+    setPage(1);
+  }, [selectedInstituicaoId, user?.id]);
 
   // Debounce de busca + reset de página ao mudar filtros.
   useEffect(() => {
+    if (!contextoPronto) return;
     const t = setTimeout(() => {
       setPage(1);
       fetchAssistidos({ page: 1 });
     }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, statusFilter, pageSize]);
+  }, [search, statusFilter, pageSize, contextoPronto, selectedInstituicaoId]);
 
   useEffect(() => {
+    if (!contextoPronto) return;
     fetchAssistidos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, contextoPronto, selectedInstituicaoId]);
+
 
   const validate = (): FormErrors => {
     // Cadastro mínimo: só Nome + Celular são obrigatórios. Demais campos
