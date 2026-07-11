@@ -263,7 +263,17 @@ export function useFazerEntrevista() {
   const handleSaveNovoAssistido = useCallback(async () => {
     const errs = validateAssistidoForm(assistidoForm);
     setAssistidoErrors(errs);
-    if (Object.keys(errs).length > 0) return;
+    if (Object.keys(errs).length > 0) {
+      toast({ title: "Preencha os campos obrigatórios antes de continuar.", variant: "destructive" });
+      return;
+    }
+
+    // SAAS-06-C1-FIX18 — tenant obrigatório (fail-closed). Sem instituição ativa não persiste.
+    if (!selectedInstituicaoId) {
+      toast({ title: TENANT_AUSENTE_ERROR.message, variant: "destructive" });
+      return;
+    }
+
     setSavingAssistido(true);
 
     const cpfClean = assistidoForm.cpf.replace(/\D/g, "");
@@ -294,6 +304,7 @@ export function useFazerEntrevista() {
       observacoes: assistidoForm.observacoes || null,
       status: "ativo",
       created_by: user!.id,
+      instituicao_id: selectedInstituicaoId,
     };
 
     const { data: newAssist, error } = await insertAssistido(payload);
@@ -306,19 +317,32 @@ export function useFazerEntrevista() {
         setSavingAssistido(false);
         return;
       }
-      const msg = error.message.includes("violates")
-        ? "Não foi possível cadastrar o assistido. Verifique os dados e tente novamente."
-        : error.message;
-      toast({ title: "Erro ao cadastrar", description: msg, variant: "destructive" });
+      // SAAS-06-C1-FIX18 — erros técnicos passam pelo mapa amigável e oferecem
+      // o botão "Abrir chamado técnico" (mesmo padrão de Assistidos/SessoesPublicas).
+      const friendly = toFriendlyError(error, {
+        operacao: "cadastro_rapido_assistido",
+        entidade: "assistidos",
+        codePrefix: "ASSISTIDO_RAPIDO_ENTREVISTA_CREATE",
+        acao: "INSERT",
+        instituicaoId: selectedInstituicaoId,
+      });
+      console.error("[entrevista:novo-assistido]", friendly.code, friendly.raw);
+      showFriendlyErrorToast({
+        toast,
+        origem: "Realizar Entrevista",
+        friendly,
+        instituicaoId: selectedInstituicaoId,
+        userId: user?.id ?? null,
+      });
     } else if (newAssist) {
       setAssistidos((prev) => [...prev, newAssist].sort((a, b) => a.nome.localeCompare(b.nome)));
       setSelectedAssistido(newAssist);
       setNovoAssistidoOpen(false);
       setAssistidoForm(EMPTY_ASSISTIDO_FORM);
-      toast({ title: "Assistido cadastrado" });
+      toast({ title: "Assistido cadastrado com sucesso" });
     }
     setSavingAssistido(false);
-  }, [assistidoForm, assistidos, user, toast]);
+  }, [assistidoForm, assistidos, user, toast, selectedInstituicaoId]);
 
   const handleSalvar = useCallback(async () => {
     if (!selectedAssistido) {
