@@ -318,6 +318,36 @@ export default function GovernancaAcessos() {
       .sort((a, b) => nameOf(a.userId).localeCompare(nameOf(b.userId)));
   })();
 
+  // Roles already held by the selected candidate user, used to filter the
+  // operational grant dialog so it never proposes duplicates (idempotência).
+  const rolesDoUsuario = (uid: string): OperationalRole[] => {
+    if (!uid) return [];
+    return roles
+      .filter((r) => r.user_id === uid && isOperationalRole(r.role))
+      .map((r) => r.role as OperationalRole);
+  };
+  const opAvailableRoles: OperationalRole[] = opUserId
+    ? OPERATIONAL_ROLES.filter((r) => !rolesDoUsuario(opUserId).includes(r))
+    : OPERATIONAL_ROLES;
+
+  // Abre o mesmo diálogo de concessão pré-selecionando o usuário e o primeiro
+  // papel operacional ainda não concedido — permite adicionar papel
+  // complementar sem remover o(s) existente(s) (STAB03).
+  const openAdicionarPapel = (userId: string, current: OperationalRole[]) => {
+    const proximo = OPERATIONAL_ROLES.find((r) => !current.includes(r));
+    if (!proximo) {
+      toast({
+        title: "Sem papéis para adicionar",
+        description: "Este usuário já possui todos os acessos operacionais disponíveis.",
+      });
+      return;
+    }
+    setOpUserId(userId);
+    setOpRole(proximo);
+    setOpMotivo("");
+    setOpOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -380,11 +410,16 @@ export default function GovernancaAcessos() {
                     <Select value={opRole} onValueChange={(v) => setOpRole(v as OperationalRole)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {OPERATIONAL_ROLES.map((r) => (
+                        {opAvailableRoles.map((r) => (
                           <SelectItem key={r} value={r}>{OPERATIONAL_ROLE_LABELS[r]}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {opUserId && opAvailableRoles.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Este usuário já possui todos os acessos operacionais.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Justificativa (opcional)</Label>
@@ -397,7 +432,11 @@ export default function GovernancaAcessos() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleConcederOperacional} disabled={loading} className="w-full">
+                  <Button
+                    onClick={handleConcederOperacional}
+                    disabled={loading || (!!opUserId && opAvailableRoles.length === 0)}
+                    className="w-full"
+                  >
                     {loading ? "Concedendo..." : "Conceder acesso"}
                   </Button>
                 </DialogFooter>
@@ -486,9 +525,23 @@ export default function GovernancaAcessos() {
             <CardContent className="space-y-3">
               {operationalByUser.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">Nenhum acesso operacional concedido.</p>
-              ) : operationalByUser.map(({ userId, roles: userRoles }) => (
+              ) : operationalByUser.map(({ userId, roles: userRoles }) => {
+                const podeAdicionar = userRoles.length < OPERATIONAL_ROLES.length;
+                return (
                 <div key={userId} className="rounded-xl border p-4 space-y-2">
-                  <p className="font-medium">{nameOf(userId)}</p>
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <p className="font-medium">{nameOf(userId)}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      disabled={loading || !podeAdicionar}
+                      onClick={() => openAdicionarPapel(userId, userRoles)}
+                      title={podeAdicionar ? "Adicionar papel operacional" : "Usuário já possui todos os papéis operacionais"}
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Adicionar papel
+                    </Button>
+                  </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {userRoles.map((r) => (
                       <Badge key={r} variant="secondary" className="gap-1 pr-1">
@@ -507,7 +560,8 @@ export default function GovernancaAcessos() {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         </TabsContent>
