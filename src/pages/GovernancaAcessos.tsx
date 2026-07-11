@@ -410,11 +410,16 @@ export default function GovernancaAcessos() {
                     <Select value={opRole} onValueChange={(v) => setOpRole(v as OperationalRole)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {OPERATIONAL_ROLES.map((r) => (
+                        {opAvailableRoles.map((r) => (
                           <SelectItem key={r} value={r}>{OPERATIONAL_ROLE_LABELS[r]}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {opUserId && opAvailableRoles.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Este usuário já possui todos os acessos operacionais.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Justificativa (opcional)</Label>
