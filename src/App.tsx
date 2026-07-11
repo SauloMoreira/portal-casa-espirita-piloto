@@ -159,8 +159,8 @@ const App = () => (
                   <Route path={ROUTES.regras} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<RegrasOperacionais />)}</ProtectedRoute>} />
                   <Route path={ROUTES.governancaParametros} element={<ProtectedRoute allowedRoles={["admin", "administrador_master"]}>{tenant(<GovernancaParametros />)}</ProtectedRoute>} />
                   <Route path={ROUTES.excecoes} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Excecoes />)}</ProtectedRoute>} />
-                  <Route path={ROUTES.excecoesOperacionais} element={<ProtectedRoute allowedRoles={["admin", "coordenador_de_tratamento"]}>{tenant(guard(<ExcecoesOperacionais />, "Exceções Operacionais"))}</ProtectedRoute>} />
-                  <Route path={ROUTES.programacaoPadrao} element={<ProtectedRoute allowedRoles={["admin", "coordenador_de_tratamento"]}>{tenant(guard(<ProgramacaoPadrao />, "Programação Padrão"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.excecoesOperacionais} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<ExcecoesOperacionais />, "Exceções Operacionais"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.programacaoPadrao} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<ProgramacaoPadrao />, "Programação Padrão"))}</ProtectedRoute>} />
                   <Route path={ROUTES.instituicao} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Instituicao />)}</ProtectedRoute>} />
                   <Route path={ROUTES.centralIa} element={<ProtectedRoute allowedRoles={["admin", "entrevistador"]}>{tenant(<CentralIA />)}</ProtectedRoute>} />
                   <Route path={ROUTES.voluntarios} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<Voluntarios />, "Voluntários"))}</ProtectedRoute>} />
