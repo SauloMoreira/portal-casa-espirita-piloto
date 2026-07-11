@@ -47,7 +47,12 @@ export const InstituicaoProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const { selectedInstituicaoId, selectInstituicao } =
-    useSelectedInstituicao(allowedIds);
+    useSelectedInstituicao(allowedIds, {
+      // SAAS-06-C1-FIX17 — platform_admin nunca entra em tenant automaticamente:
+      // sem restauração de sessão anterior nem auto-select de único vínculo.
+      autoRestore: !isPlatformAdmin,
+      autoSelectSingle: !isPlatformAdmin,
+    });
 
   const selecionada = useMemo(
     () =>
