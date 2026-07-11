@@ -99,10 +99,10 @@ export default function CoordenadorTratamentos() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-display font-bold text-foreground flex items-center gap-2">
-          <Heart className="h-6 w-6 text-primary" />
-          Tratamentos em Andamento
+          <Heart className="h-6 w-6 text-primary" aria-hidden="true" />
+          Tratamentos sob minha coordenação
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Assistidos em tratamento sob sua coordenação</p>
+        <p className="text-sm text-muted-foreground mt-1">Assistidos em tratamento nos trabalhos sob sua responsabilidade.</p>
       </div>
 
       <Card className="glass-card">
