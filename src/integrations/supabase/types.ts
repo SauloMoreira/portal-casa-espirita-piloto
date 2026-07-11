@@ -4077,6 +4077,35 @@ export type Database = {
       }
       fn_is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       fn_lembrete_antecedencia_horas: { Args: never; Returns: number }
+      fn_lista_espera_coordenador: {
+        Args: { p_user_id?: string }
+        Returns: {
+          assistido_id: string
+          assistido_nome: string
+          created_at: string
+          dia_semana: number
+          entrevista_data: string
+          entrevista_id: string
+          frequencia_unidade: string
+          frequencia_valor: number
+          horario: string
+          id: string
+          modo_agendamento: string
+          origem: string
+          permite_entrada_sem_agendamento: boolean
+          prioridade: string
+          quantidade_realizada: number
+          quantidade_total: number
+          status: string
+          tem_etapa_ativa_valida: boolean
+          tem_sessao_futura_valida: boolean
+          trabalho_publico: boolean
+          tratamento_id: string
+          tratamento_nome: string
+          tratamento_tipo: string
+          urgencia: string
+        }[]
+      }
       fn_listar_coordenacao_tratamentos: { Args: never; Returns: Json }
       fn_listar_parametros_operacionais: {
         Args: never

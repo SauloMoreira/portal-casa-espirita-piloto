@@ -4,7 +4,6 @@ import {
   elegibilidadeListaEspera,
   type MotivoListaEspera,
 } from "@/lib/agendaRules";
-import { getTratamentosCoordenados } from "@/services/coordenacao/escopo";
 
 /**
  * Service ÚNICO da Lista de Espera do coordenador.
@@ -14,17 +13,6 @@ import { getTratamentosCoordenados } from "@/services/coordenacao/escopo";
  * itens já prontos para a UI. É a única fonte para a página e para o contador
  * do dashboard — a elegibilidade NÃO é reimplementada em nenhum outro lugar.
  */
-
-/** Status do vínculo que podem representar pendência de coordenação. */
-const STATUS_CANDIDATOS = [
-  "aguardando_agendamento",
-  "aguardando_inicio",
-  "liberado",
-  "em_andamento",
-];
-
-/** Status de agenda que contam como sessão futura realmente válida. */
-const STATUS_AGENDA_VALIDA = ["agendado"];
 
 export interface ListaEsperaItem {
   id: string;
@@ -51,6 +39,33 @@ export interface ListaEsperaResultado {
   tratamentoNomes: string[];
 }
 
+interface ListaEsperaRpcRow {
+  id: string;
+  assistido_id: string;
+  assistido_nome: string | null;
+  tratamento_id: string;
+  tratamento_nome: string | null;
+  quantidade_total: number | null;
+  quantidade_realizada: number | null;
+  entrevista_id: string | null;
+  entrevista_data: string | null;
+  status: string;
+  tratamento_tipo: string | null;
+  dia_semana: number | null;
+  horario: string | null;
+  frequencia_valor: number | null;
+  frequencia_unidade: string | null;
+  modo_agendamento: string | null;
+  trabalho_publico: boolean | null;
+  permite_entrada_sem_agendamento: boolean | null;
+  prioridade: string | null;
+  urgencia: string | null;
+  origem: string | null;
+  created_at: string;
+  tem_sessao_futura_valida: boolean | null;
+  tem_etapa_ativa_valida: boolean | null;
+}
+
 /**
  * Carrega e calcula a Lista de Espera para o coordenador `userId`.
  * Aplica a regra oficial centralizada para decidir elegibilidade + motivo.
@@ -58,120 +73,54 @@ export interface ListaEsperaResultado {
 export async function carregarListaEspera(
   userId: string,
 ): Promise<ListaEsperaResultado> {
-  const tratamentosCoordenados = await getTratamentosCoordenados(userId);
-  if (tratamentosCoordenados.length === 0) {
-    return { itens: [], tratamentoNomes: [] };
-  }
-
-  const { data: meusTrat } = await supabase
-    .from("tipos_tratamento")
-    .select(
-      "id, nome, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade, modo_agendamento, trabalho_publico, permite_entrada_sem_agendamento",
-    )
-    .in("id", tratamentosCoordenados);
-
-  if (!meusTrat || meusTrat.length === 0) {
-    return { itens: [], tratamentoNomes: [] };
-  }
-
-  const tratMap = Object.fromEntries(meusTrat.map((t: any) => [t.id, t]));
-  const tratIds = meusTrat.map((t: any) => t.id);
-  const tratamentoNomes = meusTrat.map((t: any) => t.nome);
-
-  const { data: vinculos } = await supabase
-    .from("assistido_tratamentos")
-    .select(
-      "id, assistido_id, tratamento_id, quantidade_total, quantidade_realizada, status, entrevista_id, prioridade, urgencia, origem, created_at",
-    )
-    .in("tratamento_id", tratIds)
-    .in("status", STATUS_CANDIDATOS);
-
-  if (!vinculos || vinculos.length === 0) {
-    return { itens: [], tratamentoNomes };
-  }
-
-  const vinculoIds = vinculos.map((v: any) => v.id);
   const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  const { data, error } = await (supabase as any).rpc("fn_lista_espera_coordenador", {
+    p_user_id: userId,
+  });
 
-  // Assistidos
-  const assistidoIds = [...new Set(vinculos.map((v: any) => v.assistido_id))];
-  const { data: assistidos } = await supabase
-    .from("assistidos")
-    .select("id, nome")
-    .in("id", assistidoIds);
-  const assistMap = Object.fromEntries(
-    (assistidos || []).map((a: any) => [a.id, a.nome]),
-  );
+  if (error) throw error;
 
-  // Entrevistas (para a data de referência de espera)
-  const entrevistaIds = vinculos.map((v: any) => v.entrevista_id).filter(Boolean);
-  const { data: entrevistas } = entrevistaIds.length
-    ? await supabase
-        .from("entrevistas_fraternas")
-        .select("id, data")
-        .in("id", entrevistaIds)
-    : { data: [] as any[] };
-  const entMap = Object.fromEntries(
-    (entrevistas || []).map((e: any) => [e.id, e.data]),
-  );
+  const vinculos = (data ?? []) as ListaEsperaRpcRow[];
+  if (vinculos.length === 0) {
+    return { itens: [], tratamentoNomes: [] };
+  }
 
-  // Sessões futuras VÁLIDAS por vínculo (ativa/agendada e data >= hoje).
-  const { data: agendaFutura } = await supabase
-    .from("agenda_tratamentos_assistido")
-    .select("assistido_tratamento_id")
-    .in("assistido_tratamento_id", vinculoIds)
-    .in("status", STATUS_AGENDA_VALIDA)
-    .gte("data_sessao", todayStr);
-  const comSessaoFutura = new Set(
-    (agendaFutura || []).map((g: any) => g.assistido_tratamento_id),
-  );
-
-  // Etapas ativas válidas no novo modelo por vínculo.
-  const { data: etapasAtivas } = await supabase
-    .from("plano_tratamento_sessoes")
-    .select("assistido_tratamento_id")
-    .in("assistido_tratamento_id", vinculoIds)
-    .eq("status_etapa", "ativa");
-  const comEtapaAtiva = new Set(
-    (etapasAtivas || []).map((p: any) => p.assistido_tratamento_id),
+  const tratamentoNomes = Array.from(
+    new Set(vinculos.map((v) => v.tratamento_nome || "—")),
   );
 
   const itens: ListaEsperaItem[] = [];
 
-  for (const v of vinculos as any[]) {
-    const trat = tratMap[v.tratamento_id];
-    if (!trat) continue;
-
+  for (const v of vinculos) {
     const { elegivel, motivo } = elegibilidadeListaEspera({
       status: v.status,
       quantidade_total: v.quantidade_total ?? 0,
       quantidade_realizada: v.quantidade_realizada ?? 0,
-      modo_agendamento: trat.modo_agendamento ?? "",
-      temSessaoFuturaValida: comSessaoFutura.has(v.id),
-      temEtapaAtivaValida: comEtapaAtiva.has(v.id),
+      modo_agendamento: v.modo_agendamento ?? "",
+      temSessaoFuturaValida: v.tem_sessao_futura_valida ?? false,
+      temEtapaAtivaValida: v.tem_etapa_ativa_valida ?? false,
       legado: (v.origem ?? "").toLowerCase() === "legado",
-      trabalhoPublico: trat.trabalho_publico ?? false,
-      permiteEntradaSemAgendamento: trat.permite_entrada_sem_agendamento ?? false,
+      trabalhoPublico: v.trabalho_publico ?? false,
+      permiteEntradaSemAgendamento: v.permite_entrada_sem_agendamento ?? false,
     });
 
     if (!elegivel || !motivo) continue;
 
-    const entDate = v.entrevista_id ? entMap[v.entrevista_id] || null : null;
+    const entDate = v.entrevista_data || null;
     itens.push({
       id: v.id,
       assistido_id: v.assistido_id,
-      assistido_nome: assistMap[v.assistido_id] || "Assistido não localizado — abrir chamado técnico",
+      assistido_nome: v.assistido_nome || "Assistido não localizado — abrir chamado técnico",
       tratamento_id: v.tratamento_id,
-      tratamento_nome: trat.nome || "—",
-      quantidade_total: v.quantidade_total,
+      tratamento_nome: v.tratamento_nome || "—",
+      quantidade_total: v.quantidade_total ?? 0,
       entrevista_data: entDate,
       status: v.status,
-      tratamento_tipo: trat.tipo ?? null,
-      dia_semana: trat.dia_semana ?? null,
-      horario: trat.horario ?? null,
-      frequencia_valor: trat.frequencia_valor ?? 1,
-      frequencia_unidade: trat.frequencia_unidade ?? "semanas",
+      tratamento_tipo: v.tratamento_tipo ?? null,
+      dia_semana: v.dia_semana ?? null,
+      horario: v.horario ?? null,
+      frequencia_valor: v.frequencia_valor ?? 1,
+      frequencia_unidade: v.frequencia_unidade ?? "semanas",
       prioridade: v.prioridade || "normal",
       urgencia: v.urgencia || null,
       dias_espera: entDate
