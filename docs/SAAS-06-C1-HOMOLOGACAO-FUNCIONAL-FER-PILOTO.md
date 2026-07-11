@@ -670,3 +670,68 @@ O header (`AppLayout`) e a sidebar (`AppSidebar`) faziam `select` cru em `instit
 - Fase 1–3: login global, admin local, branding, badge, isolamento, guardas de rota — inalterados (nenhum arquivo dessas trilhas tocado).
 - Fase 4: cadastro/edição/busca de assistido principal, voluntários, Governança de Acessos, Sessões Públicas, Central de Chamados/anexos/fechamento — inalterados.
 - Fase 5: agendamento de entrevista — inalterado; cadastro rápido agora funciona.
+
+---
+
+## Diagnóstico 5.3 — Vínculo entre coordenador e tratamento
+
+> **Nota:** este item é apenas diagnóstico. Nenhuma alteração de código, RLS, RPC ou migração foi aplicada.
+
+### 1) Onde os tratamentos são cadastrados
+- **Tela:** *Configurações → Tratamentos* (`/tratamentos`, `src/pages/Tratamentos.tsx`), acessível a `admin`/`administrador_master`.
+- **Tabela:** `public.tipos_tratamento`.
+- **Campos principais:** `nome`, `tipo`, `dia_semana`, `horario`, `frequencia_valor/unidade`, `modo_agendamento`, `quantidade_padrao_sessoes`, `trabalho_publico`, `permite_entrada_sem_agendamento`, `ordem_tratamento`, `bloqueia_proximo_tratamento`, `status`, `tarefeiro_id`, `created_by`.
+- **Tenant-aware?** **Não.** `tipos_tratamento` **não possui `instituicao_id`** — o catálogo de tratamentos é **global** entre tenants. **Gap estrutural** frente ao padrão SAAS-05 (ver item 6).
+
+### 2) Onde se define o coordenador de cada tratamento
+- **Tela:** *Escopo Operacional* (`/escopo-operacional`, `src/pages/EscopoOperacional.tsx`), no menu lateral, restrita a `admin`/`administrador_master`.
+- **Tabela:** `public.coordenacao_tratamento` — relação **N:N** (um tratamento pode ter vários coordenadores; um coordenador pode cuidar de vários tratamentos).
+- **Campos:** `tratamento_id`, `coordenador_id`, `created_by`, `created_at`.
+- **RPCs oficiais:** `fn_designar_coordenador`, `fn_remover_coordenador`, `fn_listar_coordenacao_tratamentos`, `fn_tratamentos_do_coordenador` (todas `SECURITY DEFINER`, `EXECUTE` só para `authenticated`/`service_role`).
+- **Regra de permissão:** apenas `admin`/`administrador_master` designam/removem. A tela deixa explícito: **escopo ≠ acesso**. O acesso (papel `coordenador_de_tratamento`) continua sendo concedido na *Gestão de Acessos*; a UI mostra um alerta consultivo (`tem_acesso=false`) quando há designação sem papel.
+- **Vínculo por instituição?** **Não.** `coordenacao_tratamento` **não possui `instituicao_id`** e o catálogo `tipos_tratamento` também não. **Gap** (ver item 6).
+
+### 3) Relação entre voluntário e função de coordenador
+Fluxo hoje:
+1. Pessoa cadastrada em *Voluntários* (`public.voluntarios`, com funções em `voluntario_funcoes`).
+2. Acesso operacional concedido em *Gestão de Acessos* → cria/vincula em `instituicao_usuarios` + papel em `user_roles` (via `fn_conceder_acesso_operacional`).
+3. Para atuar como coordenador, o papel concedido precisa ser `coordenador_de_tratamento` (papel local, escopo global; a instituição vem do vínculo em `instituicao_usuarios`).
+4. Em paralelo, `admin` local **designa** essa pessoa em *Escopo Operacional* para um ou mais tratamentos.
+
+**O coordenador vem de:** papel local (`user_roles.coordenador_de_tratamento`) **+** designação N:N em `coordenacao_tratamento`. **Não** vem de `funcoes_voluntariado`, nem de campo em `tipos_tratamento`. As duas coisas são independentes (por desenho: FIX05/FIX06 documentam a separação cadastro ↔ acesso).
+
+### 4) Entrevista indica tratamento sem data/hora — para onde vai
+- **Tabela:** `public.assistido_tratamentos` (linha por vínculo assistido↔tratamento).
+- **Campo tratamento:** `tratamento_id` (FK → `tipos_tratamento`).
+- **Status na criação sem data:** `aguardando_agendamento` (a criação com data preenchida vai para `aguardando_inicio`/`em_andamento` conforme o modo).
+- **Campo de coordenador?** **Não existe** em `assistido_tratamentos`. O coordenador é resolvido **indiretamente** por `coordenacao_tratamento` (quem coordena aquele `tratamento_id`).
+- **Fica em lista de espera?** Sim. A regra oficial é `elegibilidadeListaEspera` (`src/lib/agendaRules.ts`), consumida **exclusivamente** por `src/services/coordenacao/listaEspera.ts` (`carregarListaEspera`, `contarListaEspera`). Elegíveis são os vínculos em `aguardando_agendamento`/`aguardando_inicio`/`liberado`/`em_andamento` sem sessão futura válida e sem etapa ativa (respeitando `modo_agendamento`, legado, trabalho público, etc.).
+- **Onde aparece no front-end:** *Coordenação → Lista de Espera* (`/coordenador/lista-espera`, `src/pages/CoordenadorListaEspera.tsx`) e no card "Lista de Espera" do `CoordenadorDashboard`.
+
+### 5) Tela do coordenador para pendentes de agendamento
+- **Caminho oficial:** **Coordenação → Lista de Espera** (`/coordenador/lista-espera`).
+- Complementares do mesmo perfil:
+  - `Coordenação → Tratamentos` (`/coordenador/tratamentos`, `CoordenadorTratamentos.tsx`) — visão dos vínculos por tratamento coordenado.
+  - `Coordenação → Agenda` (`/coordenador/agenda`, `CoordenadorAgenda.tsx`) — grade de sessões futuras já agendadas.
+- Fonte única de escopo: `getTratamentosCoordenados(user.id)` → RPC `fn_tratamentos_do_coordenador` → só devolve os `tratamento_id` presentes em `coordenacao_tratamento` para aquele usuário.
+
+### 6) Gaps funcionais identificados (não implementar agora)
+- **G-5.3.1 — Catálogo global de tratamentos.** `tipos_tratamento` não possui `instituicao_id`. Em multi-tenant real, Casa Demo e FER Piloto compartilhariam o mesmo catálogo. Homologação FER Piloto tolera isso (tenant único operando), mas é gap estrutural para SAAS-05 pleno.
+- **G-5.3.2 — Designação de coordenador sem `instituicao_id`.** `coordenacao_tratamento` também é global; não há como restringir "coordenador X coordena tratamento Y **na instituição Z**". Se a mesma pessoa for coordenador em duas casas, hoje a designação é uma só.
+- **G-5.3.3 — Escopo/Acesso desacoplados (por desenho, mas com efeito colateral).** Designação sem papel apenas gera alerta consultivo; o inverso (papel `coordenador_de_tratamento` sem designação) resulta em Lista de Espera vazia sem mensagem clara na UI de "peça ao admin para te designar em um tratamento".
+- **G-5.3.4 — `assistido_tratamentos` sem `coordenador_id` explícito.** A responsabilidade é derivada; se um tratamento tem 0 coordenadores designados, o encaminhamento fica *órfão* (nenhum coordenador o vê). Não há alerta operacional para tratamento sem coordenador.
+- **G-5.3.5 — `assistido_tratamentos` sem `instituicao_id` direto.** O tenant é herdado do assistido; consultas do coordenador precisam de join. Consistente com o modelo atual, mas relevante para SAAS-05.
+
+### 7) Confirmações solicitadas
+- **Admin local configura coordenador de tratamento?** Sim — `admin` (papel local) e `administrador_master` têm acesso à rota `/escopo-operacional` (guardas em `App.tsx` + `AppSidebar.tsx`).
+- **Coordenador só vê tratamentos da própria instituição?** **Parcialmente.** Só vê tratamentos em que foi designado (`coordenacao_tratamento`), e a Lista de Espera filtra vínculos desses `tratamento_id`. O isolamento por instituição vem indiretamente de `assistidos.instituicao_id` (RLS de `assistidos`/`assistido_tratamentos`). Como `coordenacao_tratamento` não tem `instituicao_id`, o isolamento não é enforced na tabela de escopo — depende do RLS a jusante.
+- **Casa Demo não vê dados da FER Piloto?** Sim, garantido pelas RLS tenant-aware em `assistidos`, `assistido_tratamentos`, `agenda_tratamentos_assistido`, `entrevistas_fraternas` etc. (validado nas Fases 1–4). O catálogo de tratamentos é o único ponto compartilhado hoje (ver G-5.3.1).
+- **Assistido não acessa fila do coordenador?** Sim — rotas `/coordenador/*` protegidas por `allowedRoles=["coordenador_de_tratamento", "admin", "administrador_master"]` em `App.tsx`; RPCs `fn_tratamentos_do_coordenador`/`fn_listar_coordenacao_tratamentos` só executam para `authenticated` com resultado vazio para quem não tem designação.
+- **Tarefeiro comum não acessa coordenação indevidamente?** Sim — o papel `tarefeiro` não está em `allowedRoles` das rotas `/coordenador/*` nem `/escopo-operacional`; `fn_tratamentos_do_coordenador` retorna vazio para ele.
+
+### Recomendação para o Teste 5.3
+1. **Pré-condição obrigatória:** em `/escopo-operacional`, o admin FER Piloto deve **designar** o usuário coordenador para os tratamentos alvo do teste (ex.: Reiki, Magnetismo). Sem essa designação, a Lista de Espera vem vazia, mesmo com encaminhamentos válidos criados na entrevista.
+2. **Pré-condição de acesso:** o coordenador precisa ter o papel `coordenador_de_tratamento` concedido em *Gestão de Acessos* (senão nem entra na rota `/coordenador/lista-espera`).
+3. **Fluxo do teste:** criar entrevista → indicar tratamento **sem data e sem horário** → salvar → logar como coordenador designado → abrir *Coordenação → Lista de Espera* → confirmar que o vínculo aparece com `status=aguardando_agendamento` e `dias_espera` a partir da entrevista.
+4. **Aceite mínimo:** Lista de Espera exibe o encaminhamento com nome do assistido, nome do tratamento e prioridade; ao agendar (data + horário), o item some da Lista de Espera e passa a aparecer em *Coordenação → Agenda*.
+5. **Gaps 5.3.1–5.3.5 permanecem registrados** para tratamento posterior (fora do escopo do Teste 5.3, que homologa apenas o fluxo funcional no tenant FER Piloto).
