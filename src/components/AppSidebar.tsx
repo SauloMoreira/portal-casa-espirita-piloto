@@ -247,7 +247,11 @@ export function AppSidebar() {
   };
 
   // Filter groups: only show groups that have at least one visible item
+  // SAAS-06-C1-FIX17 — Sem tenant ativo selecionado, esconder grupos
+  // operacionais (tenantScoped != false). Isso evita que platform_admin veja
+  // menus de Atendimento/Pessoas/etc. herdados de contexto anterior.
   const visibleGroups = navGroups
+    .filter((group) => group.tenantScoped === false || !!selecionada)
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => role && item.roles.includes(role)),
