@@ -525,9 +525,23 @@ export default function GovernancaAcessos() {
             <CardContent className="space-y-3">
               {operationalByUser.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">Nenhum acesso operacional concedido.</p>
-              ) : operationalByUser.map(({ userId, roles: userRoles }) => (
+              ) : operationalByUser.map(({ userId, roles: userRoles }) => {
+                const podeAdicionar = userRoles.length < OPERATIONAL_ROLES.length;
+                return (
                 <div key={userId} className="rounded-xl border p-4 space-y-2">
-                  <p className="font-medium">{nameOf(userId)}</p>
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <p className="font-medium">{nameOf(userId)}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      disabled={loading || !podeAdicionar}
+                      onClick={() => openAdicionarPapel(userId, userRoles)}
+                      title={podeAdicionar ? "Adicionar papel operacional" : "Usuário já possui todos os papéis operacionais"}
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Adicionar papel
+                    </Button>
+                  </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {userRoles.map((r) => (
                       <Badge key={r} variant="secondary" className="gap-1 pr-1">
@@ -546,7 +560,8 @@ export default function GovernancaAcessos() {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         </TabsContent>
