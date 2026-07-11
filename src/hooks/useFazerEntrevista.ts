@@ -50,6 +50,7 @@ const todayStr = () => new Date().toISOString().split("T")[0];
 export function useFazerEntrevista() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const { selectedInstituicaoId } = useInstituicaoAtiva();
   const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState("");
