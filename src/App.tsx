@@ -147,12 +147,12 @@ const App = () => (
                   <Route path={ROUTES.meusDocumentos} element={<ProtectedRoute allowedRoles={["assistido"]}>{guard(<MeusDocumentos />, "Meus Documentos")}</ProtectedRoute>} />
                   <Route path={ROUTES.notificacoes} element={<Notificacoes />} />
                   <Route path={ROUTES.ajuda} element={guard(<CentralAjuda />, "Central de Ajuda")} />
-                  <Route path={ROUTES.centralNotificacoes} element={<ProtectedRoute allowedRoles={["admin", "coordenador_de_tratamento"]}>{tenant(guard(<CentralNotificacoes />, "Central de Notificações"))}</ProtectedRoute>} />
-                  <Route path={ROUTES.observabilidade} element={<ProtectedRoute allowedRoles={["admin", "administrador_master", "coordenador_de_tratamento"]}>{tenant(guard(<Observabilidade />, "Observabilidade Operacional"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.centralNotificacoes} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(guard(<CentralNotificacoes />, "Central de Notificações"))}</ProtectedRoute>} />
+                  <Route path={ROUTES.observabilidade} element={<ProtectedRoute allowedRoles={["admin", "administrador_master"]}>{tenant(guard(<Observabilidade />, "Observabilidade Operacional"))}</ProtectedRoute>} />
                   <Route path={ROUTES.listaEspera} element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}>{tenant(<CoordenadorListaEspera />)}</ProtectedRoute>} />
                   <Route path={ROUTES.coordenadorTratamentos} element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}>{tenant(<CoordenadorTratamentos />)}</ProtectedRoute>} />
                   <Route path={ROUTES.coordenadorAgenda} element={<ProtectedRoute allowedRoles={["coordenador_de_tratamento"]}>{tenant(<CoordenadorAgenda />)}</ProtectedRoute>} />
-                  <Route path={ROUTES.relatorios} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "coordenador_de_tratamento", "tarefeiro"]}>{tenant(<Relatorios />)}</ProtectedRoute>} />
+                  <Route path={ROUTES.relatorios} element={<ProtectedRoute allowedRoles={["admin", "entrevistador", "tarefeiro"]}>{tenant(<Relatorios />)}</ProtectedRoute>} />
                   <Route path={ROUTES.configuracoes} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Configuracoes />)}</ProtectedRoute>} />
                   <Route path={ROUTES.gestaoCores} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<GestaoCores />)}</ProtectedRoute>} />
                   <Route path={ROUTES.auditoria} element={<ProtectedRoute allowedRoles={["admin"]}>{tenant(<Auditoria />)}</ProtectedRoute>} />
