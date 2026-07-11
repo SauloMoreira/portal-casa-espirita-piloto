@@ -2,9 +2,12 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useInstituicaoAtiva } from "@/contexts/InstituicaoContext";
 import { useToast } from "@/hooks/use-toast";
 import { getDay } from "date-fns";
 import { validarCadastroMinimo, encontrarDuplicadoPorCelular, CELULAR_DUPLICADO_MSG } from "@/lib/cadastroMinimo";
+import { toFriendlyError, TENANT_AUSENTE_ERROR } from "@/lib/supabaseFriendlyErrors";
+import { showFriendlyErrorToast } from "@/lib/toastChamadoTecnico";
 import {
   DIAS_SEMANA,
   EMPTY_ASSISTIDO_FORM,
