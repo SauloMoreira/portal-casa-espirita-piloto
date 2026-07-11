@@ -3976,6 +3976,10 @@ export type Database = {
         Args: { _tratamento_id: string; _user_id: string }
         Returns: boolean
       }
+      fn_coordenador_pode_ver_assistido: {
+        Args: { p_assistido_id: string; p_instituicao_id: string }
+        Returns: boolean
+      }
       fn_definir_status_vinculo_instituicao: {
         Args: {
           p_status: Database["public"]["Enums"]["saas_vinculo_status"]
@@ -4270,6 +4274,10 @@ export type Database = {
             }
             Returns: Json
           }
+      fn_usuario_e_dono_do_assistido: {
+        Args: { p_assistido_id: string }
+        Returns: boolean
+      }
       fn_vincular_usuario_instituicao: {
         Args: {
           p_email: string
