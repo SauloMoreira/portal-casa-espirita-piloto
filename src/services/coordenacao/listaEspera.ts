@@ -161,7 +161,7 @@ export async function carregarListaEspera(
     itens.push({
       id: v.id,
       assistido_id: v.assistido_id,
-      assistido_nome: assistMap[v.assistido_id] || "—",
+      assistido_nome: assistMap[v.assistido_id] || "Assistido não localizado — abrir chamado técnico",
       tratamento_id: v.tratamento_id,
       tratamento_nome: trat.nome || "—",
       quantidade_total: v.quantidade_total,
