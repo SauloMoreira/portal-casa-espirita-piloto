@@ -2,7 +2,7 @@
  * Helper para exibir toast de erro amigável com ação "Abrir chamado técnico".
  * Extraído para .tsx porque hooks/lógica pura ficam em .ts e não emitem JSX.
  */
-import { ToastAction } from "@/components/ui/toast";
+import { ToastAction, type ToastActionElement } from "@/components/ui/toast";
 import type { FriendlyError } from "@/lib/supabaseFriendlyErrors";
 import { formatSupportDetails } from "@/lib/supabaseFriendlyErrors";
 import { abrirChamadoTecnico } from "@/lib/abrirChamadoTecnico";
@@ -11,7 +11,7 @@ type ToastFn = (opts: {
   title?: string;
   description?: string;
   variant?: "default" | "destructive";
-  action?: React.ReactNode;
+  action?: ToastActionElement;
 }) => void;
 
 export interface ShowFriendlyErrorInput {
