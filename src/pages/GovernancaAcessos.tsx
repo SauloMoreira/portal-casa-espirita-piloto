@@ -432,9 +432,15 @@ export default function GovernancaAcessos() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleConcederOperacional} disabled={loading} className="w-full">
+                <DialogFooter>
+                  <Button
+                    onClick={handleConcederOperacional}
+                    disabled={loading || (!!opUserId && opAvailableRoles.length === 0)}
+                    className="w-full"
+                  >
                     {loading ? "Concedendo..." : "Conceder acesso"}
                   </Button>
+                </DialogFooter>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
