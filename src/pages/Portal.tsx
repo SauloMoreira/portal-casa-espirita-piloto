@@ -72,7 +72,9 @@ export default function Portal() {
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button asChild variant="outline" className="flex-1">
-                <Link to={ROUTES.portalChamados}>Abrir chamado</Link>
+                <a href="mailto:suporte@casaespirita.app?subject=Acesso%20sem%20v%C3%ADnculo%20institucional">
+                  Abrir chamado
+                </a>
               </Button>
               <Button
                 variant="ghost"
