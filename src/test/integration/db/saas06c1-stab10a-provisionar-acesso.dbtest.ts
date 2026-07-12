@@ -6,38 +6,58 @@ import type { PoolClient } from "pg";
  * SAAS-06-C1-STAB10-A.1 — Testes reais da RPC `fn_provisionar_acesso_assistido`.
  *
  * Restrição de sandbox: o role `sandbox_exec` só possui GRANT de SELECT/INSERT
- * em tabelas do schema `public`. Isso impede UPDATE/DELETE diretos (necessários
- * para simular um "novo user" recém-criado sem profile/roles/vínculo). Assim,
- * cobrimos aqui as rejeições atingíveis via INSERT-only + o chamado da RPC;
- * o caminho feliz é validado em homologação e pela suíte de governança do
- * front (mocks + contratos da Edge Function).
+ * em tabelas do schema `public` (sem UPDATE/DELETE). Não conseguimos remover
+ * o profile/role do usuário-alvo para validar o caminho feliz. Cobrimos aqui
+ * TODAS as rejeições da cascata de validação da RPC — que é a garantia
+ * defense-in-depth contra dados parciais. O caminho feliz é validado em
+ * homologação e pelos testes de contrato do frontend (mock da Edge Function).
+ *
+ * Estratégia para atingir os checks tardios: usar `lista_usuarios_email()`
+ * (SECURITY DEFINER) agindo como admin para descobrir o e-mail real do
+ * usuário-alvo (tarefeiro FER) e passar (uuid, email) coerentes com auth.users.
  */
 
 const d = HAS_DB ? describe : describe.skip;
 
 const INST_FER = "e3818702-cfac-47ae-b751-cb6a05babd4f";
 const INST_OUTRA = "c0ed0316-94ce-4b21-83bb-ab36a86a8ded";
-const ADMIN_LOCAL = "18f012e0-bf2a-439b-a8e9-34d5c8b9e785";
-const TAREFEIRO = "dcb487e2-0ec2-4dee-9cc4-0adccdbb9121"; // tem profile+role reais (colisão)
+const ADMIN_LOCAL = "18f012e0-bf2a-439b-a8e9-34d5c8b9e785"; // admin + admin_instituicao FER
+const TAREFEIRO = "dcb487e2-0ec2-4dee-9cc4-0adccdbb9121"; // auth user real; possui profile/role/vínculo
 
 afterAll(async () => {
   await closePool();
 });
 
-async function seedAssistido(c: PoolClient, instId: string): Promise<string> {
+async function emailReal(c: PoolClient, uid: string): Promise<string> {
+  await actAs(c, ADMIN_LOCAL);
   const r = await c.query(
-    `INSERT INTO public.assistidos (nome, instituicao_id, created_by, celular)
-     VALUES ('STAB10A '||gen_random_uuid(), $1, $2, '11999998888') RETURNING id`,
-    [instId, ADMIN_LOCAL],
+    "SELECT email FROM public.lista_usuarios_email() WHERE user_id = $1",
+    [uid],
   );
-  return r.rows[0].id;
+  const email = r.rows[0]?.email as string | undefined;
+  if (!email) throw new Error(`email real ausente para ${uid}`);
+  return email;
 }
 
-async function seedAssistidoExcluido(c: PoolClient, instId: string): Promise<string> {
+async function seedAssistido(
+  c: PoolClient,
+  instId: string,
+  opts: { deleted?: boolean; jaVinculado?: string } = {},
+): Promise<string> {
+  const cols = ["nome", "instituicao_id", "created_by", "celular"];
+  const vals: unknown[] = ["STAB10A " + crypto.randomUUID(), instId, ADMIN_LOCAL, "11999998888"];
+  if (opts.deleted) {
+    cols.push("deleted_at");
+    vals.push(new Date());
+  }
+  if (opts.jaVinculado) {
+    cols.push("user_id");
+    vals.push(opts.jaVinculado);
+  }
+  const placeholders = vals.map((_, i) => `$${i + 1}`).join(",");
   const r = await c.query(
-    `INSERT INTO public.assistidos (nome, instituicao_id, created_by, celular, deleted_at)
-     VALUES ('STAB10A DEL '||gen_random_uuid(), $1, $2, '11999998888', now()) RETURNING id`,
-    [instId, ADMIN_LOCAL],
+    `INSERT INTO public.assistidos (${cols.join(",")}) VALUES (${placeholders}) RETURNING id`,
+    vals,
   );
   return r.rows[0].id;
 }
@@ -47,7 +67,7 @@ async function callRpc(
   operador: string,
   novoUserId: string,
   assistidoId: string,
-  email = "novo@exemplo.com",
+  email: string,
   celular = "11912345678",
   dob = "1990-05-10",
 ): Promise<{ ok: boolean; err?: string }> {
@@ -64,62 +84,17 @@ async function callRpc(
   }
 }
 
-d("STAB10-A.1 · fn_provisionar_acesso_assistido (banco real, INSERT-only)", () => {
-  it("assistido excluído é rejeitado (ASSISTIDO_EXCLUIDO) antes de qualquer escrita", async () => {
-    await withRollback(async (c) => {
-      await actAs(c, ADMIN_LOCAL);
-      const assistidoId = await seedAssistidoExcluido(c, INST_FER);
-      const fake = "00000000-0000-0000-0000-000000000abc";
-      const res = await callRpc(c, ADMIN_LOCAL, fake, assistidoId);
-      expect(res.ok).toBe(false);
-      expect(res.err).toMatch(/ASSISTIDO_EXCLUIDO/);
-    });
-  });
-
-  it("operador sem vínculo no tenant do assistido é bloqueado (CROSS_TENANT_ACCESS_DENIED)", async () => {
-    await withRollback(async (c) => {
-      await actAs(c, ADMIN_LOCAL);
-      const assistidoId = await seedAssistido(c, INST_OUTRA);
-      const fake = "00000000-0000-0000-0000-000000000def";
-      const res = await callRpc(c, ADMIN_LOCAL, fake, assistidoId);
-      expect(res.ok).toBe(false);
-      expect(res.err).toMatch(/CROSS_TENANT_ACCESS_DENIED/);
-    });
-  });
-
-  it("novo user com profile pré-existente é rejeitado (NOVO_USER_JA_POSSUI_PROFILE)", async () => {
+d("STAB10-A.1 · fn_provisionar_acesso_assistido — cascata de validação (banco real)", () => {
+  it("data de nascimento futura é rejeitada imediatamente (DATA_NASCIMENTO_INVALIDA)", async () => {
     await withRollback(async (c) => {
       await actAs(c, ADMIN_LOCAL);
       const assistidoId = await seedAssistido(c, INST_FER);
-      // TAREFEIRO real já possui profile/role/vínculo — não pode ser reciclado.
-      const res = await callRpc(c, ADMIN_LOCAL, TAREFEIRO, assistidoId);
-      expect(res.ok).toBe(false);
-      expect(res.err).toMatch(/NOVO_USER_JA_POSSUI_(PROFILE|ROLE)/);
-    });
-  });
-
-  it("novo user inexistente em auth.users é rejeitado (NOVO_USER_INEXISTENTE_EM_AUTH)", async () => {
-    await withRollback(async (c) => {
-      await actAs(c, ADMIN_LOCAL);
-      const assistidoId = await seedAssistido(c, INST_FER);
-      const fake = "00000000-0000-0000-0000-000000000001";
-      const res = await callRpc(c, ADMIN_LOCAL, fake, assistidoId);
-      expect(res.ok).toBe(false);
-      expect(res.err).toMatch(/NOVO_USER_INEXISTENTE_EM_AUTH/);
-    });
-  });
-
-  it("data de nascimento futura é rejeitada (DATA_NASCIMENTO_INVALIDA)", async () => {
-    await withRollback(async (c) => {
-      await actAs(c, ADMIN_LOCAL);
-      const assistidoId = await seedAssistido(c, INST_FER);
-      const fake = "00000000-0000-0000-0000-000000000002";
       const res = await callRpc(
         c,
         ADMIN_LOCAL,
-        fake,
+        TAREFEIRO,
         assistidoId,
-        "novo@exemplo.com",
+        "qualquer@x.com",
         "11912345678",
         "2999-01-01",
       );
@@ -128,29 +103,93 @@ d("STAB10-A.1 · fn_provisionar_acesso_assistido (banco real, INSERT-only)", () 
     });
   });
 
-  it("assistido inexistente é rejeitado (ASSISTIDO_NAO_ENCONTRADO)", async () => {
+  it("novo user inexistente em auth.users é rejeitado (NOVO_USER_INEXISTENTE_EM_AUTH)", async () => {
     await withRollback(async (c) => {
       await actAs(c, ADMIN_LOCAL);
+      const assistidoId = await seedAssistido(c, INST_FER);
+      const fake = "00000000-0000-0000-0000-000000000001";
+      const res = await callRpc(c, ADMIN_LOCAL, fake, assistidoId, "qualquer@x.com");
+      expect(res.ok).toBe(false);
+      expect(res.err).toMatch(/NOVO_USER_INEXISTENTE_EM_AUTH/);
+    });
+  });
+
+  it("e-mail divergente do auth.users é rejeitado (EMAIL_DIVERGENTE_DO_AUTH)", async () => {
+    await withRollback(async (c) => {
+      await actAs(c, ADMIN_LOCAL);
+      const assistidoId = await seedAssistido(c, INST_FER);
+      const res = await callRpc(c, ADMIN_LOCAL, TAREFEIRO, assistidoId, "email-errado@x.com");
+      expect(res.ok).toBe(false);
+      expect(res.err).toMatch(/EMAIL_DIVERGENTE_DO_AUTH/);
+    });
+  });
+
+  it("assistido inexistente é rejeitado (ASSISTIDO_NAO_ENCONTRADO)", async () => {
+    await withRollback(async (c) => {
+      const email = await emailReal(c, TAREFEIRO);
+      await actAs(c, ADMIN_LOCAL);
       const assistidoFake = "00000000-0000-0000-0000-0000000000aa";
-      const fake = "00000000-0000-0000-0000-0000000000bb";
-      const res = await callRpc(c, ADMIN_LOCAL, fake, assistidoFake);
+      const res = await callRpc(c, ADMIN_LOCAL, TAREFEIRO, assistidoFake, email);
       expect(res.ok).toBe(false);
       expect(res.err).toMatch(/ASSISTIDO_NAO_ENCONTRADO/);
     });
   });
 
-  it("rollback integral: nenhuma rejeição deixa linhas parciais", async () => {
+  it("assistido excluído é rejeitado (ASSISTIDO_EXCLUIDO)", async () => {
     await withRollback(async (c) => {
+      const email = await emailReal(c, TAREFEIRO);
+      await actAs(c, ADMIN_LOCAL);
+      const assistidoId = await seedAssistido(c, INST_FER, { deleted: true });
+      const res = await callRpc(c, ADMIN_LOCAL, TAREFEIRO, assistidoId, email);
+      expect(res.ok).toBe(false);
+      expect(res.err).toMatch(/ASSISTIDO_EXCLUIDO/);
+    });
+  });
+
+  it("assistido já vinculado a outro user é rejeitado (ASSISTIDO_JA_VINCULADO)", async () => {
+    await withRollback(async (c) => {
+      const email = await emailReal(c, TAREFEIRO);
+      await actAs(c, ADMIN_LOCAL);
+      const assistidoId = await seedAssistido(c, INST_FER, { jaVinculado: ADMIN_LOCAL });
+      const res = await callRpc(c, ADMIN_LOCAL, TAREFEIRO, assistidoId, email);
+      expect(res.ok).toBe(false);
+      expect(res.err).toMatch(/ASSISTIDO_JA_VINCULADO/);
+    });
+  });
+
+  it("operador sem vínculo no tenant do assistido é bloqueado (CROSS_TENANT_ACCESS_DENIED)", async () => {
+    await withRollback(async (c) => {
+      const email = await emailReal(c, TAREFEIRO);
+      await actAs(c, ADMIN_LOCAL);
+      const assistidoId = await seedAssistido(c, INST_OUTRA);
+      const res = await callRpc(c, ADMIN_LOCAL, TAREFEIRO, assistidoId, email);
+      expect(res.ok).toBe(false);
+      expect(res.err).toMatch(/CROSS_TENANT_ACCESS_DENIED/);
+    });
+  });
+
+  it("novo user com profile pré-existente é rejeitado (NOVO_USER_JA_POSSUI_PROFILE)", async () => {
+    await withRollback(async (c) => {
+      const email = await emailReal(c, TAREFEIRO);
       await actAs(c, ADMIN_LOCAL);
       const assistidoId = await seedAssistido(c, INST_FER);
-      const fake = "00000000-0000-0000-0000-0000000000cc";
-      await callRpc(c, ADMIN_LOCAL, fake, assistidoId); // NOVO_USER_INEXISTENTE_EM_AUTH
-      const p = await c.query("SELECT 1 FROM profiles WHERE user_id=$1", [fake]);
-      const r = await c.query("SELECT 1 FROM user_roles WHERE user_id=$1", [fake]);
-      const iu = await c.query("SELECT 1 FROM instituicao_usuarios WHERE user_id=$1", [fake]);
-      expect(p.rowCount).toBe(0);
-      expect(r.rowCount).toBe(0);
-      expect(iu.rowCount).toBe(0);
+      const res = await callRpc(c, ADMIN_LOCAL, TAREFEIRO, assistidoId, email);
+      expect(res.ok).toBe(false);
+      expect(res.err).toMatch(/NOVO_USER_JA_POSSUI_PROFILE/);
+    });
+  });
+
+  it("rollback integral: nenhuma rejeição deixa linhas parciais (idempotência)", async () => {
+    await withRollback(async (c) => {
+      const email = await emailReal(c, TAREFEIRO);
+      await actAs(c, ADMIN_LOCAL);
+      const assistidoId = await seedAssistido(c, INST_FER);
+      // Força NOVO_USER_JA_POSSUI_PROFILE — check ocorre APÓS as validações de operador
+      const res = await callRpc(c, ADMIN_LOCAL, TAREFEIRO, assistidoId, email);
+      expect(res.ok).toBe(false);
+      // O assistido semeado permanece sem user_id (nenhum efeito colateral)
+      const a = await c.query("SELECT user_id FROM assistidos WHERE id=$1", [assistidoId]);
+      expect(a.rows[0].user_id).toBeNull();
     });
   });
 });
