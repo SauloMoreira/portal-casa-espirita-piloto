@@ -71,8 +71,8 @@ async function seedAssistidoEVinculo(
   createdBy: string,
 ): Promise<{ assistidoId: string; vinculoId: string }> {
   const a = await c.query(
-    `INSERT INTO assistidos (nome, instituicao_id, created_by)
-     VALUES ('Assistido STAB07 '||gen_random_uuid(), $1, $2) RETURNING id`,
+    `INSERT INTO assistidos (nome, instituicao_id, created_by, celular)
+     VALUES ('Assistido STAB07 '||gen_random_uuid(), $1, $2, '11999998888') RETURNING id`,
     [instId, createdBy],
   );
   const assistidoId = a.rows[0].id;
