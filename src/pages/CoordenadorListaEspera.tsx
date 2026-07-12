@@ -16,6 +16,8 @@ import { addDays, addWeeks, addMonths, getDay, startOfDay, format } from "date-f
 import { CartaAgendamento } from "@/components/CartaAgendamento";
 import { carregarListaEspera, type ListaEsperaItem } from "@/services/coordenacao/listaEspera";
 import { isTratamentoHolistico, normalizarHorario, podeConfirmarAgendamento, type MotivoListaEspera } from "@/lib/agendaRules";
+import { confirmarAgendamentoInicial, AgendamentoInicialError } from "@/services/coordenacao/agendarInicial";
+import { useRef } from "react";
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -58,6 +60,7 @@ export default function CoordenadorListaEspera() {
   const [prioridadeItem, setPrioridadeItem] = useState<WaitItem | null>(null);
   const [novaPrioridade, setNovaPrioridade] = useState("normal");
   const [novaUrgencia, setNovaUrgencia] = useState("");
+  const inFlightRef = useRef(false);
 
   const fetchData = async () => {
     if (!user) return;
@@ -153,13 +156,16 @@ export default function CoordenadorListaEspera() {
       }
     }
 
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setSaving(true);
 
     const startDate = new Date(dataInicial + "T12:00:00");
     const sessions: { data_sessao: string; horario: string | null }[] = [];
     let cursor = startOfDay(startDate);
+    const saldo = selectedItem.quantidade_total || 0;
 
-    for (let i = 0; i < selectedItem.quantidade_total; i++) {
+    for (let i = 0; i < saldo; i++) {
       sessions.push({
         data_sessao: format(cursor, "yyyy-MM-dd"),
         horario: horarioEfetivo || selectedItem.horario || null,
@@ -171,42 +177,66 @@ export default function CoordenadorListaEspera() {
       else cursor = addDays(cursor, fv);
     }
 
-    if (sessions.length > 0) {
-      const { error: agendaErr } = await supabase.from("agenda_tratamentos_assistido").insert(
-        sessions.map((s) => ({
-          assistido_id: selectedItem.assistido_id,
-          assistido_tratamento_id: selectedItem.id,
-          tratamento_id: selectedItem.tratamento_id,
-          data_sessao: s.data_sessao,
-          horario: s.horario,
-          status: "agendado",
-          registrado_por: user!.id,
-        })) as any
-      );
+    try {
+      const result = await confirmarAgendamentoInicial(selectedItem.id, sessions);
 
-      if (agendaErr) {
-        toast({ title: "Erro ao gerar agenda", description: agendaErr.message, variant: "destructive" });
-        setSaving(false);
-        return;
+      toast({
+        title: result.already_committed
+          ? "Agendamento já estava confirmado"
+          : "Tratamento agendado com sucesso!",
+        description: result.already_committed
+          ? "Nenhuma alteração foi necessária."
+          : `${result.sessoes_criadas} sessão(ões) gerada(s)`,
+      });
+      setAgendarOpen(false);
+
+      setCartaAssistidoId(selectedItem.assistido_id);
+      setCartaVinculoIds([selectedItem.id]);
+      setCartaOpen(true);
+
+      fetchData();
+    } catch (err) {
+      const code = err instanceof AgendamentoInicialError ? err.code : "AGENDAMENTO_TRATAMENTO_COMMIT_FAILED";
+      if (code === "SESSOES_INCONSISTENTES") {
+        toast({
+          title: "Agendamento não pôde ser confirmado",
+          description:
+            "Este vínculo apresenta sessões inconsistentes com o cronograma. Abra um chamado técnico para reconciliação.",
+          variant: "destructive",
+        });
+      } else if (code === "STATUS_NAO_PERMITE_AGENDAMENTO") {
+        toast({
+          title: "Situação do tratamento mudou",
+          description: "Atualize a lista e tente novamente.",
+          variant: "destructive",
+        });
+        fetchData();
+      } else if (code === "NAO_AUTORIZADO") {
+        toast({
+          title: "Sem permissão para agendar",
+          description: "Verifique sua designação ou vínculo institucional.",
+          variant: "destructive",
+        });
+      } else if (code === "PAYLOAD_INVALIDO") {
+        toast({
+          title: "Cronograma inválido",
+          description: "Revise a data inicial, o horário e a frequência do tratamento.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Não foi possível concluir o agendamento",
+          description:
+            "Nenhuma alteração foi aplicada. Tente novamente ou abra um chamado técnico. [AGENDAMENTO_TRATAMENTO_COMMIT_FAILED]",
+          variant: "destructive",
+        });
       }
+    } finally {
+      inFlightRef.current = false;
+      setSaving(false);
     }
-
-    await supabase.from("assistido_tratamentos").update({
-      status: "aguardando_inicio",
-      data_inicio: dataInicial,
-      agendado_por: user!.id,
-    } as any).eq("id", selectedItem.id);
-
-    toast({ title: "Tratamento agendado com sucesso!", description: `${sessions.length} sessão(ões) gerada(s)` });
-    setAgendarOpen(false);
-    setSaving(false);
-
-    setCartaAssistidoId(selectedItem.assistido_id);
-    setCartaVinculoIds([selectedItem.id]);
-    setCartaOpen(true);
-
-    fetchData();
   };
+
 
   const urgentCount = items.filter((i) => i.prioridade === "urgente").length;
   const altaCount = items.filter((i) => i.prioridade === "alta").length;

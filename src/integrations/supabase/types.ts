@@ -3972,6 +3972,10 @@ export type Database = {
       }
       fn_confirmacao_agendamento_ativa: { Args: never; Returns: boolean }
       fn_confirmacao_entrevista_ativa: { Args: never; Returns: boolean }
+      fn_confirmar_agendamento_tratamento: {
+        Args: { p_sessoes: Json; p_vinculo_id: string }
+        Returns: Json
+      }
       fn_coordena_tratamento: {
         Args: { _tratamento_id: string; _user_id: string }
         Returns: boolean
