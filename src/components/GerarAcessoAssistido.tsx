@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,10 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { isValidEmail, isValidPhone, maskPhone } from "@/lib/validators";
 import { KeyRound, Eye, EyeOff, Copy, Check } from "lucide-react";
+import {
+  provisionarAcessoAssistido,
+  mensagemAmigavel,
+} from "@/services/acesso/provisionarAcessoAssistido";
 
 interface Props {
   open: boolean;
