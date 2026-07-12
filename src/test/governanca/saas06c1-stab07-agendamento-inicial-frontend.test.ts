@@ -16,12 +16,18 @@ describe("STAB07 — contrato do frontend do agendamento inicial", () => {
   const page = read("src/pages/CoordenadorListaEspera.tsx");
   const service = read("src/services/coordenacao/agendarInicial.ts");
 
-  it("página do coordenador não faz INSERT direto em agenda_tratamentos_assistido", () => {
-    expect(page).not.toMatch(/from\(["']agenda_tratamentos_assistido["']\)[^;]*\.insert/);
+  // Recorta apenas o corpo de handleAgendar (o fluxo alterado pelo STAB07).
+  // handleSalvarPrioridade permanece com UPDATE direto porque é fluxo distinto.
+  const handleAgendarMatch = page.match(/const handleAgendar = async \(\) => \{[\s\S]*?\n  \};/);
+  const handleAgendarBody = handleAgendarMatch?.[0] ?? "";
+
+  it("handleAgendar não faz INSERT direto em agenda_tratamentos_assistido", () => {
+    expect(handleAgendarBody).toBeTruthy();
+    expect(handleAgendarBody).not.toMatch(/from\(["']agenda_tratamentos_assistido["']\)[^;]*\.insert/);
   });
 
-  it("página do coordenador não faz UPDATE direto em assistido_tratamentos", () => {
-    expect(page).not.toMatch(/from\(["']assistido_tratamentos["']\)[^;]*\.update/);
+  it("handleAgendar não faz UPDATE direto em assistido_tratamentos", () => {
+    expect(handleAgendarBody).not.toMatch(/from\(["']assistido_tratamentos["']\)[^;]*\.update/);
   });
 
   it("página do coordenador chama o service de agendamento inicial", () => {
