@@ -30,8 +30,9 @@ async function seedTenantEUsuario(
   );
   const instId = inst.rows[0].id;
   const u = await c.query(
-    `INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, aud, role)
-     VALUES (gen_random_uuid(), 'stab07-'||gen_random_uuid()||'@test.local','x',now(),'authenticated','authenticated')
+    `INSERT INTO auth.users (id, instance_id, email, aud, role, encrypted_password, created_at, updated_at)
+     VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
+             'stab07-'||gen_random_uuid()||'@test.local','authenticated','authenticated','',now(),now())
      RETURNING id`,
   );
   const userId = u.rows[0].id;
