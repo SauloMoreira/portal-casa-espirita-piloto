@@ -77,45 +77,101 @@ export function GerarAcessoAssistido({
     return e;
   };
 
+  const codeToMessage = (code: string): string => {
+    switch (code) {
+      case "EMAIL_EM_USO":
+        return "Este e-mail já possui uma conta no sistema.";
+      case "EMAIL_INVALIDO":
+        return "E-mail inválido.";
+      case "CELULAR_INVALIDO":
+        return "Celular inválido.";
+      case "DATA_NASCIMENTO_INVALIDA":
+        return "Data de nascimento inválida.";
+      case "CROSS_TENANT_ACCESS_DENIED":
+        return "Você não tem permissão para gerar acesso deste assistido.";
+      case "OPERADOR_SEM_PAPEL_GLOBAL":
+        return "Seu perfil não permite gerar acessos.";
+      case "ASSISTIDO_ACESSO_INCONSISTENTE":
+        return "Este assistido já possui um acesso parcialmente vinculado. Peça ao administrador para regularizar antes de gerar novamente.";
+      case "ASSISTIDO_EXCLUIDO":
+        return "Este assistido está excluído.";
+      case "ASSISTIDO_NAO_ENCONTRADO":
+        return "Assistido não encontrado.";
+      case "ASSISTIDO_SEM_INSTITUICAO":
+        return "Assistido sem instituição vinculada.";
+      case "PROVISIONAMENTO_RESULTADO_INDETERMINADO":
+        return "Não foi possível confirmar o resultado. Verifique o acesso antes de tentar novamente.";
+      case "NAO_AUTORIZADO":
+        return "Sessão expirada. Faça login novamente.";
+      default:
+        return "Não foi possível criar o acesso. Tente novamente.";
+    }
+  };
+
   const handleSubmit = async () => {
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
+    if (loading) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-user", {
-        body: {
-          email: form.email.trim(),
-          password: form.senha,
-          role: "assistido",
-          profile: {
-            nome_completo: form.nome.trim(),
-            celular: form.celular.replace(/\D/g, ""),
-          },
-          assistido_id: assistidoId,
-          assistido_update: {
+      const { data, error } = await supabase.functions.invoke(
+        "provisionar-acesso-assistido",
+        {
+          body: {
+            assistido_id: assistidoId,
             email: form.email.trim(),
+            password: form.senha,
             celular: form.celular.replace(/\D/g, ""),
             data_nascimento: form.data_nascimento,
           },
         },
-      });
+      );
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const code: string | undefined = (data as any)?.error || (error as any)?.context?.error;
+      if (code) {
+        if (code === "EMAIL_EM_USO") {
+          setErrors({ email: "Este e-mail já possui uma conta no sistema" });
+        }
+        toast({
+          title: "Não foi possível criar o acesso",
+          description: codeToMessage(code),
+          variant: "destructive",
+        });
+        return;
+      }
+      if (error) {
+        toast({
+          title: "Não foi possível criar o acesso",
+          description: codeToMessage("GENERIC"),
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if ((data as any)?.already_provisioned) {
+        toast({
+          title: "Acesso já existente",
+          description: "Este assistido já possui acesso ativo. Use a redefinição de senha se necessário.",
+        });
+        onSuccess?.();
+        onOpenChange(false);
+        return;
+      }
 
       setCreated(true);
       toast({ title: "Acesso criado com sucesso!" });
       onSuccess?.();
-    } catch (err: any) {
-      const msg = err.message || "Erro ao criar acesso";
-      if (msg.includes("already been registered") || msg.includes("already registered")) {
-        setErrors({ email: "Este e-mail já possui uma conta no sistema" });
-      }
-      toast({ title: "Erro ao criar acesso", description: msg, variant: "destructive" });
+    } catch {
+      toast({
+        title: "Não foi possível criar o acesso",
+        description: codeToMessage("GENERIC"),
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const copyCredentials = () => {
