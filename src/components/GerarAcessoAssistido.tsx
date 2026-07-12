@@ -39,7 +39,7 @@ export function GerarAcessoAssistido({
   const [created, setCreated] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
-  const { session } = useAuth();
+  void useAuth();
   const { toast } = useToast();
 
   const resetForm = () => {
