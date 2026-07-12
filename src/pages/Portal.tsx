@@ -39,18 +39,63 @@ export default function Portal() {
     );
   }
 
-  // SAAS-06-C1-STAB10-A — Fail-safe contra loop Dashboard ↔ Portal.
-  // Assistido puro sem instituição ativa NÃO pode ser redirecionado ao
-  // /dashboard, pois o guard institucional o devolveria ao Portal.
+  // SAAS-06-C1-STAB10-A / STAB10-A.1 — Fail-safe contra loop Dashboard ↔ Portal.
+  // Assistido puro NÃO pode ser redirecionado ao /dashboard sem instituição ativa,
+  // pois o guard institucional o devolveria ao Portal. E, em isError, não
+  // renderiza a superfície geral do Portal — mostra estado dedicado.
   const isAssistidoPuro =
     !isPlatformAdmin &&
     role === ROLE.ASSISTIDO &&
     roles.every((r) => r === ROLE.ASSISTIDO);
   const temInstituicaoAtiva = instituicoes.some((i) => i.vinculo_status === "ativo");
 
+  if (isAssistidoPuro && isError) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center p-6">
+        <Card className="w-full border-destructive/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Não foi possível verificar seu vínculo
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Houve uma falha ao carregar seus dados institucionais. Tente novamente em instantes.
+            </p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Código: PORTAL_VERIFICACAO_FALHOU
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => window.location.reload()}
+              >
+                Tentar novamente
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={async () => {
+                  const { supabase } = await import("@/integrations/supabase/client");
+                  await supabase.auth.signOut();
+                  window.location.href = "/login";
+                }}
+              >
+                Sair
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (isAssistidoPuro && !isError && temInstituicaoAtiva) {
     return <Navigate to={ROUTES.dashboard} replace />;
   }
+
 
   if (isAssistidoPuro && !isError && !temInstituicaoAtiva) {
     return (
