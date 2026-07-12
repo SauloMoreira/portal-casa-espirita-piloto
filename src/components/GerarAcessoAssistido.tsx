@@ -179,11 +179,15 @@ export function GerarAcessoAssistido({
             </p>
 
             <div className="space-y-2">
-              <Label>Nome Completo *</Label>
-              <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                className={errors.nome ? "border-destructive" : ""} />
-              {errors.nome && <p className="text-xs text-destructive">{errors.nome}</p>}
+              <Label>Nome Completo</Label>
+              <Input value={form.nome} readOnly disabled
+                aria-readonly="true"
+                className="bg-muted/40 cursor-not-allowed" />
+              <p className="text-[11px] text-muted-foreground">
+                Nome vem do cadastro do assistido. Para alterar, edite o cadastro antes de gerar o acesso.
+              </p>
             </div>
+
 
             <div className="space-y-2">
               <Label>E-mail *</Label>
