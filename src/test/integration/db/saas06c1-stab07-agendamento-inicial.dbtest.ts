@@ -363,8 +363,10 @@ d("SAAS-06-C1-STAB07 — RPC fn_confirmar_agendamento_tratamento", () => {
       ).rows[0].id;
       const outroCreator = (
         await c.query(
-          `INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, aud, role)
-           VALUES (gen_random_uuid(),'c-'||gen_random_uuid()||'@test.local','x',now(),'authenticated','authenticated') RETURNING id`,
+          `INSERT INTO auth.users (id, instance_id, email, aud, role, encrypted_password, created_at, updated_at)
+           VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
+                   'c-'||gen_random_uuid()||'@test.local','authenticated','authenticated','',now(),now())
+           RETURNING id`,
         )
       ).rows[0].id;
       const { vinculoId } = await seedAssistidoEVinculo(c, instB, tratId, outroCreator);
