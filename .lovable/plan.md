@@ -1,199 +1,221 @@
-# SAAS-06-C1-STAB07 — Plano de Ação (Diagnóstico + Correção)
+# SAAS-06-C1-STAB10-A — Plano de diagnóstico e correção
 
-> Escopo: agendamento cria sessões em `agenda_tratamentos_assistido`, mas o vínculo em `assistido_tratamentos` permanece `aguardando_agendamento` / `data_inicio = NULL`.
-> **Nenhuma alteração aplicada nesta etapa.** Aguardando aprovação explícita.
-
----
-
-## 1. Fluxo atual do agendamento
-
-Componente: `src/pages/CoordenadorListaEspera.tsx`
-Função: `handleAgendar` (linhas ~155–210)
-
-Sequência observada:
-
-```
-UI: botão "Agendar" (linha do item)
- → abre Dialog "Agendar 1ª Sessão"
- → coordenador informa data + (holístico) horário
- → clique em "Confirmar Agendamento"
- → handleAgendar():
-     1. Validações locais (data, dia_semana, holístico exige horário)
-     2. Monta array `sessions[]` com N linhas (quantidade_total)
-     3. supabase.from("agenda_tratamentos_assistido").insert(sessions)
-          ← captura { error: agendaErr }
-          ← se erro: toast + return (sem rollback)
-     4. supabase.from("assistido_tratamentos").update({
-            status: "aguardando_inicio",
-            data_inicio: dataInicial,
-            agendado_por: user.id
-        }).eq("id", selectedItem.id)
-          ← **NÃO** desestrutura `error`
-          ← **NÃO** verifica retorno
-          ← **NÃO** faz rollback das sessões inseridas
-     5. toast "Tratamento agendado com sucesso!"
-     6. Fecha dialog, abre Carta, chama fetchData()
-```
-
-## 2. Chamadas executadas e ordem
-
-| # | Tipo | Alvo | Erro tratado? |
-|---|------|------|---------------|
-| 1 | INSERT (bulk) | `agenda_tratamentos_assistido` (N linhas) | Sim (return) |
-| 2 | UPDATE | `assistido_tratamentos` (status/data_inicio/agendado_por) | **Não** |
-
-Sem transação. Sem RPC. Sem lock. Sem idempotency key. Sem debounce/disable persistente contra duplo clique além do `saving`.
-
-## 3. Onde ocorre o sucesso parcial
-
-Etapa 4: o UPDATE do vínculo falha silenciosamente (provavelmente por RLS/policy do `assistido_tratamentos` para papel `coordenador_de_tratamento`, ou por CHECK do enum de status). Como o retorno de `error` não é lido, o frontend segue para o toast de sucesso e abre a Carta, deixando:
-
-- N sessões persistidas
-- vínculo intacto (`aguardando_agendamento`, `data_inicio = NULL`)
-
-## 4. Erro atualmente ignorado
-
-Retorno de `supabase.from("assistido_tratamentos").update(...)` — `error` nunca é lido. Também não há verificação de `count`/linhas afetadas, nem `.select().single()`.
-
-## 5. RPC existente reutilizável?
-
-Não identificada RPC transacional para "confirmar agendamento inicial". Existem `fn_tratamentos_do_coordenador`, `fn_listar_coordenacao_tratamentos`, `fn_lista_espera_coordenador` (leitura). Fluxo de plano/orquestração (`agendaPlano/orquestracao.ts`) trata outro caso (planos multi-etapa), não o agendamento inicial da Lista de Espera. **Nada reutilizável diretamente.**
-
-## 6. Status canônicos (a confirmar em Etapa Diagnóstico)
-
-Referência atual em `src/constants/status.ts` (`VINCULO_STATUS`):
-`aguardando_inicio | aguardando_liberacao | aguardando_agendamento | liberado | em_andamento | concluido | suspenso | cancelado`.
-
-A confirmar via inspeção do check constraint real (`assistido_tratamentos_status_check`) e do consumo em Lista de Espera, "Tratamentos sob minha coordenação", Agenda, Presença.
-
-## 7. Status correto após agendamento
-
-Hipótese canônica: `aguardando_inicio` (vínculo sai da Lista de Espera; entra em "Tratamentos sob minha coordenação"; transição para `em_andamento` ocorre no lançamento da 1ª presença — a validar contra triggers/hooks existentes).
-
-## 8. Regra correta de `data_inicio`
-
-Data da 1ª sessão real gerada (equivale à data escolhida pelo coordenador quando a 1ª sessão é a data escolhida). Fonte de verdade: menor `data_sessao` do lote inserido em `agenda_tratamentos_assistido` para o vínculo.
-
-## 9. Causa raiz
-
-**C-Root:** `handleAgendar` executa UPDATE sem verificar erro/linhas afetadas. Provável bloqueio por RLS de `assistido_tratamentos` no papel `coordenador_de_tratamento` (o coordenador tem SELECT via `fn_coordenador_pode_ver_assistido`, mas não necessariamente UPDATE do vínculo), ou por policy que exige `admin`/`entrevistador`.
-
-Precisa ser confirmado em Etapa 1 diagnóstica: listar policies de UPDATE em `public.assistido_tratamentos` e testar o UPDATE real com a sessão do coordenador.
-
-## 10. Estratégia de atomicidade
-
-**Opção B (recomendada):** nova RPC `SECURITY DEFINER` `public.fn_coordenador_confirmar_agendamento(p_vinculo_id uuid, p_data_inicio date, p_horario time null, p_sessoes jsonb)` que, em transação única:
-
-1. `SELECT ... FOR UPDATE` no vínculo
-2. Valida: tenant, papel coordenador, designação no tratamento, status atual = `aguardando_agendamento`, saldo, ausência de sessões futuras já criadas para o vínculo
-3. INSERT em `agenda_tratamentos_assistido` (bulk)
-4. UPDATE em `assistido_tratamentos` (status canônico, `data_inicio`, `agendado_por`)
-5. INSERT em `audit_logs`
-6. Retorna `{ sessoes_criadas, novo_status, data_inicio }`
-
-Falha em qualquer passo → rollback nativo Postgres.
-
-## 11. Estratégia de idempotência
-
-- Validação no passo 2: se já existem sessões futuras (`data_sessao >= current_date`) para o vínculo, aborta com erro funcional `AGENDAMENTO_JA_EXISTE`.
-- Verificação de status: só transiciona a partir de `aguardando_agendamento`.
-- Retry após timeout: segunda chamada encontra sessões e/ou status já mudado → erro funcional, sem duplicar.
-
-## 12. Estratégia de concorrência
-
-- `SELECT ... FOR UPDATE` no vínculo dentro da RPC.
-- UI: botão `disabled` enquanto `saving` (já existe) + `saving` só limpa após retorno da RPC.
-- Sem advisory lock (não necessário — vínculo é a granularidade certa).
-
-## 13. Estratégia de rollback
-
-Nativa da transação Postgres da RPC. Nada precisa ser compensado no frontend. Em erro:
-- Toast: "Não foi possível concluir o agendamento. Nenhuma alteração foi aplicada. Tente novamente ou abra um chamado técnico."
-- Código: `AGENDAMENTO_TRATAMENTO_COMMIT_FAILED`
-- Modal permanece aberto; Carta **não** abre; `fetchData()` só roda em sucesso.
-
-## 14. Reconciliação do registro atual
-
-**Fora deste patch.** Plano separado, executado após aprovação da correção:
-
-1. Query de inventário (read-only): vínculos com `status = 'aguardando_agendamento'` que têm ≥1 sessão futura em `agenda_tratamentos_assistido`.
-2. Apresentar lista para revisão manual (esperado: 1 vínculo — Assistido Teste 01 / Reiki).
-3. Migration cirúrgica com UPDATE por ID explícito, `data_inicio = MIN(data_sessao)`, com audit_log.
-4. Sem backfill amplo, sem criação/remoção de sessões.
-
-## 15. Modelo de autorização (RPC)
-
-- `SECURITY DEFINER`, `search_path = public, pg_temp`
-- `auth.uid()` obrigatório (nunca receber user_id como parâmetro)
-- Validar: `has_role(auth.uid(), 'coordenador_de_tratamento')` OU `has_role(auth.uid(), 'admin')`
-- Validar: vínculo institucional ativo do coordenador na `instituicao_id` do vínculo
-- Validar: designação em `coordenacao_tratamento` para o `tratamento_id` (exceto admin)
-- REVOKE ALL FROM PUBLIC, anon
-- GRANT EXECUTE TO authenticated
-- Retorno mínimo, sem PII em logs
-- Objetos totalmente qualificados
-
-## 16. Patch mínimo proposto
-
-**Backend (migration):**
-- Criar `public.fn_coordenador_confirmar_agendamento(...)` (RPC transacional).
-- Grants conforme §15.
-
-**Frontend:**
-- `src/pages/CoordenadorListaEspera.tsx` → `handleAgendar` passa a chamar `supabase.rpc("fn_coordenador_confirmar_agendamento", {...})` com tratamento de erro completo; remove os dois calls diretos (INSERT + UPDATE).
-
-**Nada mais.** Sem tocar em: services de agenda, hooks, orquestração de plano, RLS de outras tabelas, seed, config, testes de outros recortes.
-
-## 17. Arquivos que poderiam ser alterados
-
-- `supabase/migrations/<novo>.sql` (nova RPC + grants)
-- `src/pages/CoordenadorListaEspera.tsx` (apenas `handleAgendar` e mensagens)
-- `src/test/governanca/saas06c1-stab07-*.test.ts` (novo, testes estáticos)
-
-## 18. Migration/RPC necessária?
-
-Sim: nova RPC `fn_coordenador_confirmar_agendamento`. Sem alteração de tabelas, enums, RLS existente, triggers ou policies.
-
-## 19. Dados que precisariam de reconciliação
-
-1 vínculo confirmado (Assistido Teste 01 / Reiki, 4 sessões futuras, status inconsistente). Tratado em plano separado (§14).
-
-## 20. O que NÃO será alterado
-
-STAB06 (Carta), STAB08-RLS, STAB09, menus, catálogo global de tratamentos, planos, módulos, assinaturas, chamados, sessões públicas, voluntários, branding, orquestração de plano multi-etapa, agenda de outros tratamentos, presença, tarefeiro, entrevista, cadastro rápido.
-
-## 21. Testes específicos (STAB07)
-
-- Positivo: coordenador agenda vínculo `aguardando_agendamento` → N sessões + status `aguardando_inicio` + `data_inicio` correto + auditoria.
-- Atomicidade: forçar erro no UPDATE → 0 sessões persistidas.
-- Idempotência: 2ª chamada com mesmo vínculo → erro funcional, sem duplicar sessões.
-- Concorrência: 2 requisições simultâneas → apenas 1 vence.
-- Status errado (ex: `em_andamento`) → bloqueado.
-- Coordenador sem designação no tratamento → bloqueado.
-- Coordenador de outro tenant → bloqueado.
-- Assistido, tarefeiro, anon → bloqueados.
-- Cross-tenant (Reiki global, assistido Casa Demo, coordenador FER) → bloqueado.
-
-## 22. Testes de regressão
-
-Lista de Espera, "Tratamentos sob minha coordenação", Agenda do Tratamento, STAB08-RLS, STAB09, entrevista, cadastro principal/rápido, Gestão de Acesso, Escopo Operacional, sessões públicas, chamados, planos/módulos/assinaturas. Suítes: SAAS-06-C1, integração DB/RLS, completa, `tsgo --noEmit`, build, reteste manual publicado.
-
-## 23. Riscos
-
-- RLS de `assistido_tratamentos` pode ter policy `authenticated` genérica que já permitiria o UPDATE — nesse caso a causa raiz é outra (enum, trigger, RLS de agenda). Diagnóstico Etapa 1 precisa confirmar antes do patch.
-- Regra de `data_inicio` pode ter dependência com triggers existentes (`liberação sequencial`, `INV-*`). Confirmar em Etapa 1.
-- Reconciliação precisa validar que as 4 sessões de fato pertencem ao vínculo alvo.
-
-## 24. Critérios de aceite
-
-- Agendar pela Lista de Espera atualiza status e `data_inicio` em uma única operação atômica.
-- Erro em qualquer passo → 0 sessões, 0 mudança de status, toast claro, modal aberto.
-- Vínculo agendado desaparece da Lista de Espera e aparece em "Tratamentos sob minha coordenação".
-- Sem duplicação em duplo clique / retry.
-- Cross-tenant e papéis não autorizados bloqueados no backend.
-- Suítes existentes verdes; nova suíte STAB07 verde; tsgo e build limpos.
-- Registro inconsistente atual só é corrigido no plano de reconciliação separado, após aprovação.
+**Escopo:** provisionamento de acesso do assistido sem vínculo em `instituicao_usuarios`, causando loop Dashboard ↔ Portal.
+**Modo:** somente plano. Nada será alterado até aprovação explícita.
 
 ---
 
-**Aguardando aprovação explícita para executar Etapa 1 (diagnóstico read-only) — inspecionar policies/constraints reais de `assistido_tratamentos`, confirmar causa raiz e apresentar patch final.**
+## 1. Estado atual do Assistido Teste 01 (diagnóstico read-only)
+
+Confirmado via consulta:
+
+| Item | Valor |
+|---|---|
+| `assistidos.id` | `aef9ab7d-1a51-4ea1-96a1-97e0d2879d8c` |
+| `assistidos.nome` | Assistido Teste 01 |
+| `assistidos.user_id` | `18e2dceb-48ba-471d-ae9d-da52ef23865a` |
+| `assistidos.instituicao_id` | `e3818702-cfac-47ae-b751-cb6a05babd4f` (FER Piloto) |
+| `assistidos.status` | `em_tratamento` |
+| `assistidos.deleted_at` | NULL |
+| `profiles` para o user_id | 1 linha (`Assistido Teste 01`) |
+| `user_roles` | 1 linha: `role = assistido` |
+| **`instituicao_usuarios`** | **0 linhas — ausente** |
+| Tratamentos do piloto | 7 vínculos (6 `aguardando_inicio` + 1 `aguardando_agendamento`) |
+| Sessões em `agenda_tratamentos_assistido` | 48 sessões (2026-07-10 → 2026-12-18) |
+
+Conta `auth.users`: não consultável pelo sandbox (schema `auth` sem permissão de leitura), mas o fluxo confirma existência (login funciona).
+
+---
+
+## 2. Causa raiz
+
+**Ausência de linha em `instituicao_usuarios` para o `user_id` do assistido.**
+
+- `create-user` grava `auth.users`, `profiles`, `user_roles` e `assistidos.user_id`, mas **não insere `instituicao_usuarios`**.
+- `usePortalHub` lista instituições exclusivamente por `instituicao_usuarios WHERE user_id = auth.uid()` → retorna vazio.
+- `InstituicaoContext.selecionada = null`.
+- `RequireInstituicao` (guard de `/dashboard`) → `Navigate → /portal`.
+- `Portal` detecta assistido puro sem vínculos e redireciona → `/dashboard`.
+- Loop `/dashboard ⇄ /portal`. Painel jamais renderiza. Sidebar mostra branding genérico porque `useTenantBranding` também depende do tenant ativo.
+
+---
+
+## 3. Fluxo `create-user` atual (mapa)
+
+`Assistidos.tsx → GerarAcessoAssistido.tsx → supabase.functions.invoke("create-user")`.
+
+Etapas atuais na Edge Function (service_role):
+
+1. Autentica chamador via anon client (`getUser`).
+2. Autorização por papel global: `admin` ou `entrevistador` (assistido apenas).
+3. `auth.admin.createUser({ email, password, email_confirm })`.
+4. `user_roles insert { user_id, role }`.
+5. `profiles insert { ...profile, user_id, created_by }`.
+6. `assistidos update { status, observacoes, user_id }`.
+7. Rollback: em qualquer falha pós-criação, `auth.admin.deleteUser(userId)`.
+
+Gaps identificados:
+
+- **Não insere `instituicao_usuarios`** (raiz do STAB10-A).
+- **Não valida tenant do chamador vs. tenant do assistido** — service_role bypassa RLS; um admin de outro tenant poderia invocar com `assistido_id` alheio.
+- Não valida que o assistido pertence à mesma instituição do operador.
+- Não valida `assistido.user_id IS NULL` antes de sobrescrever.
+- Nenhuma etapa é atômica: falha em `instituicao_usuarios` (futura) deixaria `profiles` + `user_roles` + `assistidos.user_id` órfãos → rollback só remove `auth.users`, mas as tabelas públicas permanecem inconsistentes se `deleteUser` não cascatear (depende de FKs).
+
+---
+
+## 4. Ciclo de redirecionamento comprovado
+
+```
+Login → /dashboard
+  → RequireInstituicao (allowedIds = [])
+  → Navigate /portal (reason: instituicao_ausente)
+Portal
+  → detecta assistido puro sem vínculos
+  → Navigate /dashboard
+  → RequireInstituicao → /portal → …
+```
+
+Nenhum componente filho de `/dashboard` é renderizado (guard é fail-closed antes do `AssistidoDashboard`).
+
+---
+
+## 5. Regra funcional esperada (correção futura)
+
+Ao gerar acesso para um assistido, a Edge Function deve, no backend:
+
+1. Derivar `instituicao_id` **exclusivamente** de `assistidos.instituicao_id`. Ignorar qualquer valor vindo do cliente.
+2. Validar operador: possui vínculo ativo em `instituicao_usuarios` para a mesma `instituicao_id`, com papel autorizado (`admin` local, `administrador_master` ou `entrevistador` habilitado). Papel global `admin` sem vínculo local **não** basta (fecha o cross-tenant descoberto no gap acima).
+3. Validar `assistidos.user_id IS NULL` e `deleted_at IS NULL`.
+4. Validar e-mail não vinculado a outra conta.
+5. Criar `auth.users`.
+6. Executar **uma RPC transacional** `fn_provisionar_acesso_assistido(p_user_id, p_assistido_id, p_nome, p_celular)` que, em transação:
+   - `insert profiles`;
+   - `insert user_roles (role='assistido')`;
+   - `insert instituicao_usuarios (instituicao_id, user_id, papel_local='assistido', status='ativo')`;
+   - `update assistidos set user_id = p_user_id`;
+   - reafirma todas as validações (defesa em profundidade).
+7. Se a RPC falhar, Edge Function chama `auth.admin.deleteUser`. Auth criado sempre em último lugar antes da RPC minimiza janela de órfão.
+
+**Cliente nunca envia** `instituicao_id`, `papel_local`, `status`, papéis elevados.
+
+**Idempotência:** RPC detecta estado já provisionado (mesmo user_id + mesmo assistido + vínculo ativo) e retorna `already_provisioned` sem erro.
+
+---
+
+## 6. Fail-safe de navegação (independente da correção acima)
+
+Mesmo com o fluxo corrigido, contas legadas ou erros de dados podem produzir assistido sem vínculo. Solução:
+
+- Portal detecta `role = assistido` **sem** vínculos ativos e, em vez de redirecionar para `/dashboard`, renderiza tela dedicada com:
+  - código `ASSISTIDO_SEM_VINCULO_INSTITUCIONAL`;
+  - mensagem: "Seu acesso foi criado, mas ainda não está vinculado a uma instituição. Solicite a regularização ao administrador da casa.";
+  - botão para abrir chamado / logout.
+- `RequireInstituicao` permanece inalterado (não afrouxar guard).
+- Nenhuma seleção de tenant baseada em input do cliente.
+- Quebra o loop de forma determinística.
+
+---
+
+## 7. Estratégia de atomicidade / rollback / idempotência
+
+| Aspecto | Estratégia |
+|---|---|
+| Atomicidade | RPC `SECURITY DEFINER` única para as 4 tabelas públicas; `auth.users` fora da transação (limitação da API admin). |
+| Rollback | Falha da RPC → `auth.admin.deleteUser`. Falha de `deleteUser` → log + retorno de erro descritivo; RPC nunca deixou linhas parciais (transação). |
+| Idempotência | RPC verifica `assistidos.user_id = p_user_id` + vínculo ativo. Se já consistente, retorna `already_provisioned`. Retry após timeout de rede é seguro. |
+| Cross-tenant | RPC re-valida operador ∈ mesma instituição do assistido; rejeita mesmo com service_role. |
+
+---
+
+## 8. STAB10-A-R1 (recorte separado, não executar agora)
+
+Reconciliação da conta atual do Assistido Teste 01:
+
+- Migration cirúrgica com bloco `DO` e precondições bloqueantes;
+- Verifica: `user_id = 18e2dceb…`, `assistido_id = aef9ab7d…`, `instituicao_id = e3818702…`, `role = assistido`, `instituicao_usuarios` ausente;
+- `INSERT` de exatamente 1 linha em `instituicao_usuarios` (`papel_local='assistido'`, `status='ativo'`);
+- Não toca em `auth.users`, `profiles`, `user_roles`, `assistidos`, tratamentos, sessões;
+- Idempotente (skip se já existir);
+- Auditoria via trigger existente ou log dedicado;
+- Teste dbtest confirma vínculo criado + login → Dashboard sem loop.
+
+---
+
+## 9. Queries do painel do assistido (mapeamento — não alterar)
+
+Confirmar que já filtram por `user_id` / tenant ativo:
+
+- `AssistidoDashboard.tsx`
+- `MeusTratamentos.tsx`
+- `MinhaAgenda.tsx`
+- `MeusDocumentos.tsx`
+- `MeuPerfil.tsx`
+
+Auditoria estática a fazer na Etapa 2, sem alterações. Dados existem no piloto (7 tratamentos, 48 sessões) e serão exibidos assim que o vínculo institucional permitir tenant ativo.
+
+---
+
+## 10. Arquivos potencialmente alterados na Etapa 2 (STAB10-A)
+
+- `supabase/functions/create-user/index.ts` — validação tenant + chamada à nova RPC.
+- `supabase/migrations/*_fn_provisionar_acesso_assistido.sql` — RPC transacional.
+- `src/pages/Portal.tsx` — fail-safe para assistido sem vínculo.
+- `src/components/GerarAcessoAssistido.tsx` — sem envio de `instituicao_id` (já não envia; conferir).
+- Testes:
+  - `src/test/integration/db/saas06c1-stab10a-provisionar-acesso.dbtest.ts`
+  - `src/test/governanca/saas06c1-stab10a-fail-safe-portal.test.ts`
+
+Nada mais será tocado sem nova aprovação.
+
+---
+
+## 11. NÃO será alterado
+
+RLS, policies, grants, RPCs de tratamento/agenda, `auth.users`, `profiles`, `user_roles`, `assistidos`, tratamentos, sessões, dados do projeto Tratamentos FER original, STAB06/07/08/09, planos, módulos, assinaturas, tela de Usuários (STAB10-B), branding, tema.
+
+---
+
+## 12. Testes previstos (Etapa 2)
+
+**Provisionamento (dbtest):**
+- fluxo feliz cria auth + profile + role + instituicao_usuarios + vincula assistido;
+- retry idempotente não duplica linhas;
+- e-mail duplicado retorna erro amigável;
+- assistido já com `user_id` rejeitado;
+- operador de outro tenant rejeitado;
+- RPC falha → auth user removido; nenhuma linha órfã.
+
+**Fail-safe (governança/estático + comportamental):**
+- assistido sem vínculo vê `ASSISTIDO_SEM_VINCULO_INSTITUCIONAL` no Portal, não é redirecionado;
+- `RequireInstituicao` permanece fail-closed;
+- assistido com vínculo passa direto para Dashboard (auto-select do tenant único).
+
+**Regressão:**
+- suítes SAAS-06-C1 + STAB07 + STAB09 continuam verdes;
+- baseline de 5 falhas pré-existentes mantido;
+- `tsgo --noEmit` e `bun run build` em Exit 0.
+
+---
+
+## 13. Riscos
+
+- `auth.admin.deleteUser` pode falhar após rollback da RPC → janela de auth órfão. Mitigação: log estruturado + endpoint de limpeza.
+- RPC `SECURITY DEFINER` amplia superfície: revogar `EXECUTE` do `public`/`anon`; conceder apenas a `service_role`.
+- Introduzir validação tenant no `create-user` pode quebrar fluxos legítimos onde admin global provisionava sem vínculo local → auditar antes; documentar como *hardening* alinhado ao P1.
+- Fail-safe no Portal precisa distinguir "assistido sem vínculo" de "carregando" para não piscar mensagem durante o loading do `usePortalHub`.
+
+---
+
+## 14. Critérios de aceite (Etapa 2, futura)
+
+1. Novo acesso de assistido cria as 4 linhas atomicamente + vínculo ativo.
+2. Login imediato leva ao Dashboard do assistido no tenant correto, sem loop.
+3. Operador de outro tenant é rejeitado com `403 CROSS_TENANT`.
+4. Portal exibe fail-safe amigável quando vínculo estiver ausente (sem loop).
+5. STAB10-A-R1 reconcilia Assistido Teste 01 com 1 linha, sem tocar em tratamentos/sessões.
+6. Todas as suítes verdes contra baseline; tsgo/build Exit 0.
+
+---
+
+**Aguardando aprovação explícita para executar Etapa 2 (STAB10-A) e, em recorte separado, STAB10-A-R1.**
