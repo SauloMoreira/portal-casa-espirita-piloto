@@ -327,11 +327,19 @@ d("SAAS-06-C1-STAB07 — RPC fn_confirmar_agendamento_tratamento", () => {
         `INSERT INTO coordenacao_tratamento (tratamento_id, coordenador_id) VALUES ($1,$2)`,
         [tratId, ctx.userId],
       );
-      const { vinculoId } = await seedAssistidoEVinculo(c, ctx.instId, tratId, ctx.userId);
-      await c.query(
-        `UPDATE assistido_tratamentos SET status='cancelado' WHERE id=$1`,
-        [vinculoId],
+      // Cria vínculo já em estado que não permite agendamento (evita UPDATE, sem grant no sandbox)
+      const a = await c.query(
+        `INSERT INTO assistidos (nome, instituicao_id, created_by, celular)
+         VALUES ('Assistido STAB07 '||gen_random_uuid(), $1, $2, '11999997777') RETURNING id`,
+        [ctx.instId, ctx.userId],
       );
+      const vinc = await c.query(
+        `INSERT INTO assistido_tratamentos
+           (assistido_id, tratamento_id, quantidade_total, status, created_by)
+         VALUES ($1, $2, 3, 'cancelado', $3) RETURNING id`,
+        [a.rows[0].id, tratId, ctx.userId],
+      );
+      const vinculoId = vinc.rows[0].id as string;
       const sessoes = proximaQuartaISO().map((dt) => ({ data_sessao: dt, horario: "18:00" }));
       await actAs(c, ctx.userId);
       await expectReject(
