@@ -3829,6 +3829,14 @@ export type Database = {
         Args: { a: Database["public"]["Tables"]["assistidos"]["Row"] }
         Returns: boolean
       }
+      fn_assistido_no_meu_tenant: {
+        Args: { _assistido_id: string }
+        Returns: boolean
+      }
+      fn_assistido_tratamento_no_meu_tenant: {
+        Args: { _at_id: string }
+        Returns: boolean
+      }
       fn_assumir_solicitacao_comercial: {
         Args: { _id: string }
         Returns: undefined
@@ -3960,6 +3968,10 @@ export type Database = {
           p_mensagem: string
         }
         Returns: undefined
+      }
+      fn_checkin_publico_no_meu_tenant: {
+        Args: { _assistido_id: string; _sessao_id: string }
+        Returns: boolean
       }
       fn_conceder_acesso_operacional: {
         Args: {
@@ -4255,6 +4267,10 @@ export type Database = {
       fn_solicitacao_proximo_alerta: {
         Args: { _base: string; _qtd: number }
         Returns: string
+      }
+      fn_sugestao_ia_no_meu_tenant: {
+        Args: { _sug_id: string }
+        Returns: boolean
       }
       fn_tratamentos_do_coordenador: {
         Args: { _user_id?: string }
