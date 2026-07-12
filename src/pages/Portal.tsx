@@ -39,16 +39,59 @@ export default function Portal() {
     );
   }
 
-  // SAAS-06-A2 — Blindagem de experiência por perfil.
-  // Assistido puro (sem papel administrativo E sem ser platform_admin) é
-  // redirecionado ao seu dashboard: o Portal SaaS é uma superfície de gestão
-  // multi-instituição, não pertence à jornada do assistido.
+  // SAAS-06-C1-STAB10-A — Fail-safe contra loop Dashboard ↔ Portal.
+  // Assistido puro sem instituição ativa NÃO pode ser redirecionado ao
+  // /dashboard, pois o guard institucional o devolveria ao Portal.
   const isAssistidoPuro =
     !isPlatformAdmin &&
     role === ROLE.ASSISTIDO &&
     roles.every((r) => r === ROLE.ASSISTIDO);
-  if (isAssistidoPuro) {
+  const temInstituicaoAtiva = instituicoes.some((i) => i.vinculo_status === "ativo");
+
+  if (isAssistidoPuro && !isError && temInstituicaoAtiva) {
     return <Navigate to={ROUTES.dashboard} replace />;
+  }
+
+  if (isAssistidoPuro && !isError && !temInstituicaoAtiva) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center p-6">
+        <Card className="w-full border-destructive/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Acesso ainda não vinculado
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Seu acesso foi criado, mas ainda não está vinculado a uma instituição.
+              Solicite a regularização ao administrador da casa.
+            </p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Código: ASSISTIDO_SEM_VINCULO_INSTITUCIONAL
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button asChild variant="outline" className="flex-1">
+                <a href="mailto:suporte@casaespirita.app?subject=Acesso%20sem%20v%C3%ADnculo%20institucional">
+                  Abrir chamado
+                </a>
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={async () => {
+                  const { supabase } = await import("@/integrations/supabase/client");
+                  await supabase.auth.signOut();
+                  window.location.href = "/login";
+                }}
+              >
+                Sair
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Defesa em profundidade: o card administrativo global só aparece para

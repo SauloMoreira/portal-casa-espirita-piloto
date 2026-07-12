@@ -4201,6 +4201,17 @@ export type Database = {
         Args: { p_vinculo: string }
         Returns: undefined
       }
+      fn_provisionar_acesso_assistido: {
+        Args: {
+          p_assistido_id: string
+          p_celular: string
+          p_data_nascimento: string
+          p_email: string
+          p_novo_user_id: string
+          p_operador_id: string
+        }
+        Returns: Json
+      }
       fn_proxima_sessao_vinculo: {
         Args: { p_vinculo: string }
         Returns: string
