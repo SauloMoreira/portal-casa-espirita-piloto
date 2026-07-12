@@ -1,8 +1,8 @@
-// SAAS-06-C1-STAB10-A — Provisionamento tenant-aware de acesso do assistido.
+// SAAS-06-C1-STAB10-A / STAB10-A.1 — Provisionamento tenant-aware de acesso do assistido.
 //
-// Fluxo isolado do create-user (Gestão de Usuários). Só cria acesso quando o
-// operador possui vínculo local ativo no mesmo tenant do assistido, com papel
-// admin_instituicao ou entrevistador, e papel global correspondente.
+// Fluxo isolado do create-user. Só cria acesso quando o operador possui vínculo
+// local ativo no mesmo tenant do assistido, com papel admin_instituicao ou
+// entrevistador, e papel global correspondente.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { buildCorsHeaders } from "../_shared/cors.ts";
@@ -25,11 +25,16 @@ type ErrorCode =
   | "PROVISIONAMENTO_RESULTADO_INDETERMINADO"
   | "AUTH_USER_ORFAO";
 
-function json(
-  cors: Record<string, string>,
-  status: number,
-  body: Record<string, unknown>,
-) {
+// STAB10-A.1 — allowlist estrita de campos aceitos no body.
+const ALLOWED_BODY_KEYS = new Set([
+  "assistido_id",
+  "email",
+  "password",
+  "celular",
+  "data_nascimento",
+]);
+
+function json(cors: Record<string, string>, status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...cors, "Content-Type": "application/json" },
@@ -46,10 +51,26 @@ function isValidCelular(v: string): boolean {
   const d = normalizeCelular(v);
   return d.length === 10 || d.length === 11;
 }
-function isValidISODate(v: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
-  const d = new Date(v + "T00:00:00Z");
-  return !isNaN(d.getTime());
+// STAB10-A.1: validação por round-trip YYYY-MM-DD (rejeita data impossível,
+// formato divergente ou data futura).
+function isValidBirthDate(v: string): boolean {
+  if (typeof v !== "string") return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (y < 1900 || y > 9999) return false;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (
+    dt.getUTCFullYear() !== y ||
+    dt.getUTCMonth() !== mo - 1 ||
+    dt.getUTCDate() !== d
+  ) return false;
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  if (dt.getTime() > todayUtc) return false;
+  return true;
 }
 
 Deno.serve(async (req) => {
@@ -68,7 +89,6 @@ Deno.serve(async (req) => {
   const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-  // 1. Autentica operador (nunca aceita id do body)
   const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
@@ -76,13 +96,25 @@ Deno.serve(async (req) => {
   const caller = authData?.user;
   if (!caller) return json(cors, 401, { error: "NAO_AUTORIZADO" as ErrorCode });
 
-  // 2. Body allowlist
   let body: Record<string, unknown>;
   try {
     body = await req.json();
   } catch {
     return json(cors, 400, { error: "REQUEST_INVALIDO" as ErrorCode });
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return json(cors, 400, { error: "REQUEST_INVALIDO" as ErrorCode });
+  }
+
+  // STAB10-A.1: allowlist estrita — qualquer chave extra invalida o request
+  // ANTES de qualquer leitura/escrita, sem logar valores sensíveis.
+  for (const k of Object.keys(body)) {
+    if (!ALLOWED_BODY_KEYS.has(k)) {
+      log.warn("body_key_nao_permitido", { key: k });
+      return json(cors, 400, { error: "REQUEST_INVALIDO" as ErrorCode });
+    }
+  }
+
   const assistido_id = typeof body.assistido_id === "string" ? body.assistido_id : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
@@ -94,13 +126,12 @@ Deno.serve(async (req) => {
   }
   if (!isValidEmail(email)) return json(cors, 400, { error: "EMAIL_INVALIDO" as ErrorCode });
   if (!isValidCelular(celular_raw)) return json(cors, 400, { error: "CELULAR_INVALIDO" as ErrorCode });
-  if (!isValidISODate(data_nascimento)) return json(cors, 400, { error: "DATA_NASCIMENTO_INVALIDA" as ErrorCode });
+  if (!isValidBirthDate(data_nascimento)) return json(cors, 400, { error: "DATA_NASCIMENTO_INVALIDA" as ErrorCode });
   if (password.length < 6) return json(cors, 400, { error: "REQUEST_INVALIDO" as ErrorCode });
   const celular = normalizeCelular(celular_raw);
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  // 3. Preflight — assistido + tenant + estado
   const { data: assistido, error: assErr } = await admin
     .from("assistidos")
     .select("id, nome, user_id, instituicao_id, deleted_at")
@@ -114,7 +145,6 @@ Deno.serve(async (req) => {
   if (assistido.deleted_at) return json(cors, 400, { error: "ASSISTIDO_EXCLUIDO" as ErrorCode });
   if (!assistido.instituicao_id) return json(cors, 400, { error: "ASSISTIDO_SEM_INSTITUICAO" as ErrorCode });
 
-  // 4. Autorização do operador (mesma instituição, papel local + global)
   const { data: vinculos } = await admin
     .from("instituicao_usuarios")
     .select("papel_local, status")
@@ -141,9 +171,18 @@ Deno.serve(async (req) => {
     return json(cors, 403, { error: "OPERADOR_SEM_PAPEL_GLOBAL" as ErrorCode });
   }
 
-  // 5. Assistido já possui user_id → tratar idempotência / inconsistência
+  // STAB10-A.1 — Idempotência rigorosa: confirma auth user + e-mail + estado
+  // público completo antes de retornar already_provisioned.
   if (assistido.user_id) {
     const existingUserId = assistido.user_id as string;
+    const { data: authUserRes, error: getAuthErr } = await admin.auth.admin.getUserById(existingUserId);
+    if (getAuthErr || !authUserRes?.user) {
+      return json(cors, 409, { error: "ASSISTIDO_ACESSO_INCONSISTENTE" as ErrorCode });
+    }
+    const authEmail = (authUserRes.user.email || "").trim().toLowerCase();
+    if (authEmail !== email) {
+      return json(cors, 409, { error: "ASSISTIDO_ACESSO_INCONSISTENTE" as ErrorCode });
+    }
     const [{ data: prof }, { data: urs }, { data: iu }] = await Promise.all([
       admin.from("profiles").select("user_id").eq("user_id", existingUserId).maybeSingle(),
       admin.from("user_roles").select("role").eq("user_id", existingUserId).eq("role", "assistido"),
@@ -157,7 +196,6 @@ Deno.serve(async (req) => {
     return json(cors, 409, { error: "ASSISTIDO_ACESSO_INCONSISTENTE" as ErrorCode });
   }
 
-  // 6. Criação do Auth user
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
     email,
     password,
@@ -173,7 +211,6 @@ Deno.serve(async (req) => {
   }
   const novoUserId = created.user.id;
 
-  // 7. RPC transacional
   const { data: rpcData, error: rpcErr } = await admin.rpc(
     "fn_provisionar_acesso_assistido",
     {
@@ -188,7 +225,6 @@ Deno.serve(async (req) => {
 
   if (rpcErr) {
     log.error("rpc_failed", { message: rpcErr.message });
-    // Reconciliação segura: inspeciona estado antes de excluir
     const [{ data: p2 }, { data: r2 }, { data: iu2 }, { data: a2 }] = await Promise.all([
       admin.from("profiles").select("user_id").eq("user_id", novoUserId).maybeSingle(),
       admin.from("user_roles").select("role").eq("user_id", novoUserId),
@@ -203,7 +239,11 @@ Deno.serve(async (req) => {
     const nadaGravado = !p2 && (r2 || []).length === 0 && !iu2 && !linked;
     if (nadaGravado) {
       const { error: delErr } = await admin.auth.admin.deleteUser(novoUserId);
-      if (delErr) log.error("auth_user_orfao", { user_id: novoUserId, message: delErr.message });
+      if (delErr) {
+        // STAB10-A.1 — auth user órfão: informa e não expõe UUID/email
+        log.error("auth_user_orfao", { user_id: novoUserId, message: delErr.message });
+        return json(cors, 500, { error: "AUTH_USER_ORFAO" as ErrorCode });
+      }
       return json(cors, 500, { error: "PROVISIONAMENTO_FALHOU" as ErrorCode });
     }
     log.error("resultado_indeterminado", { user_id: novoUserId, assistido_id });
