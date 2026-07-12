@@ -96,7 +96,7 @@ export function GerarAcessoAssistido({
         data_nascimento: form.data_nascimento,
       });
 
-      if (!result.ok) {
+      if (result.ok === false) {
         if (result.code === "EMAIL_EM_USO") {
           setErrors({ email: "Este e-mail já possui uma conta no sistema" });
         }
@@ -107,6 +107,7 @@ export function GerarAcessoAssistido({
         });
         return;
       }
+
 
       if (result.already_provisioned) {
         toast({
