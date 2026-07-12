@@ -56,10 +56,10 @@ async function pegarUsuarioAtivoPorRole(
 async function seedTratamento(c: PoolClient, opts?: { dia_semana?: number; tipo?: string }): Promise<string> {
   const r = await c.query(
     `INSERT INTO tipos_tratamento
-       (nome, tipo, quantidade_padrao_sessoes, dia_semana, horario, frequencia_valor, frequencia_unidade, ativo)
-     VALUES ('Trat STAB07 '||gen_random_uuid(), $1, 3, $2, '18:00', 1, 'semanas', true)
+       (nome, tipo, quantidade_padrao_sessoes, dia_semana, horario, frequencia_valor, frequencia_unidade, status)
+     VALUES ('Trat STAB07 '||gen_random_uuid(), $1, 3, $2, '18:00', 1, 'semanas', 'ativo')
      RETURNING id`,
-    [opts?.tipo ?? "regular", opts?.dia_semana ?? 3],
+    [opts?.tipo ?? "espiritual", opts?.dia_semana ?? 3],
   );
   return r.rows[0].id;
 }
