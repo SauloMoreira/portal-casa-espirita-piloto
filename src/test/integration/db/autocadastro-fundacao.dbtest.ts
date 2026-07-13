@@ -201,8 +201,8 @@ d("STAB10-C1.1 — índice institucional do assistido", () => {
       await expectReject(
         c,
         /ix_assistidos_inst_user_ativo/i,
-        `INSERT INTO public.assistidos (instituicao_id, user_id, nome)
-         VALUES ($1, $2, 'DUP TESTE C1.1')`,
+        `INSERT INTO public.assistidos (instituicao_id, user_id, nome, celular)
+         VALUES ($1, $2, 'DUP TESTE C1.1','11999999999')`,
         [instituicao_id, user_id],
       );
     });
@@ -222,8 +222,8 @@ d("STAB10-C1.1 — índice institucional do assistido", () => {
       );
       if (outra.rowCount === 0) return;
       const ins = await c.query(
-        `INSERT INTO public.assistidos (instituicao_id, user_id, nome)
-         VALUES ($1,$2,'CROSS TENANT C1.1') RETURNING id`,
+        `INSERT INTO public.assistidos (instituicao_id, user_id, nome, celular)
+         VALUES ($1,$2,'CROSS TENANT C1.1','11999999999') RETURNING id`,
         [outra.rows[0].id, base.rows[0].user_id],
       );
       expect(ins.rowCount).toBe(1);
@@ -245,13 +245,13 @@ d("STAB10-C1.1 — índice institucional do assistido", () => {
       if (usr.rowCount === 0) return;
       const uid = usr.rows[0].user_id;
       await c.query(
-        `INSERT INTO public.assistidos (instituicao_id, user_id, nome, deleted_at)
-         VALUES ($1,$2,'SOFT DELETADO C1.1', now())`,
+        `INSERT INTO public.assistidos (instituicao_id, user_id, nome, celular, deleted_at)
+         VALUES ($1,$2,'SOFT DELETADO C1.1','11999999999', now())`,
         [inst.rows[0].id, uid],
       );
       const ins = await c.query(
-        `INSERT INTO public.assistidos (instituicao_id, user_id, nome)
-         VALUES ($1,$2,'NOVO ATIVO C1.1') RETURNING id`,
+        `INSERT INTO public.assistidos (instituicao_id, user_id, nome, celular)
+         VALUES ($1,$2,'NOVO ATIVO C1.1','11999999999') RETURNING id`,
         [inst.rows[0].id, uid],
       );
       expect(ins.rowCount).toBe(1);
