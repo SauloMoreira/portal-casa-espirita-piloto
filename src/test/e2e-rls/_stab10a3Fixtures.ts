@@ -62,6 +62,7 @@ export function newTracker(): CreatedIds {
     userRoles: [],
     instituicaoUsuarios: [],
     assistidos: [],
+    instituicoes: [],
     emails: [],
   };
 }
