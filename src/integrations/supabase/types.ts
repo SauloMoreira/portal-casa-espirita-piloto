@@ -625,6 +625,66 @@ export type Database = {
         }
         Relationships: []
       }
+      autocadastro_idempotencia: {
+        Row: {
+          assistido_id: string | null
+          created_at: string
+          expires_at: string
+          idempotency_key: string
+          instituicao_id: string
+          request_fingerprint: string
+          request_id: string
+          result_code: string | null
+          status: string
+          tentativas: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          assistido_id?: string | null
+          created_at?: string
+          expires_at: string
+          idempotency_key: string
+          instituicao_id: string
+          request_fingerprint: string
+          request_id: string
+          result_code?: string | null
+          status: string
+          tentativas?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          assistido_id?: string | null
+          created_at?: string
+          expires_at?: string
+          idempotency_key?: string
+          instituicao_id?: string
+          request_fingerprint?: string
+          request_id?: string
+          result_code?: string | null
+          status?: string
+          tentativas?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autocadastro_idempotencia_assistido_id_fkey"
+            columns: ["assistido_id"]
+            isOneToOne: false
+            referencedRelation: "assistidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autocadastro_idempotencia_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       avisos_ausencia: {
         Row: {
           agenda_id: string | null
@@ -2277,6 +2337,8 @@ export type Database = {
       }
       instituicoes: {
         Row: {
+          autocadastro_habilitado: boolean
+          autocadastro_listado: boolean
           cidade: string | null
           classificacao_comercial: Database["public"]["Enums"]["saas_classificacao_comercial"]
           cnpj: string | null
@@ -2292,6 +2354,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          autocadastro_habilitado?: boolean
+          autocadastro_listado?: boolean
           cidade?: string | null
           classificacao_comercial?: Database["public"]["Enums"]["saas_classificacao_comercial"]
           cnpj?: string | null
@@ -2307,6 +2371,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          autocadastro_habilitado?: boolean
+          autocadastro_listado?: boolean
           cidade?: string | null
           classificacao_comercial?: Database["public"]["Enums"]["saas_classificacao_comercial"]
           cnpj?: string | null
