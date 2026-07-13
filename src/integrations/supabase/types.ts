@@ -3911,6 +3911,65 @@ export type Database = {
         Args: { p_chave: string; p_observacao?: string; p_valor: string }
         Returns: Json
       }
+      fn_autocadastro_assistido_publico: {
+        Args: {
+          p_aceito_em: string
+          p_celular_normalizado: string
+          p_cpf_normalizado: string
+          p_email_normalizado: string
+          p_idempotency_key: string
+          p_instituicao_id: string
+          p_nome_completo: string
+          p_privacidade_versao: string
+          p_request_fingerprint: string
+          p_request_id: string
+          p_termos_versao: string
+          p_user_id: string
+        }
+        Returns: {
+          assistido_id: string
+          instituicao_id: string
+          result_code: string
+        }[]
+      }
+      fn_autocadastro_marcar_auth_criado: {
+        Args: {
+          p_idempotency_key: string
+          p_request_fingerprint: string
+          p_request_id: string
+          p_user_id: string
+        }
+        Returns: {
+          result_code: string
+        }[]
+      }
+      fn_autocadastro_marcar_resultado_falha: {
+        Args: {
+          p_auth_delete_ok: boolean
+          p_idempotency_key: string
+          p_request_fingerprint: string
+          p_request_id: string
+          p_resultado: string
+        }
+        Returns: {
+          result_code: string
+        }[]
+      }
+      fn_autocadastro_reservar: {
+        Args: {
+          p_expires_at: string
+          p_idempotency_key: string
+          p_instituicao_id: string
+          p_request_fingerprint: string
+          p_request_id: string
+        }
+        Returns: {
+          assistido_id: string
+          instituicao_id: string
+          result_code: string
+          user_id: string
+        }[]
+      }
       fn_avisos_ausencia_pendentes:
         | {
             Args: { p_incluir_resolvidos?: boolean }
