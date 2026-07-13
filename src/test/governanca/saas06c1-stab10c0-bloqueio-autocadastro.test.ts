@@ -21,7 +21,7 @@ const stripComments = (s: string) =>
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), "utf8");
 
 describe("STAB10-C.0 — request-signup fail-closed", () => {
-  const src = read("supabase/functions/request-signup/index.ts");
+  const src = stripComments(read("supabase/functions/request-signup/index.ts"));
 
   it("retorna código CADASTRO_TEMPORARIAMENTE_INDISPONIVEL", () => {
     expect(src).toMatch(/CADASTRO_TEMPORARIAMENTE_INDISPONIVEL/);
