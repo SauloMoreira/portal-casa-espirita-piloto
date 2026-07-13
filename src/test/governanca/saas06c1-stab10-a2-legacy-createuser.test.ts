@@ -114,7 +114,7 @@ describe("STAB10-A.2 · Guard fail-closed na Edge Function create-user", () => {
       expect(bloco.toLowerCase()).not.toMatch(new RegExp(`\\b${proibido}\\b`));
     }
     // assistido_id cru NÃO deve ser logado (apenas o boolean has_assistido_id).
-    expect(bloco).not.toMatch(/assistido_id:\s*[^,}\s]/);
+    expect(bloco).not.toMatch(/(?<!has_)assistido_id:\s*[^,}\s]/);
     // permitido: booleanos de presença e caller_id
     expect(bloco).toMatch(/has_assistido_id/);
     expect(bloco).toMatch(/has_assistido_update/);
