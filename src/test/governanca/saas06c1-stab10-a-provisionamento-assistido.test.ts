@@ -20,8 +20,8 @@ describe("STAB10-A · Edge Function provisionar-acesso-assistido", () => {
   it("existe e é isolada da create-user", () => {
     expect(src.length).toBeGreaterThan(0);
     const createUser = read("supabase/functions/create-user/index.ts");
-    // create-user preserva o formato antigo do body
-    expect(createUser).toMatch(/role\s*,\s*profile\s*,\s*assistido_id/);
+    // STAB10-A.2: create-user agora BLOQUEIA o fluxo legado antes de qualquer escrita
+    expect(createUser).toMatch(/FLUXO_ASSISTIDO_LEGADO_BLOQUEADO/);
   });
 
   it("deriva caller.id exclusivamente do JWT (nunca do body)", () => {
