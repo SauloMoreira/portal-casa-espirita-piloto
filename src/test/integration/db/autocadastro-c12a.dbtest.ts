@@ -676,3 +676,141 @@ d("STAB10-C1.2-A — dados críticos permanecem inalterados", () => {
     });
   });
 });
+
+// ============================================================
+// SAAS-06-C1-STAB10-C1.2-A1 — Hardening: retomada canônica,
+// concorrência de user_id (índice único parcial) e transições
+// com ROW_COUNT.
+// ============================================================
+d("STAB10-C1.2-A1 — retomada canônica devolve request_id original", () => {
+  it("RESERVADO_NOVO devolve canonical_request_id igual ao enviado", async () => {
+    await withRollback(async (c) => {
+      const inst = await fixtureInstituicao(c, "canon-novo");
+      const k = KEY();
+      const req = REQ();
+      const r = await c.query(
+        "SELECT * FROM public.fn_autocadastro_reservar($1,$2,$3,$4,$5)",
+        [k, FP, req, inst, FUT()],
+      );
+      expect(r.rows[0].result_code).toBe("RESERVADO_NOVO");
+      expect(r.rows[0].canonical_request_id).toBe(req);
+    });
+  });
+
+  it("retentativa devolve o request_id original mesmo com p_request_id diferente", async () => {
+    await withRollback(async (c) => {
+      const inst = await fixtureInstituicao(c, "canon-em-and");
+      const k = KEY();
+      const reqOriginal = REQ();
+      await c.query(
+        "SELECT * FROM public.fn_autocadastro_reservar($1,$2,$3,$4,$5)",
+        [k, FP, reqOriginal, inst, FUT()],
+      );
+      const reqNovo = REQ();
+      const r = await c.query(
+        "SELECT * FROM public.fn_autocadastro_reservar($1,$2,$3,$4,$5)",
+        [k, FP, reqNovo, inst, FUT()],
+      );
+      expect(r.rows[0].result_code).toBe("EM_ANDAMENTO");
+      expect(r.rows[0].canonical_request_id).toBe(reqOriginal);
+    });
+  });
+
+  it("CONCLUIDO devolve canonical_request_id da linha original", async () => {
+    await withRollback(async (c) => {
+      const inst = await fixtureInstituicao(c, "canon-conc");
+      const k = KEY();
+      const reqOriginal = REQ();
+      const uid = await existingUserId(c);
+      const assId = await seedAssistidoFixture(c, inst);
+      await c.query(
+        `INSERT INTO public.autocadastro_idempotencia
+           (idempotency_key, request_fingerprint, status, request_id,
+            instituicao_id, user_id, assistido_id, result_code, expires_at)
+         VALUES ($1,$2,'concluido',$3,$4,$5,$6,'SUCESSO',$7)`,
+        [k, FP, reqOriginal, inst, uid, assId, FUT()],
+      );
+      const r = await c.query(
+        "SELECT * FROM public.fn_autocadastro_reservar($1,$2,$3,$4,$5)",
+        [k, FP, REQ(), inst, FUT()],
+      );
+      expect(r.rows[0].result_code).toBe("CONCLUIDO");
+      expect(r.rows[0].canonical_request_id).toBe(reqOriginal);
+    });
+  });
+});
+
+d("STAB10-C1.2-A1 — instituição divergente aborta sem alterar linha", () => {
+  it("segundo chamado com instituicao_id diferente devolve INSTITUICAO_DIVERGENTE e mantém tentativas/updated_at", async () => {
+    await withRollback(async (c) => {
+      const instA = await fixtureInstituicao(c, "div-a");
+      const instB = await fixtureInstituicao(c, "div-b");
+      const k = KEY();
+      await c.query(
+        "SELECT * FROM public.fn_autocadastro_reservar($1,$2,$3,$4,$5)",
+        [k, FP, REQ(), instA, FUT()],
+      );
+      const antes = await c.query(
+        "SELECT tentativas, updated_at, instituicao_id FROM public.autocadastro_idempotencia WHERE idempotency_key=$1",
+        [k],
+      );
+      await new Promise((r) => setTimeout(r, 10));
+      await expectReject(
+        c,
+        /INSTITUICAO_DIVERGENTE/,
+        "SELECT * FROM public.fn_autocadastro_reservar($1,$2,$3,$4,$5)",
+        [k, FP, REQ(), instB, FUT()],
+      );
+      const depois = await c.query(
+        "SELECT tentativas, updated_at, instituicao_id FROM public.autocadastro_idempotencia WHERE idempotency_key=$1",
+        [k],
+      );
+      expect(depois.rows[0].tentativas).toBe(antes.rows[0].tentativas);
+      expect(new Date(depois.rows[0].updated_at).getTime()).toBe(
+        new Date(antes.rows[0].updated_at).getTime(),
+      );
+      expect(depois.rows[0].instituicao_id).toBe(instA);
+    });
+  });
+});
+
+d("STAB10-C1.2-A1 — índice único parcial de user_id ativo", () => {
+  it("existe índice único parcial em user_id para estados ativos", async () => {
+    await withRollback(async (c) => {
+      const r = await c.query(
+        `SELECT indexdef FROM pg_indexes
+          WHERE schemaname='public'
+            AND tablename='autocadastro_idempotencia'
+            AND indexname='ux_autocadastro_idem_user_ativo'`,
+      );
+      expect(r.rowCount).toBe(1);
+      expect(r.rows[0].indexdef).toMatch(/UNIQUE INDEX/);
+      expect(r.rows[0].indexdef).toMatch(/user_id/);
+      expect(r.rows[0].indexdef).toMatch(/reservado/);
+      expect(r.rows[0].indexdef).toMatch(/auth_criado/);
+    });
+  });
+
+  it("INSERT direto violando o índice é bloqueado pelo próprio banco", async () => {
+    await withRollback(async (c) => {
+      const inst = await fixtureInstituicao(c, "idx-user");
+      const uid = await existingUserId(c);
+      await c.query(
+        `INSERT INTO public.autocadastro_idempotencia
+           (idempotency_key, request_fingerprint, status, request_id,
+            instituicao_id, user_id, expires_at)
+         VALUES ($1,$2,'auth_criado',$3,$4,$5,$6)`,
+        [KEY(), FP, REQ(), inst, uid, FUT()],
+      );
+      await expectReject(
+        c,
+        /ux_autocadastro_idem_user_ativo|unique/i,
+        `INSERT INTO public.autocadastro_idempotencia
+           (idempotency_key, request_fingerprint, status, request_id,
+            instituicao_id, user_id, expires_at)
+         VALUES ($1,$2,'reservado',$3,$4,$5,$6)`,
+        [KEY(), FP, REQ(), inst, uid, FUT()],
+      );
+    });
+  });
+});
