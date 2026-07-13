@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     // Resposta HTTP 200 com `success:false` para que bundles antigos, que
     // descartam o body em respostas não-2xx, ainda exibam a mensagem amigável.
     const { hasAssistidoId, hasAssistidoUpdate, isLegacy } = detectLegacyAssistidoPayload(body);
-    if (hasAssistidoId || hasAssistidoUpdate) {
+    if (isLegacy) {
       log.warn("legacy_assistido_flow_blocked", {
         caller_id: caller.id,
         has_assistido_id: hasAssistidoId,
