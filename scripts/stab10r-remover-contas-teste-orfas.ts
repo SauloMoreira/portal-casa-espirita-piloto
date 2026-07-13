@@ -177,6 +177,21 @@ async function removerPublico(
   return { cadastro_solicitacoes: d1.data?.length ?? 0, user_roles: d2.data?.length ?? 0, profiles: d3.data?.length ?? 0 };
 }
 
+/**
+ * Zera `audit_logs.user_id` para as linhas históricas do usuário para permitir
+ * o delete em auth.users (FK). Conteúdo (`acao`, `tabela`, `registro_id`,
+ * `dados_novos`) é preservado, incluindo a auditoria da própria remoção.
+ */
+async function desanexarAuditoria(admin: ReturnType<typeof createClient>, uid: string) {
+  const { error, data } = await admin
+    .from("audit_logs")
+    .update({ user_id: null })
+    .eq("user_id", uid)
+    .select("id");
+  if (error) throw new Error(`audit_logs desanexar: ${error.message}`);
+  return data?.length ?? 0;
+}
+
 async function deletarAuth(admin: ReturnType<typeof createClient>, uid: string) {
   const { data: existente } = await admin.auth.admin.getUserById(uid);
   if (!existente?.user) return { alreadyGone: true };
