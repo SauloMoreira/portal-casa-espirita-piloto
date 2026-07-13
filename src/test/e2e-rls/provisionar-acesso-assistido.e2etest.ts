@@ -12,12 +12,11 @@ import {
   HAS_STAB10A3,
   NS,
   FER_ID,
-  SECUNDARIA_ID,
   newTracker,
-  uniq,
   emailFor,
   seedOperador,
   seedAssistidoSemAcesso,
+  seedInstituicaoEfemera,
   signInWithEmail,
   invokeProvisionar,
   restAsUser,
@@ -39,25 +38,40 @@ d("STAB10-A.3 · provisionar-acesso-assistido — E2E real", () => {
   let operadorSecundario!: { userId: string; email: string; password: string };
   let operadorJwt = "";
   let operadorSecJwt = "";
+  let secundariaId = "";
 
   beforeAll(async () => {
-    // Seed dos operadores (FER + tenant secundário) e login real.
+    // STAB10-A.4: tenant secundário sempre efêmero namespaced (sem fallback fixo).
+    const inst = await seedInstituicaoEfemera(tracker, `sec-${runId}`);
+    secundariaId = inst.id;
+    // Seed dos operadores (FER + tenant secundário efêmero) e login real.
     operador = await seedOperador(tracker, FER_ID, `fer-${runId}`);
-    operadorSecundario = await seedOperador(tracker, SECUNDARIA_ID, `sec-${runId}`);
+    operadorSecundario = await seedOperador(tracker, secundariaId, `sec-${runId}`);
     operadorJwt = (await signInWithEmail(operador.email, operador.password)).accessToken;
     operadorSecJwt = (await signInWithEmail(operadorSecundario.email, operadorSecundario.password)).accessToken;
   }, 60_000);
 
   afterAll(async () => {
+    let cleanupErr: unknown = null;
+    let residuosErr: unknown = null;
     try {
+      try {
+        await cleanupTracked(tracker);
+      } catch (e) {
+        cleanupErr = e;
+      }
       const counts = await residuosFinais(tracker);
-      // Log apenas em caso de resíduo, sem expor UUIDs em logs padrão.
       const naoZero = Object.entries(counts).filter(([, v]) => v !== 0);
-      if (naoZero.length) console.warn("residuos_pre_cleanup", naoZero);
+      if (naoZero.length) {
+        residuosErr = new Error(
+          `STAB10-A.4: resíduos após cleanup: ${JSON.stringify(naoZero)}`,
+        );
+      }
     } finally {
-      await cleanupTracked(tracker);
       await closeStab10A3Pool();
     }
+    if (cleanupErr) throw cleanupErr;
+    if (residuosErr) throw residuosErr;
   }, 60_000);
 
   it("proibição de bypass: teste não importa nem chama a RPC diretamente", () => {
@@ -155,7 +169,7 @@ d("STAB10-A.3 · provisionar-acesso-assistido — E2E real", () => {
     expect(instsAsUser.status).toBe(200);
     const ids = instsAsUser.body.map((i) => i.id);
     expect(ids).toContain(FER_ID);
-    expect(ids).not.toContain(SECUNDARIA_ID);
+    expect(ids).not.toContain(secundariaId);
 
     // Idempotência: segunda chamada exige already_provisioned=true
     const res2 = await invokeProvisionar(operadorJwt, {

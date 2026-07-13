@@ -42,9 +42,8 @@ export const NS = "stab10a3";
 export const FER_ID =
   process.env.E2E_STAB10A3_INSTITUICAO_FER_ID ??
   "e3818702-cfac-47ae-b751-cb6a05babd4f";
-export const SECUNDARIA_ID =
-  process.env.E2E_STAB10A3_INSTITUICAO_SECUNDARIA_ID ??
-  "c0ed0316-94ce-4b21-83bb-ab36a86a8ded";
+// STAB10-A.4: sem fallback hardcoded. O tenant secundário é criado como
+// instituição efêmera namespaced no beforeAll (ver seedInstituicaoEfemera).
 
 export interface CreatedIds {
   authUsers: string[];
@@ -52,6 +51,7 @@ export interface CreatedIds {
   userRoles: string[];
   instituicaoUsuarios: string[];
   assistidos: string[];
+  instituicoes: string[];
   emails: string[];
 }
 
@@ -62,6 +62,7 @@ export function newTracker(): CreatedIds {
     userRoles: [],
     instituicaoUsuarios: [],
     assistidos: [],
+    instituicoes: [],
     emails: [],
   };
 }
@@ -309,8 +310,30 @@ export async function invokeProvisionar(
 }
 
 /**
+ * Cria uma instituição efêmera namespaced (para cenários cross-tenant).
+ */
+export async function seedInstituicaoEfemera(
+  tracker: CreatedIds,
+  suffix: string,
+): Promise<{ id: string; slug: string; nome: string }> {
+  const slug = `${NS}-inst-${suffix}`.toLowerCase();
+  const nome = `${NS} instituicao ${suffix}`;
+  const r = await svc<Array<{ id: string }>>("instituicoes", {
+    method: "POST",
+    prefer: "return=representation",
+    body: JSON.stringify({ nome, slug, status: "implantacao" }),
+  });
+  if (!r.ok || !r.body?.[0]?.id) {
+    throw new Error(`seedInstituicaoEfemera: ${r.status} ${JSON.stringify(r.body)}`);
+  }
+  const id = r.body[0].id;
+  tracker.instituicoes.push(id);
+  return { id, slug, nome };
+}
+
+/**
  * Cleanup integral por IDs rastreados. Ordem: tabelas públicas primeiro,
- * auth.users por último. Idempotente.
+ * auth.users por último, instituicoes por último de todos. Idempotente.
  */
 export async function cleanupTracked(tracker: CreatedIds): Promise<void> {
   // assistidos: desvincula (user_id=null) para permitir exclusão via cascade limpo.
@@ -332,6 +355,11 @@ export async function cleanupTracked(tracker: CreatedIds): Promise<void> {
   }
   for (const uid of tracker.authUsers) {
     await adminDeleteAuthUser(uid);
+  }
+  for (const id of tracker.instituicoes) {
+    await svc(`instituicao_usuarios?instituicao_id=eq.${id}`, { method: "DELETE" });
+    await svc(`assistidos?instituicao_id=eq.${id}`, { method: "DELETE" });
+    await svc(`instituicoes?id=eq.${id}`, { method: "DELETE" });
   }
 }
 
@@ -368,5 +396,11 @@ export async function residuosFinais(
   for (const email of tracker.emails) {
     counts[`auth.email:${email}`] = (await adminListAuthUserByEmail(email)).length;
   }
+  for (const id of tracker.instituicoes) {
+    const r = await svc<Array<unknown>>(`instituicoes?id=eq.${id}&select=id`);
+    counts[`instituicoes:${id}`] = (r.body ?? []).length;
+  }
+  const prefInst = await svc<Array<unknown>>(`instituicoes?slug=like.${NS}-%25&select=id`);
+  counts[`instituicoes.prefix`] = (prefInst.body ?? []).length;
   return counts;
 }
