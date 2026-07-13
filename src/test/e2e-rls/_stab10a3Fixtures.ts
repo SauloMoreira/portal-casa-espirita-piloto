@@ -42,9 +42,8 @@ export const NS = "stab10a3";
 export const FER_ID =
   process.env.E2E_STAB10A3_INSTITUICAO_FER_ID ??
   "e3818702-cfac-47ae-b751-cb6a05babd4f";
-export const SECUNDARIA_ID =
-  process.env.E2E_STAB10A3_INSTITUICAO_SECUNDARIA_ID ??
-  "c0ed0316-94ce-4b21-83bb-ab36a86a8ded";
+// STAB10-A.4: sem fallback hardcoded. O tenant secundário é criado como
+// instituição efêmera namespaced no beforeAll (ver seedInstituicaoEfemera).
 
 export interface CreatedIds {
   authUsers: string[];
@@ -52,6 +51,7 @@ export interface CreatedIds {
   userRoles: string[];
   instituicaoUsuarios: string[];
   assistidos: string[];
+  instituicoes: string[];
   emails: string[];
 }
 
