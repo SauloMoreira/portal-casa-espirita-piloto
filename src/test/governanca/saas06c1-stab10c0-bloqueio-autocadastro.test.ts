@@ -16,6 +16,8 @@ import { resolve } from "node:path";
  * Não substitui teste funcional; complementa homologação read-only.
  */
 
+const stripComments = (s: string) =>
+  s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), "utf8");
 
 describe("STAB10-C.0 — request-signup fail-closed", () => {
