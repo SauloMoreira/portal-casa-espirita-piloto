@@ -263,7 +263,7 @@ async function main() {
 
       for (const s of snaps) {
         console.log(`\n[${s.rotulo}] removendo objetos públicos…`);
-        const del = await removerPublico(pg, s.uid, runId);
+        const del = await removerPublico(pg, admin, s.uid, runId);
         console.log(`[${s.rotulo}] público removido`, del);
         try {
           const r = await deletarAuth(admin, s.uid);
