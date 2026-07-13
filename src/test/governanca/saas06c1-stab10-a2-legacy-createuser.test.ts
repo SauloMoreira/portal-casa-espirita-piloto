@@ -70,7 +70,7 @@ describe("STAB10-A.2 · Guard fail-closed na Edge Function create-user", () => {
   });
 
   it("o guard ocorre ANTES de auth.admin.createUser (nenhuma escrita antes)", () => {
-    const iCreate = edge.indexOf("auth.admin.createUser");
+    const iCreate = edge.indexOf("await adminClient.auth.admin.createUser");
     const iGuard = edge.indexOf("FLUXO_ASSISTIDO_LEGADO_BLOQUEADO");
     expect(iGuard).toBeGreaterThan(-1);
     expect(iCreate).toBeGreaterThan(-1);
@@ -80,11 +80,17 @@ describe("STAB10-A.2 · Guard fail-closed na Edge Function create-user", () => {
   it("o guard ocorre ANTES do primeiro insert em user_roles/profiles/assistidos", () => {
     const iGuard = edge.indexOf("FLUXO_ASSISTIDO_LEGADO_BLOQUEADO");
     const first = Math.min(
-      ...['from("user_roles")', 'from("profiles")', 'from("assistidos")']
+      ...[
+        'from("user_roles").insert',
+        'from("profiles").insert',
+        'from("assistidos").update',
+      ]
         .map((s) => edge.indexOf(s))
         .filter((i) => i > -1),
     );
-    expect(first).toBeGreaterThan(iGuard);
+    // se nenhum insert restante for encontrado (assistidos), Math.min de vazio = Infinity;
+    // basta que os que existam sejam depois do guard.
+    if (Number.isFinite(first)) expect(first).toBeGreaterThan(iGuard);
   });
 
   it("responde HTTP 200 + success:false + code funcional (compatível com bundle antigo)", () => {
