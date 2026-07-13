@@ -71,17 +71,20 @@ describe("STAB10-A · Edge Function provisionar-acesso-assistido", () => {
 
 describe("STAB10-A · GerarAcessoAssistido chama a nova função", () => {
   const src = read("src/components/GerarAcessoAssistido.tsx");
+  const service = read("src/services/acesso/provisionarAcessoAssistido.ts");
 
-  it("invoca provisionar-acesso-assistido e não create-user", () => {
-    expect(src).toMatch(/provisionar-acesso-assistido/);
+  it("invoca provisionar-acesso-assistido (via service) e não create-user", () => {
+    // O componente delega ao service; o service é quem faz o invoke.
+    expect(src).toMatch(/provisionarAcessoAssistido/);
     expect(src).not.toMatch(/functions\.invoke\(\s*["']create-user["']/);
+    expect(service).toMatch(/functions\.invoke\(["']provisionar-acesso-assistido["']/);
   });
 
   it("não envia role, instituicao_id ou user_id ao backend", () => {
-    // corpo do invoke não deve mencionar essas chaves
-    expect(src).not.toMatch(/\brole:\s*["']assistido["']/);
-    expect(src).not.toMatch(/\binstituicao_id\s*:/);
-    expect(src).not.toMatch(/\buser_id\s*:/);
+    // corpo do invoke não deve mencionar essas chaves (checado no service)
+    expect(service).not.toMatch(/\brole:\s*["']assistido["']/);
+    expect(service).not.toMatch(/\binstituicao_id\s*:/);
+    expect(service).not.toMatch(/\buser_id\s*:/);
   });
 
   it("bloqueia duplo clique (guarda por loading)", () => {
@@ -89,9 +92,9 @@ describe("STAB10-A · GerarAcessoAssistido chama a nova função", () => {
   });
 
   it("mapeia códigos amigáveis (EMAIL_EM_USO, CROSS_TENANT_ACCESS_DENIED)", () => {
-    expect(src).toMatch(/EMAIL_EM_USO/);
-    expect(src).toMatch(/CROSS_TENANT_ACCESS_DENIED/);
-    expect(src).toMatch(/ASSISTIDO_ACESSO_INCONSISTENTE/);
+    expect(service).toMatch(/EMAIL_EM_USO/);
+    expect(service).toMatch(/CROSS_TENANT_ACCESS_DENIED/);
+    expect(service).toMatch(/ASSISTIDO_ACESSO_INCONSISTENTE/);
   });
 });
 
