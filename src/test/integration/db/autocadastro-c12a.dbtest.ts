@@ -411,7 +411,7 @@ d("STAB10-C1.2-A — fn_autocadastro_marcar_resultado_falha", () => {
     });
   });
 
-  it("auth_criado + auth_delete_ok=true → falhou", async () => {
+  it("auth_criado + auth_delete_ok=true com user_id preenchido → AUTH_DELETE_NAO_CONFIRMADO (FIX01)", async () => {
     await withRollback(async (c) => {
       const inst = await fixtureInstituicao(c, "auth-falhou");
       const uid = await existingUserId(c);
@@ -425,11 +425,13 @@ d("STAB10-C1.2-A — fn_autocadastro_marcar_resultado_falha", () => {
         "SELECT * FROM public.fn_autocadastro_marcar_auth_criado($1,$2,$3,$4)",
         [k, FP, req, uid],
       );
-      const r = await c.query(
+      // FIX01: agora exige user_id IS NULL (evidência do delete real via FK).
+      await expectReject(
+        c,
+        /AUTH_DELETE_NAO_CONFIRMADO/,
         "SELECT * FROM public.fn_autocadastro_marcar_resultado_falha($1,$2,$3,$4,$5)",
         [k, FP, req, "ERRO_Y", true],
       );
-      expect(r.rows[0].result_code).toBe("falhou");
     });
   });
 
@@ -774,8 +776,8 @@ d("STAB10-C1.2-A1 — instituição divergente aborta sem alterar linha", () => 
   });
 });
 
-d("STAB10-C1.2-A1 — índice único parcial de user_id ativo", () => {
-  it("existe índice único parcial em user_id para estados ativos", async () => {
+d("STAB10-C1.2-A1-FIX01 — índice único parcial de user_id ativo", () => {
+  it("existe índice único parcial em user_id para estados ativos (auth_criado, concluido, rollback_falhou)", async () => {
     await withRollback(async (c) => {
       const r = await c.query(
         `SELECT indexdef FROM pg_indexes
@@ -786,12 +788,15 @@ d("STAB10-C1.2-A1 — índice único parcial de user_id ativo", () => {
       expect(r.rowCount).toBe(1);
       expect(r.rows[0].indexdef).toMatch(/UNIQUE INDEX/);
       expect(r.rows[0].indexdef).toMatch(/user_id/);
-      expect(r.rows[0].indexdef).toMatch(/reservado/);
       expect(r.rows[0].indexdef).toMatch(/auth_criado/);
+      expect(r.rows[0].indexdef).toMatch(/concluido/);
+      expect(r.rows[0].indexdef).toMatch(/rollback_falhou/);
+      // FIX01: 'reservado' NÃO faz parte do predicado (user_id é NULL nesse estado).
+      expect(r.rows[0].indexdef).not.toMatch(/reservado/);
     });
   });
 
-  it("INSERT direto violando o índice é bloqueado pelo próprio banco", async () => {
+  it("INSERT direto violando o índice é bloqueado pelo próprio banco (auth_criado x concluido)", async () => {
     await withRollback(async (c) => {
       const inst = await fixtureInstituicao(c, "idx-user");
       const uid = await existingUserId(c);
@@ -808,7 +813,7 @@ d("STAB10-C1.2-A1 — índice único parcial de user_id ativo", () => {
         `INSERT INTO public.autocadastro_idempotencia
            (idempotency_key, request_fingerprint, status, request_id,
             instituicao_id, user_id, expires_at)
-         VALUES ($1,$2,'reservado',$3,$4,$5,$6)`,
+         VALUES ($1,$2,'concluido',$3,$4,$5,$6)`,
         [KEY(), FP, REQ(), inst, uid, FUT()],
       );
     });

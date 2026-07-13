@@ -89,7 +89,7 @@ d("STAB10-C1.1 — tabela de idempotência", () => {
     await withRollback(async (c) => {
       await expectReject(
         c,
-        /autocadastro_idempotencia_status_check/i,
+        /autocadastro_idempotencia_status_check|autocadastro_idem_estado_user_check/i,
         `INSERT INTO public.autocadastro_idempotencia
            (idempotency_key, request_fingerprint, status, request_id, instituicao_id, expires_at)
          VALUES (gen_random_uuid(),'fp','estado_invalido', gen_random_uuid(), $1, now()+interval '1 hour')`,
