@@ -234,7 +234,7 @@ export async function seedAssistidoSemAcesso(
       instituicao_id: instituicaoId,
       created_by: createdBy,
       status: "ativo",
-      celular: "11988887777",
+      celular: "11" + Math.floor(900000000 + Math.random() * 99999999).toString().slice(0, 9),
     }),
   });
   if (!r.ok || !r.body?.[0]?.id) {
