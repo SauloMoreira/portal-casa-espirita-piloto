@@ -99,12 +99,13 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
   }, 60_000);
 
   afterAll(async () => {
-    // Limpa audit_logs deste user antes do delete do auth.users (FK).
+    const svcHdr = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
     if (userId) {
-      await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?user_id=eq.${userId}`, {
-        method: "DELETE",
-        headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
-      });
+      await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?user_id=eq.${userId}`, { method: "DELETE", headers: svcHdr });
+    }
+    if (instId) {
+      await fetch(`${SUPABASE_URL}/rest/v1/autocadastro_idempotencia?instituicao_id=eq.${instId}`, { method: "DELETE", headers: svcHdr });
+      await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?tabela=eq.assistidos&dados_novos->>instituicao_id=eq.${instId}`, { method: "DELETE", headers: svcHdr });
     }
     try { await cleanupTracked(tracker); } finally {
       try {
