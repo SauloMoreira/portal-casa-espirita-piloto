@@ -258,6 +258,8 @@ async function main() {
           throw new Error(`[${s.rotulo}] retry-auth: ainda há resíduos públicos, aborte.`);
         }
         console.log(`\n[${s.rotulo}] retry deleteUser Auth…`);
+        const desan = await desanexarAuditoria(admin, s.uid);
+        console.log(`[${s.rotulo}] audit_logs desanexados=${desan}`);
         const r = await deletarAuth(admin, s.uid);
         console.log(`[${s.rotulo}] auth removido (alreadyGone=${r.alreadyGone})`);
       }
