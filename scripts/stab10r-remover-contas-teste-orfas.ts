@@ -133,34 +133,48 @@ function validarPrecondicoes(s: Snapshot): string[] {
   return erros;
 }
 
-async function removerPublico(pg: Client, uid: string, runId: string) {
-  await pg.query("BEGIN");
-  try {
-    // Reafirmar ausência de vínculos operacionais dentro da tx
-    const iu = await pg.query("SELECT count(*)::int c FROM instituicao_usuarios WHERE user_id=$1", [uid]);
-    if (iu.rows[0].c !== 0) throw new Error(`ABORT: instituicao_usuarios apareceu para ${uid}`);
-    const ass = await pg.query("SELECT count(*)::int c FROM assistidos WHERE user_id=$1", [uid]);
-    if (ass.rows[0].c !== 0) throw new Error(`ABORT: assistidos.user_id apareceu para ${uid}`);
+/**
+ * Remoção pública. O usuário pg do sandbox é select/insert-only, portanto as
+ * DELETEs são executadas via service_role (bypass RLS) na ordem
+ * child→parent. Precondições e ausência de referências já foram validadas.
+ * Pré-flight repetido dentro da fase de execução detecta corrida antes de
+ * qualquer escrita destrutiva.
+ */
+async function removerPublico(
+  pg: Client,
+  admin: ReturnType<typeof createClient>,
+  uid: string,
+  runId: string,
+) {
+  const iu = await pg.query("SELECT count(*)::int c FROM instituicao_usuarios WHERE user_id=$1", [uid]);
+  if (iu.rows[0].c !== 0) throw new Error(`ABORT: instituicao_usuarios apareceu para ${uid}`);
+  const ass = await pg.query("SELECT count(*)::int c FROM assistidos WHERE user_id=$1", [uid]);
+  if (ass.rows[0].c !== 0) throw new Error(`ABORT: assistidos.user_id apareceu para ${uid}`);
 
-    // Auditoria pré-remoção (sem dados sensíveis)
-    await pg.query(
-      `INSERT INTO audit_logs (user_id, tabela, acao, registro_id, dados_novos)
-       VALUES ($1, 'auth.users', 'STAB10R_EXCLUSAO_CONTA_TESTE_ORFA', $1,
-               jsonb_build_object('motivo','conta_teste_descartavel','run_id',$2::text,'resultado_planejado','remocao_publica_e_auth'))`,
-      [uid, runId],
-    );
+  // Auditoria pré-remoção (via service_role, sem dados sensíveis)
+  const { error: auditErr } = await admin.from("audit_logs").insert({
+    user_id: uid,
+    tabela: "auth.users",
+    acao: "STAB10R_EXCLUSAO_CONTA_TESTE_ORFA",
+    registro_id: uid,
+    dados_novos: {
+      motivo: "conta_teste_descartavel",
+      run_id: runId,
+      resultado_planejado: "remocao_publica_e_auth",
+    },
+  });
+  if (auditErr) throw new Error(`audit insert falhou: ${auditErr.message}`);
 
-    const del1 = await pg.query("DELETE FROM cadastro_solicitacoes WHERE user_id=$1", [uid]);
-    const del2 = await pg.query("DELETE FROM user_roles WHERE user_id=$1", [uid]);
-    const del3 = await pg.query("DELETE FROM profiles WHERE user_id=$1", [uid]);
-    if ((del3.rowCount ?? 0) !== 1) throw new Error(`ABORT: profiles esperado 1 removido, foi ${del3.rowCount}`);
+  // Ordem child → parent. Falha em qualquer etapa interrompe e fail-close a conta.
+  const d1 = await admin.from("cadastro_solicitacoes").delete().eq("user_id", uid).select("id");
+  if (d1.error) throw new Error(`delete cadastro_solicitacoes: ${d1.error.message}`);
+  const d2 = await admin.from("user_roles").delete().eq("user_id", uid).select("id");
+  if (d2.error) throw new Error(`delete user_roles: ${d2.error.message}`);
+  const d3 = await admin.from("profiles").delete().eq("user_id", uid).select("user_id");
+  if (d3.error) throw new Error(`delete profiles: ${d3.error.message}`);
+  if ((d3.data?.length ?? 0) !== 1) throw new Error(`ABORT: profiles esperado 1 removido, foi ${d3.data?.length}`);
 
-    await pg.query("COMMIT");
-    return { cadastro_solicitacoes: del1.rowCount, user_roles: del2.rowCount, profiles: del3.rowCount };
-  } catch (e) {
-    await pg.query("ROLLBACK");
-    throw e;
-  }
+  return { cadastro_solicitacoes: d1.data?.length ?? 0, user_roles: d2.data?.length ?? 0, profiles: d3.data?.length ?? 0 };
 }
 
 async function deletarAuth(admin: ReturnType<typeof createClient>, uid: string) {
