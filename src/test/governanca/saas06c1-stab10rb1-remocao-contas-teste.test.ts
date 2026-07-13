@@ -36,8 +36,9 @@ describe("STAB10-R-B1 · script de remoção de contas órfãs", () => {
 
   it("audita antes de remover com acao STAB10R_EXCLUSAO_CONTA_TESTE_ORFA e sem dados sensíveis", () => {
     expect(SRC).toMatch(/STAB10R_EXCLUSAO_CONTA_TESTE_ORFA/);
-    // Auditoria não pode carregar dados sensíveis; payload jsonb_build_object só tem motivo/run_id/resultado.
-    const auditBlock = SRC.match(/jsonb_build_object\([^)]*\)/)?.[0] ?? "";
+    // Auditoria não pode carregar dados sensíveis; payload inclui motivo, run_id e resultado.
+    const auditIdx = SRC.indexOf("STAB10R_EXCLUSAO_CONTA_TESTE_ORFA");
+    const auditBlock = SRC.slice(auditIdx, auditIdx + 600);
     expect(auditBlock).not.toMatch(/email|cpf|celular|senha|token/i);
     expect(auditBlock).toMatch(/motivo/);
     expect(auditBlock).toMatch(/run_id/);
