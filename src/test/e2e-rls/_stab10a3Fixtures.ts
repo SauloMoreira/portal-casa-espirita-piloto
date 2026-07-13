@@ -396,5 +396,11 @@ export async function residuosFinais(
   for (const email of tracker.emails) {
     counts[`auth.email:${email}`] = (await adminListAuthUserByEmail(email)).length;
   }
+  for (const id of tracker.instituicoes) {
+    const r = await svc<Array<unknown>>(`instituicoes?id=eq.${id}&select=id`);
+    counts[`instituicoes:${id}`] = (r.body ?? []).length;
+  }
+  const prefInst = await svc<Array<unknown>>(`instituicoes?slug=like.${NS}-%25&select=id`);
+  counts[`instituicoes.prefix`] = (prefInst.body ?? []).length;
   return counts;
 }
