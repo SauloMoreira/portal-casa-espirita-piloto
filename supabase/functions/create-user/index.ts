@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { createLogger } from "../_shared/logger.ts";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { detectLegacyAssistidoPayload } from "./legacyGuard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
