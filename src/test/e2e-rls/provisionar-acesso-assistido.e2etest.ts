@@ -3,7 +3,7 @@
  * de acesso do assistido.
  *
  * Único caminho permitido: Edge Function `provisionar-acesso-assistido`
- * chamada com JWT real do operador. Proibido chamar `fn_provisionar_acesso_assistido`
+ * chamada com JWT real do operador. Proibido invocar a RPC subjacente
  * diretamente (assert estático abaixo).
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
