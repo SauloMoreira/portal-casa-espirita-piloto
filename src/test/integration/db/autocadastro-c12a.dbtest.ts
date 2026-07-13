@@ -411,7 +411,7 @@ d("STAB10-C1.2-A — fn_autocadastro_marcar_resultado_falha", () => {
     });
   });
 
-  it("auth_criado + auth_delete_ok=true → falhou", async () => {
+  it("auth_criado + auth_delete_ok=true com user_id preenchido → AUTH_DELETE_NAO_CONFIRMADO (FIX01)", async () => {
     await withRollback(async (c) => {
       const inst = await fixtureInstituicao(c, "auth-falhou");
       const uid = await existingUserId(c);
@@ -425,11 +425,13 @@ d("STAB10-C1.2-A — fn_autocadastro_marcar_resultado_falha", () => {
         "SELECT * FROM public.fn_autocadastro_marcar_auth_criado($1,$2,$3,$4)",
         [k, FP, req, uid],
       );
-      const r = await c.query(
+      // FIX01: agora exige user_id IS NULL (evidência do delete real via FK).
+      await expectReject(
+        c,
+        /AUTH_DELETE_NAO_CONFIRMADO/,
         "SELECT * FROM public.fn_autocadastro_marcar_resultado_falha($1,$2,$3,$4,$5)",
         [k, FP, req, "ERRO_Y", true],
       );
-      expect(r.rows[0].result_code).toBe("falhou");
     });
   });
 
