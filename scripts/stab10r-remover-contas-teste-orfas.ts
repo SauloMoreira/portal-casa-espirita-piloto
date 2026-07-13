@@ -283,6 +283,8 @@ async function main() {
         const del = await removerPublico(pg, admin, s.uid, runId);
         console.log(`[${s.rotulo}] público removido`, del);
         try {
+          const desan = await desanexarAuditoria(admin, s.uid);
+          console.log(`[${s.rotulo}] audit_logs desanexados=${desan}`);
           const r = await deletarAuth(admin, s.uid);
           console.log(`[${s.rotulo}] auth removido (alreadyGone=${r.alreadyGone})`);
         } catch (e) {
