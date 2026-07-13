@@ -3965,6 +3965,7 @@ export type Database = {
         }
         Returns: {
           assistido_id: string
+          canonical_request_id: string
           instituicao_id: string
           result_code: string
           user_id: string
