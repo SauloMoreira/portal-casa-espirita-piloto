@@ -62,7 +62,7 @@ d("STAB10-A.3 · provisionar-acesso-assistido — E2E real", () => {
 
   it("proibição de bypass: teste não importa nem chama a RPC diretamente", () => {
     const self = readFileSync(__filename, "utf8");
-    // Não importa o helper `rpc` do _rlsClient e não usa o endpoint /rest/v1/rpc/.
+    // Não importa o helper `rpc` do _rlsClient e não usa o endpoint de RPC do PostgREST.
     // (tokens montados por concatenação para não colidirem com a própria asserção)
     const forbiddenImport = /from\s+["']\.\/_rlsClient["'][^;]*\b(?<!\w)r(?=p)pc\b/;
     const rpcEndpoint = "/rest/v1/" + "rpc/";
