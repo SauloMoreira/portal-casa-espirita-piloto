@@ -12,7 +12,7 @@ Reverter, e somente reverter, as escritas feitas por STAB10-R-A1:
 
 ## IDs conhecidos
 
-| Registro | user_id | instituicao_usuarios.id | audit_logs.id |
+| Registro | user_id | instituicao_usuarios.id | audit_logs.registro_id |
 |---|---|---|---|
 | R1  | 18e2dceb-48ba-471d-ae9d-da52ef23865a | 39136ab5-9292-435f-801a-b335b9ab03dc | 39136ab5-9292-435f-801a-b335b9ab03dc |
 | R2  | 2a11e218-ea17-4e67-b92a-c1b1fdfdb3d7 | 28c4accf-b4c7-4bf0-8fdf-6035ad64bd70 | 28c4accf-b4c7-4bf0-8fdf-6035ad64bd70 |
