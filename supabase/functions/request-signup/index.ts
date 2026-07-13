@@ -1,144 +1,44 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { createLogger } from "../_shared/logger.ts";
 import { buildCorsHeaders } from "../_shared/cors.ts";
 
-
-const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-
-function isValidCPF(cpf: string): boolean {
-  const c = cpf.replace(/\D/g, "");
-  if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
-  let s = 0;
-  for (let i = 0; i < 9; i++) s += parseInt(c[i]) * (10 - i);
-  let r = (s * 10) % 11;
-  if (r === 10) r = 0;
-  if (r !== parseInt(c[9])) return false;
-  s = 0;
-  for (let i = 0; i < 10; i++) s += parseInt(c[i]) * (11 - i);
-  r = (s * 10) % 11;
-  if (r === 10) r = 0;
-  return r === parseInt(c[10]);
-}
-
-// Public endpoint: self-registration with IMMEDIATE base access.
-// The auth account is created and the profile is inserted as "ativo". The base
-// role 'assistido' is granted automatically by the AFTER INSERT trigger on
-// public.profiles (fn_conceder_acesso_base) — NO elevated role is ever granted
-// here and no manual administrative approval is required for base access.
-Deno.serve(async (req) => {
+/**
+ * SAAS-06-C1-STAB10-C.0 — Bloqueio temporário fail-closed do autocadastro
+ * público genérico.
+ *
+ * Esta função foi cirurgicamente desativada. Ela responde SEMPRE com
+ * HTTP 200 + `{ success:false, code:"CADASTRO_TEMPORARIAMENTE_INDISPONIVEL" }`
+ * ANTES de qualquer escrita:
+ *  - nunca chama `auth.admin.createUser`
+ *  - nunca insere em `profiles`
+ *  - nunca insere em `cadastro_solicitacoes`
+ *  - nunca grava em `audit_logs`
+ *
+ * O HTTP 200 garante que bundles antigos em cache consigam ler `data.error`.
+ *
+ * O log NÃO registra e-mail, nome, CPF, celular, senha, IP nem body — apenas
+ * o evento e o requestId gerado pelo logger.
+ *
+ * O caminho canônico para provisionar acesso de assistidos permanece a Edge
+ * Function `provisionar-acesso-assistido` (STAB10-A/A.1/A.2).
+ */
+Deno.serve((req) => {
   const corsHeaders = buildCorsHeaders(req);
-  const json = (body: unknown, status = 200) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   const log = createLogger("request-signup", req);
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const admin = createClient(supabaseUrl, serviceRoleKey);
+  log.info("public_signup_temporarily_blocked", {});
 
-    const body = await req.json().catch(() => ({}));
-    const nome_completo = String(body?.nome_completo || "").trim();
-    const email = String(body?.email || "").trim().toLowerCase();
-    const password = String(body?.password || "");
-    const cpf = body?.cpf ? String(body.cpf).trim() : null;
-    const celular = body?.celular ? String(body.celular).trim() : null;
+  const body = {
+    success: false,
+    code: "CADASTRO_TEMPORARIAMENTE_INDISPONIVEL",
+    error:
+      "O cadastro público está temporariamente indisponível. Entre em contato com a casa espírita para solicitar seu acesso.",
+  };
 
-    if (nome_completo.length < 3) return json({ error: "Informe seu nome completo." }, 400);
-    if (!isValidEmail(email)) return json({ error: "E-mail inválido." }, 400);
-    if (password.length < 8) return json({ error: "A senha deve ter pelo menos 8 caracteres." }, 400);
-    if (cpf && cpf.replace(/\D/g, "").length > 0 && !isValidCPF(cpf)) {
-      return json({ error: "CPF inválido." }, 400);
-    }
-
-    // Guard: avoid duplicate pending requests for the same email.
-    const { data: existing } = await admin
-      .from("cadastro_solicitacoes")
-      .select("id")
-      .eq("email", email)
-      .eq("status", "pendente")
-      .maybeSingle();
-    if (existing) {
-      return json({ error: "Já existe uma solicitação de cadastro pendente para este e-mail." }, 409);
-    }
-
-    // Create the auth account (password lives in auth, never in our tables).
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { nome_completo, origem: "auto_cadastro" },
-    });
-    if (createErr || !created?.user) {
-      const msg = createErr?.message || "Falha ao criar a conta.";
-      // Surface a friendly message for already-registered emails.
-      if (/already|registered|exists/i.test(msg)) {
-        return json({ error: "Este e-mail já está cadastrado. Tente entrar ou recuperar a senha." }, 409);
-      }
-      return json({ error: msg }, 400);
-    }
-
-    const userId = created.user.id;
-
-    const rollback = async (reason: string, detail?: unknown) => {
-      await admin.auth.admin.deleteUser(userId).catch(() => {});
-      log.error("request_signup_rolled_back", { reason, detail, userId });
-      const detailMsg = detail && typeof detail === "object" && "message" in (detail as any)
-        ? String((detail as any).message)
-        : detail ? String(detail) : "";
-      return json({
-        error: detailMsg ? `${reason}: ${detailMsg}` : reason,
-      }, 500);
-    };
-
-    // Profile is created as ATIVO. The AFTER INSERT trigger on public.profiles
-    // grants the base role 'assistido' automatically (idempotent, cumulative,
-    // never elevated) -> ProtectedRoute allows immediate base access.
-    const { error: profErr } = await admin.from("profiles").insert({
-      user_id: userId,
-      nome_completo,
-      cpf,
-      celular,
-      status: "ativo",
-    });
-    if (profErr) return await rollback("Não foi possível gravar o perfil", profErr);
-
-    // Keep an audited self-registration record, already resolved (auto-approved
-    // for base access). No elevated role is ever assigned by this flow.
-    const nowIso = new Date().toISOString();
-    const { data: solic, error: solErr } = await admin
-      .from("cadastro_solicitacoes")
-      .insert({
-        user_id: userId,
-        nome_completo,
-        email,
-        cpf,
-        celular,
-        status: "aprovado",
-        decidido_em: nowIso,
-      })
-      .select("id")
-      .single();
-    if (solErr) return await rollback("Não foi possível registrar a solicitação", solErr);
-
-    await admin.from("audit_logs").insert({
-      user_id: userId,
-      tabela: "cadastro_solicitacoes",
-      acao: "CADASTRO_AUTOCADASTRO",
-      registro_id: solic.id,
-      dados_novos: { nome_completo, email, origem: "tela_login", papel_inicial: "assistido", acesso: "imediato" },
-    });
-
-    log.info("request_signup_created", { userId, solicitacao: solic.id });
-    return json({
-      success: true,
-      message: "Cadastro concluído! Seu acesso de assistido já está liberado.",
-    });
-  } catch (err) {
-    log.error("request_signup_failed", { message: (err as Error).message });
-    return json({ error: "Erro interno. Tente novamente." }, 500);
-  }
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 });
