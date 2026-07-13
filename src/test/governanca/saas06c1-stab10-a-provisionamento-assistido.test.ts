@@ -128,9 +128,11 @@ describe("STAB10-A · superfícies protegidas permanecem inalteradas", () => {
     expect(src).toMatch(/<Navigate/);
   });
 
-  it("create-user preserva contrato antigo (Gestão de Usuários)", () => {
+  it("create-user preserva fluxo genérico (Gestão de Usuários)", () => {
     const src = read("supabase/functions/create-user/index.ts");
-    expect(src).toMatch(/const \{ email, password, role, profile, assistido_id/);
+    // Após STAB10-A.2 o destructure não inclui mais os campos legados;
+    // o fluxo genérico (email/password/role/profile) continua íntegro.
+    expect(src).toMatch(/const \{ email, password, role, profile \}\s*=\s*body/);
   });
 
   it("painel do assistido não foi alterado (arquivos existem intactos)", () => {
