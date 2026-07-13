@@ -63,8 +63,7 @@ Deno.serve(async (req) => {
     // qualquer escrita (auth.admin.createUser, user_roles, profiles, assistidos).
     // Resposta HTTP 200 com `success:false` para que bundles antigos, que
     // descartam o body em respostas não-2xx, ainda exibam a mensagem amigável.
-    const hasAssistidoId = Object.prototype.hasOwnProperty.call(body ?? {}, "assistido_id");
-    const hasAssistidoUpdate = Object.prototype.hasOwnProperty.call(body ?? {}, "assistido_update");
+    const { hasAssistidoId, hasAssistidoUpdate, isLegacy } = detectLegacyAssistidoPayload(body);
     if (hasAssistidoId || hasAssistidoUpdate) {
       log.warn("legacy_assistido_flow_blocked", {
         caller_id: caller.id,
