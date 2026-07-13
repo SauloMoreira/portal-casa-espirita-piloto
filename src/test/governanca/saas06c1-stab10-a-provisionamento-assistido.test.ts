@@ -20,8 +20,8 @@ describe("STAB10-A · Edge Function provisionar-acesso-assistido", () => {
   it("existe e é isolada da create-user", () => {
     expect(src.length).toBeGreaterThan(0);
     const createUser = read("supabase/functions/create-user/index.ts");
-    // create-user preserva o formato antigo do body
-    expect(createUser).toMatch(/role\s*,\s*profile\s*,\s*assistido_id/);
+    // STAB10-A.2: create-user agora BLOQUEIA o fluxo legado antes de qualquer escrita
+    expect(createUser).toMatch(/FLUXO_ASSISTIDO_LEGADO_BLOQUEADO/);
   });
 
   it("deriva caller.id exclusivamente do JWT (nunca do body)", () => {
@@ -71,17 +71,21 @@ describe("STAB10-A · Edge Function provisionar-acesso-assistido", () => {
 
 describe("STAB10-A · GerarAcessoAssistido chama a nova função", () => {
   const src = read("src/components/GerarAcessoAssistido.tsx");
+  const service = read("src/services/acesso/provisionarAcessoAssistido.ts");
 
-  it("invoca provisionar-acesso-assistido e não create-user", () => {
-    expect(src).toMatch(/provisionar-acesso-assistido/);
+  it("invoca provisionar-acesso-assistido (via service) e não create-user", () => {
+    // O componente delega ao service; o service é quem faz o invoke.
+    expect(src).toMatch(/provisionarAcessoAssistido/);
     expect(src).not.toMatch(/functions\.invoke\(\s*["']create-user["']/);
+    expect(service).toMatch(/functions\.invoke\(["']provisionar-acesso-assistido["']/);
   });
 
-  it("não envia role, instituicao_id ou user_id ao backend", () => {
-    // corpo do invoke não deve mencionar essas chaves
-    expect(src).not.toMatch(/\brole:\s*["']assistido["']/);
-    expect(src).not.toMatch(/\binstituicao_id\s*:/);
-    expect(src).not.toMatch(/\buser_id\s*:/);
+  it("não envia role, instituicao_id ou novo_user_id no corpo do invoke", () => {
+    // O invoke deve enviar apenas assistido_id/email/senha; nunca role/tenant/user_id.
+    const invokeBody = service.match(/functions\.invoke\([^)]*\{\s*body:\s*\{[^}]*\}/s)?.[0] ?? "";
+    expect(invokeBody).not.toMatch(/\brole\s*:/);
+    expect(invokeBody).not.toMatch(/\binstituicao_id\s*:/);
+    expect(invokeBody).not.toMatch(/\buser_id\s*:/);
   });
 
   it("bloqueia duplo clique (guarda por loading)", () => {
@@ -89,9 +93,9 @@ describe("STAB10-A · GerarAcessoAssistido chama a nova função", () => {
   });
 
   it("mapeia códigos amigáveis (EMAIL_EM_USO, CROSS_TENANT_ACCESS_DENIED)", () => {
-    expect(src).toMatch(/EMAIL_EM_USO/);
-    expect(src).toMatch(/CROSS_TENANT_ACCESS_DENIED/);
-    expect(src).toMatch(/ASSISTIDO_ACESSO_INCONSISTENTE/);
+    expect(service).toMatch(/EMAIL_EM_USO/);
+    expect(service).toMatch(/CROSS_TENANT_ACCESS_DENIED/);
+    expect(service).toMatch(/ASSISTIDO_ACESSO_INCONSISTENTE/);
   });
 });
 
@@ -128,9 +132,11 @@ describe("STAB10-A · superfícies protegidas permanecem inalteradas", () => {
     expect(src).toMatch(/<Navigate/);
   });
 
-  it("create-user preserva contrato antigo (Gestão de Usuários)", () => {
+  it("create-user preserva fluxo genérico (Gestão de Usuários)", () => {
     const src = read("supabase/functions/create-user/index.ts");
-    expect(src).toMatch(/const \{ email, password, role, profile, assistido_id/);
+    // Após STAB10-A.2 o destructure não inclui mais os campos legados;
+    // o fluxo genérico (email/password/role/profile) continua íntegro.
+    expect(src).toMatch(/const \{ email, password, role, profile \}\s*=\s*body/);
   });
 
   it("painel do assistido não foi alterado (arquivos existem intactos)", () => {

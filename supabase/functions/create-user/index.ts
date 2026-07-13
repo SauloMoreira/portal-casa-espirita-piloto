@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { createLogger } from "../_shared/logger.ts";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { detectLegacyAssistidoPayload } from "./legacyGuard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
@@ -44,8 +45,42 @@ Deno.serve(async (req) => {
     const isAdmin = callerRoleList.includes("admin");
     const isEntrevistador = callerRoleList.includes("entrevistador");
 
+    // Reject caller without any permitted role BEFORE parsing body / any writes.
+    if (!isAdmin && !isEntrevistador) {
+      return new Response(JSON.stringify({ error: "Sem permissão para criar usuários" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body = await req.json();
-    const { email, password, role, profile, assistido_id, assistido_update } = body;
+
+    // ── SAAS-06-C1-STAB10-A.2 — Bloqueio fail-closed do fluxo legado ──
+    // Qualquer chamada carregando `assistido_id` ou `assistido_update` (mesmo
+    // com valor null/false/vazio) pertence ao fluxo antigo, que produzia
+    // conta parcial sem `instituicao_usuarios`. O caminho canônico agora é a
+    // Edge Function `provisionar-acesso-assistido`. Bloqueamos ANTES de
+    // qualquer escrita (auth.admin.createUser, user_roles, profiles, assistidos).
+    // Resposta HTTP 200 com `success:false` para que bundles antigos, que
+    // descartam o body em respostas não-2xx, ainda exibam a mensagem amigável.
+    const { hasAssistidoId, hasAssistidoUpdate, isLegacy } = detectLegacyAssistidoPayload(body);
+    if (isLegacy) {
+      log.warn("legacy_assistido_flow_blocked", {
+        caller_id: caller.id,
+        has_assistido_id: hasAssistidoId,
+        has_assistido_update: hasAssistidoUpdate,
+      });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Este fluxo de geração de acesso foi atualizado. Recarregue a página e tente novamente.",
+          code: "FLUXO_ASSISTIDO_LEGADO_BLOQUEADO",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const { email, password, role, profile } = body;
 
     if (!email || !password || !role) {
       return new Response(JSON.stringify({ error: "Campos obrigatórios ausentes" }), {
@@ -57,13 +92,6 @@ Deno.serve(async (req) => {
     // Entrevistadores can only create assistido users
     if (!isAdmin && isEntrevistador && role !== "assistido") {
       return new Response(JSON.stringify({ error: "Entrevistadores só podem criar acesso de assistidos" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!isAdmin && !isEntrevistador) {
-      return new Response(JSON.stringify({ error: "Sem permissão para criar usuários" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -113,24 +141,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Link assistido to user if assistido_id provided.
-    // Allowlist the columns that may be updated to prevent arbitrary field overwrites.
-    if (assistido_id) {
-      const ALLOWED_ASSISTIDO_UPDATE_FIELDS = ["status", "observacoes"];
-      const safeUpdate = Object.fromEntries(
-        Object.entries(assistido_update || {}).filter(([k]) =>
-          ALLOWED_ASSISTIDO_UPDATE_FIELDS.includes(k)
-        )
-      );
-      // user_id is set last so it can never be overridden by caller-supplied data.
-      const { error: linkErr } = await adminClient.from("assistidos").update({
-        ...safeUpdate,
-        user_id: userId,
-      }).eq("id", assistido_id);
-      if (linkErr) {
-        return await rollback("não foi possível vincular o assistido");
-      }
-    }
+    // Legado (assistido_id / assistido_update) já bloqueado antes de qualquer
+    // escrita pelo guard STAB10-A.2. O vínculo institucional canônico ocorre
+    // via Edge Function `provisionar-acesso-assistido` + RPC transacional
+    // `fn_provisionar_acesso_assistido`.
+
+
 
     log.info("user_created", { by: caller.id, userId, role });
     return new Response(JSON.stringify({ success: true, user_id: userId }), {
