@@ -264,24 +264,40 @@ async function main() {
         console.log(`[${s.rotulo}] auth removido (alreadyGone=${r.alreadyGone})`);
       }
     } else {
-      for (const s of snaps) {
-        const erros = validarPrecondicoes(s);
-        if (erros.length > 0) {
-          console.error(`[${s.rotulo}] PRECONDIÇÕES DIVERGENTES:`, erros);
-          throw new Error(`Precondições falharam para ${s.rotulo}`);
-        }
-        console.log(`[${s.rotulo}] precondições OK`);
-      }
-
       if (args.modo === "dry-run") {
+        for (const s of snaps) {
+          const erros = validarPrecondicoes(s);
+          if (erros.length > 0) {
+            console.error(`[${s.rotulo}] PRECONDIÇÕES DIVERGENTES:`, erros);
+            throw new Error(`Precondições falharam para ${s.rotulo}`);
+          }
+          console.log(`[${s.rotulo}] precondições OK`);
+        }
         console.log("\n[dry-run] nenhuma escrita executada.");
         return;
       }
 
+      // execute: cada UID pode estar íntegro (fluxo completo) ou parcialmente removido (retomar)
       for (const s of snaps) {
-        console.log(`\n[${s.rotulo}] removendo objetos públicos…`);
-        const del = await removerPublico(pg, admin, s.uid, runId);
-        console.log(`[${s.rotulo}] público removido`, del);
+        const publicoIntacto = s.profileExiste && s.roles.length > 0 && s.solicitacoes.length > 0;
+        const publicoLimpo = !s.profileExiste && s.roles.length === 0 && s.solicitacoes.length === 0;
+        if (!publicoIntacto && !publicoLimpo) {
+          throw new Error(`[${s.rotulo}] estado público parcial inconsistente; investigar manualmente`);
+        }
+
+        if (publicoIntacto) {
+          const erros = validarPrecondicoes(s);
+          if (erros.length > 0) {
+            console.error(`[${s.rotulo}] PRECONDIÇÕES DIVERGENTES:`, erros);
+            throw new Error(`Precondições falharam para ${s.rotulo}`);
+          }
+          console.log(`[${s.rotulo}] precondições OK — removendo objetos públicos…`);
+          const del = await removerPublico(pg, admin, s.uid, runId);
+          console.log(`[${s.rotulo}] público removido`, del);
+        } else {
+          console.log(`[${s.rotulo}] público já removido — retomando delete Auth`);
+        }
+
         try {
           const desan = await desanexarAuditoria(admin, s.uid);
           console.log(`[${s.rotulo}] audit_logs desanexados=${desan}`);
@@ -290,7 +306,7 @@ async function main() {
         } catch (e) {
           console.error(
             `[${s.rotulo}] FALHA AO REMOVER AUTH: ${(e as Error).message}. ` +
-              `Público já foi excluído e conta permanece fail-closed. Rode com --retry-auth.`,
+              `Público já foi excluído e conta permanece fail-closed. Rode novamente com --execute.`,
           );
           throw e;
         }
