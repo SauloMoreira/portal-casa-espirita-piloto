@@ -310,8 +310,30 @@ export async function invokeProvisionar(
 }
 
 /**
+ * Cria uma instituição efêmera namespaced (para cenários cross-tenant).
+ */
+export async function seedInstituicaoEfemera(
+  tracker: CreatedIds,
+  suffix: string,
+): Promise<{ id: string; slug: string; nome: string }> {
+  const slug = `${NS}-inst-${suffix}`.toLowerCase();
+  const nome = `${NS} instituicao ${suffix}`;
+  const r = await svc<Array<{ id: string }>>("instituicoes", {
+    method: "POST",
+    prefer: "return=representation",
+    body: JSON.stringify({ nome, slug, status: "implantacao" }),
+  });
+  if (!r.ok || !r.body?.[0]?.id) {
+    throw new Error(`seedInstituicaoEfemera: ${r.status} ${JSON.stringify(r.body)}`);
+  }
+  const id = r.body[0].id;
+  tracker.instituicoes.push(id);
+  return { id, slug, nome };
+}
+
+/**
  * Cleanup integral por IDs rastreados. Ordem: tabelas públicas primeiro,
- * auth.users por último. Idempotente.
+ * auth.users por último, instituicoes por último de todos. Idempotente.
  */
 export async function cleanupTracked(tracker: CreatedIds): Promise<void> {
   // assistidos: desvincula (user_id=null) para permitir exclusão via cascade limpo.
@@ -333,6 +355,11 @@ export async function cleanupTracked(tracker: CreatedIds): Promise<void> {
   }
   for (const uid of tracker.authUsers) {
     await adminDeleteAuthUser(uid);
+  }
+  for (const id of tracker.instituicoes) {
+    await svc(`instituicao_usuarios?instituicao_id=eq.${id}`, { method: "DELETE" });
+    await svc(`assistidos?instituicao_id=eq.${id}`, { method: "DELETE" });
+    await svc(`instituicoes?id=eq.${id}`, { method: "DELETE" });
   }
 }
 
