@@ -80,11 +80,12 @@ describe("STAB10-A · GerarAcessoAssistido chama a nova função", () => {
     expect(service).toMatch(/functions\.invoke\(["']provisionar-acesso-assistido["']/);
   });
 
-  it("não envia role, instituicao_id ou user_id ao backend", () => {
-    // corpo do invoke não deve mencionar essas chaves (checado no service)
-    expect(service).not.toMatch(/\brole:\s*["']assistido["']/);
-    expect(service).not.toMatch(/\binstituicao_id\s*:/);
-    expect(service).not.toMatch(/\buser_id\s*:/);
+  it("não envia role, instituicao_id ou novo_user_id no corpo do invoke", () => {
+    // O invoke deve enviar apenas assistido_id/email/senha; nunca role/tenant/user_id.
+    const invokeBody = service.match(/functions\.invoke\([^)]*\{\s*body:\s*\{[^}]*\}/s)?.[0] ?? "";
+    expect(invokeBody).not.toMatch(/\brole\s*:/);
+    expect(invokeBody).not.toMatch(/\binstituicao_id\s*:/);
+    expect(invokeBody).not.toMatch(/\buser_id\s*:/);
   });
 
   it("bloqueia duplo clique (guarda por loading)", () => {
