@@ -141,24 +141,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Link assistido to user if assistido_id provided.
-    // Allowlist the columns that may be updated to prevent arbitrary field overwrites.
-    if (assistido_id) {
-      const ALLOWED_ASSISTIDO_UPDATE_FIELDS = ["status", "observacoes"];
-      const safeUpdate = Object.fromEntries(
-        Object.entries(assistido_update || {}).filter(([k]) =>
-          ALLOWED_ASSISTIDO_UPDATE_FIELDS.includes(k)
-        )
-      );
-      // user_id is set last so it can never be overridden by caller-supplied data.
-      const { error: linkErr } = await adminClient.from("assistidos").update({
-        ...safeUpdate,
-        user_id: userId,
-      }).eq("id", assistido_id);
-      if (linkErr) {
-        return await rollback("não foi possível vincular o assistido");
-      }
-    }
+    // Legado (assistido_id / assistido_update) já bloqueado antes de qualquer
+    // escrita pelo guard STAB10-A.2. O vínculo institucional canônico ocorre
+    // via Edge Function `provisionar-acesso-assistido` + RPC transacional
+    // `fn_provisionar_acesso_assistido`.
+
+
 
     log.info("user_created", { by: caller.id, userId, role });
     return new Response(JSON.stringify({ success: true, user_id: userId }), {
