@@ -169,7 +169,7 @@ d("STAB10-A.3 · provisionar-acesso-assistido — E2E real", () => {
     expect(instsAsUser.status).toBe(200);
     const ids = instsAsUser.body.map((i) => i.id);
     expect(ids).toContain(FER_ID);
-    expect(ids).not.toContain(SECUNDARIA_ID);
+    expect(ids).not.toContain(secundariaId);
 
     // Idempotência: segunda chamada exige already_provisioned=true
     const res2 = await invokeProvisionar(operadorJwt, {
