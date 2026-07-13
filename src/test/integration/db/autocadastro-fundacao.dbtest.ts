@@ -201,7 +201,7 @@ d("STAB10-C1.1 — índice institucional do assistido", () => {
       await expectReject(
         c,
         /ix_assistidos_inst_user_ativo/i,
-        `INSERT INTO public.assistidos (instituicao_id, user_id, nome_completo)
+        `INSERT INTO public.assistidos (instituicao_id, user_id, nome)
          VALUES ($1, $2, 'DUP TESTE C1.1')`,
         [instituicao_id, user_id],
       );
@@ -222,7 +222,7 @@ d("STAB10-C1.1 — índice institucional do assistido", () => {
       );
       if (outra.rowCount === 0) return;
       const ins = await c.query(
-        `INSERT INTO public.assistidos (instituicao_id, user_id, nome_completo)
+        `INSERT INTO public.assistidos (instituicao_id, user_id, nome)
          VALUES ($1,$2,'CROSS TENANT C1.1') RETURNING id`,
         [outra.rows[0].id, base.rows[0].user_id],
       );
@@ -232,15 +232,25 @@ d("STAB10-C1.1 — índice institucional do assistido", () => {
 
   it("linha soft-deleted não bloqueia novo vínculo ativo", async () => {
     await withRollback(async (c) => {
+      // Usa um user_id já presente em profiles para não depender de acesso ao schema auth.
       const inst = await c.query("SELECT id FROM public.instituicoes LIMIT 1");
-      const uid = (await c.query("SELECT id FROM auth.users LIMIT 1")).rows[0].id;
+      const usr = await c.query(
+        `SELECT p.user_id FROM public.profiles p
+          WHERE NOT EXISTS (
+            SELECT 1 FROM public.assistidos a
+             WHERE a.user_id = p.user_id AND a.instituicao_id = $1 AND a.deleted_at IS NULL
+          ) LIMIT 1`,
+        [inst.rows[0].id],
+      );
+      if (usr.rowCount === 0) return;
+      const uid = usr.rows[0].user_id;
       await c.query(
-        `INSERT INTO public.assistidos (instituicao_id, user_id, nome_completo, deleted_at)
+        `INSERT INTO public.assistidos (instituicao_id, user_id, nome, deleted_at)
          VALUES ($1,$2,'SOFT DELETADO C1.1', now())`,
         [inst.rows[0].id, uid],
       );
       const ins = await c.query(
-        `INSERT INTO public.assistidos (instituicao_id, user_id, nome_completo)
+        `INSERT INTO public.assistidos (instituicao_id, user_id, nome)
          VALUES ($1,$2,'NOVO ATIVO C1.1') RETURNING id`,
         [inst.rows[0].id, uid],
       );
