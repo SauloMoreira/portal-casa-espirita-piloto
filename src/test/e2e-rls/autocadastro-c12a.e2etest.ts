@@ -6,7 +6,15 @@
  * O E2E depende do mesmo conjunto de credenciais dos demais testes E2E
  * (VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY,
  * PG*). Cria SEMPRE uma instituição efêmera habilitada + um Auth user novo
- * via Admin API; ao final remove tudo.
+ * via Admin API; ao final remove tudo por IDs rastreados.
+ *
+ * FIX01-R1 — Cleanup cirúrgico:
+ *   - `audit_logs` só é removido por `id`, previamente localizado pela
+ *     combinação (ação, registro_id) rastreada; jamais por user_id, tabela,
+ *     ou filtro amplo.
+ *   - `autocadastro_idempotencia` só é removida por `idempotency_key` rastreada.
+ *   - Auth é removido por último, sempre depois das auditorias.
+ *   - Nenhum DELETE é emitido com tracker vazio.
  *
  * Restrições: NÃO invoca Edge Function pública (que não existe nesta etapa),
  * NÃO habilita a FER, NÃO usa contas reais.
@@ -77,6 +85,11 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
   const requestId = crypto.randomUUID();
   const fingerprint = `fp-${runId}`;
 
+  // Trackers cirúrgicos (FIX01-R1) — cleanup por chave/id rastreado.
+  const idempotencyKeys: string[] = [idempKey];
+  const auditIds = new Set<string>();
+  let auditosRemovidos = 0;
+
   beforeAll(async () => {
     const inst = await seedInstituicaoEfemera(tracker, `c12a-${runId}`);
     instId = inst.id;
@@ -100,13 +113,31 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
 
   afterAll(async () => {
     const svcHdr = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
-    if (userId) {
-      await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?user_id=eq.${userId}`, { method: "DELETE", headers: svcHdr });
+
+    // 1) audit_logs — coletar IDs por (ação, registro_id) rastreados; DELETE só por id.
+    for (const aid of tracker.assistidos) {
+      const r = await restSvcGet<Array<{ id: string }>>(
+        `audit_logs?acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&registro_id=eq.${aid}&select=id`,
+      );
+      for (const row of r.body ?? []) auditIds.add(row.id);
     }
-    if (instId) {
-      await fetch(`${SUPABASE_URL}/rest/v1/autocadastro_idempotencia?instituicao_id=eq.${instId}`, { method: "DELETE", headers: svcHdr });
-      await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?tabela=eq.assistidos&dados_novos->>instituicao_id=eq.${instId}`, { method: "DELETE", headers: svcHdr });
+    for (const auditId of auditIds) {
+      const del = await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?id=eq.${auditId}`, {
+        method: "DELETE",
+        headers: svcHdr,
+      });
+      if (del.ok) auditosRemovidos++;
     }
+
+    // 2) autocadastro_idempotencia — DELETE somente por idempotency_key rastreada.
+    for (const key of idempotencyKeys) {
+      await fetch(`${SUPABASE_URL}/rest/v1/autocadastro_idempotencia?idempotency_key=eq.${key}`, {
+        method: "DELETE",
+        headers: svcHdr,
+      });
+    }
+
+    // 3) Estruturas públicas + Auth por último via cleanupTracked (por IDs).
     try { await cleanupTracked(tracker); } finally {
       try {
         const res = await residuosFinais(tracker);
@@ -119,6 +150,9 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
         await closeStab10A3Pool();
       }
     }
+    // Diagnóstico: quantidade de audit_logs removidos por id.
+    // eslint-disable-next-line no-console
+    console.log(`[c12a] auditosRemovidos=${auditosRemovidos}`);
   }, 60_000);
 
   it("caminho feliz: reservar → auth criado → finalizar cria estado consistente", async () => {
@@ -176,7 +210,7 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
       restSvcGet<any[]>(`user_roles?user_id=eq.${userId}&role=eq.assistido&select=id`),
       restSvcGet<any[]>(`assistidos?id=eq.${row.assistido_id}&select=id,user_id,instituicao_id,status,email,celular`),
       restSvcGet<any[]>(`instituicao_usuarios?user_id=eq.${userId}&instituicao_id=eq.${instId}&select=id,papel_local,status`),
-      restSvcGet<any[]>(`audit_logs?registro_id=eq.${row.assistido_id}&acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&select=user_id,dados_novos`),
+      restSvcGet<any[]>(`audit_logs?registro_id=eq.${row.assistido_id}&acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&select=id,user_id,dados_novos`),
       restSvcGet<any[]>(`autocadastro_idempotencia?idempotency_key=eq.${idempKey}&select=status,assistido_id,result_code,user_id`),
     ]);
     expect(prof.body).toHaveLength(1);
@@ -191,6 +225,8 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     expect(vin.body[0].status).toBe("ativo");
     expect(aud.body).toHaveLength(1);
     expect(aud.body[0].user_id).toBe(userId);
+    // Rastrear audit para cleanup por id.
+    for (const a of aud.body) auditIds.add(a.id);
     // Sem PII
     const dados = aud.body[0].dados_novos as Record<string, unknown>;
     for (const k of ["email", "cpf", "celular", "nome", "senha", "ip", "captcha"]) {
@@ -238,15 +274,18 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
       `audit_logs?acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&registro_id=eq.${r.body[0].assistido_id}&select=id`,
     );
     expect(audCount.body.length).toBe(1);
+    for (const a of audCount.body) auditIds.add(a.id);
   }, 30_000);
 
   it("anon e authenticated NÃO conseguem chamar as RPCs via PostgREST", async () => {
     // anon
+    const kAnon = crypto.randomUUID();
+    idempotencyKeys.push(kAnon);
     const anon = await fetch(`${SUPABASE_URL}/rest/v1/rpc/fn_autocadastro_reservar`, {
       method: "POST",
       headers: { apikey: ANON_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({
-        p_idempotency_key: crypto.randomUUID(),
+        p_idempotency_key: kAnon,
         p_request_fingerprint: "x",
         p_request_id: crypto.randomUUID(),
         p_instituicao_id: instId,
@@ -262,10 +301,12 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
       body: JSON.stringify({ email, password }),
     });
     const jwt = (await login.json()).access_token as string;
+    const kAuthed = crypto.randomUUID();
+    idempotencyKeys.push(kAuthed);
     const s = await rpcAsAuthenticated(
       "fn_autocadastro_reservar",
       {
-        p_idempotency_key: crypto.randomUUID(),
+        p_idempotency_key: kAuthed,
         p_request_fingerprint: "x",
         p_request_id: crypto.randomUUID(),
         p_instituicao_id: instId,

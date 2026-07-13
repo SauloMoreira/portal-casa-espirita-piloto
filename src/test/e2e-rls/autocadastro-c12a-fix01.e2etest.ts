@@ -10,6 +10,13 @@
  *     limpa `user_id`.
  *   - anon / authenticated permanecem sem execução.
  *   - Cleanup namespaced sem resíduos.
+ *
+ * FIX01-R1 — Cleanup cirúrgico:
+ *   - `audit_logs` só é removido por `audit_logs.id`, previamente localizado
+ *     pela combinação (ação, registro_id) rastreada por assistido.
+ *   - `autocadastro_idempotencia` só é removida por `idempotency_key` rastreada.
+ *   - Auth é removido por último, sempre depois das auditorias.
+ *   - Nenhum DELETE roda com tracker vazio.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import {
@@ -71,6 +78,11 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
   const runId = crypto.randomUUID().slice(0, 8);
   let instId = "";
 
+  // Trackers cirúrgicos (FIX01-R1).
+  const idempotencyKeys: string[] = [];
+  const auditIds = new Set<string>();
+  let auditosRemovidos = 0;
+
   beforeAll(async () => {
     const inst = await seedInstituicaoEfemera(tracker, `fix01-${runId}`);
     instId = inst.id;
@@ -79,11 +91,31 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
 
   afterAll(async () => {
     const hdr = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
-    await fetch(`${SUPABASE_URL}/rest/v1/autocadastro_idempotencia?instituicao_id=eq.${instId}`, { method: "DELETE", headers: hdr });
-    for (const uid of tracker.authUsers) {
-      await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?user_id=eq.${uid}`, { method: "DELETE", headers: hdr });
+
+    // 1) audit_logs — coletar IDs por (ação, registro_id) por assistido rastreado
+    //    e DELETE somente por audit_logs.id.
+    for (const aid of tracker.assistidos) {
+      const r = await svcRow<{ id: string }>(
+        `audit_logs?acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&registro_id=eq.${aid}&select=id`,
+      );
+      for (const row of r) auditIds.add(row.id);
     }
-    await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?tabela=eq.autocadastro_idempotencia`, { method: "DELETE", headers: hdr });
+    for (const auditId of auditIds) {
+      const del = await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?id=eq.${auditId}`, {
+        method: "DELETE",
+        headers: hdr,
+      });
+      if (del.ok) auditosRemovidos++;
+    }
+
+    // 2) autocadastro_idempotencia — DELETE somente por idempotency_key rastreada.
+    for (const key of idempotencyKeys) {
+      await fetch(`${SUPABASE_URL}/rest/v1/autocadastro_idempotencia?idempotency_key=eq.${key}`, {
+        method: "DELETE",
+        headers: hdr,
+      });
+    }
+
     try { await cleanupTracked(tracker); } finally {
       try {
         const res = await residuosFinais(tracker);
@@ -96,6 +128,8 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
         await closeStab10A3Pool();
       }
     }
+    // eslint-disable-next-line no-console
+    console.log(`[fix01] auditosRemovidos=${auditosRemovidos}`);
   }, 60_000);
 
   it("retomada canônica: crash antes de finalizar; nova reserva devolve canonical_request_id=R1", async () => {
@@ -106,6 +140,7 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
     tracker.emails.push(email);
 
     const key = crypto.randomUUID();
+    idempotencyKeys.push(key);
     const R1 = crypto.randomUUID();
     const fp = `fp-fix01-${runId}`;
     const exp = new Date(Date.now() + 10 * 60_000).toISOString();
@@ -169,13 +204,16 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
       svcRow(`user_roles?user_id=eq.${uid}&role=eq.assistido&select=id`),
       svcRow(`assistidos?user_id=eq.${uid}&instituicao_id=eq.${instId}&select=id`),
       svcRow(`instituicao_usuarios?user_id=eq.${uid}&instituicao_id=eq.${instId}&select=id`),
-      svcRow(`audit_logs?acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&registro_id=eq.${r4.body[0].assistido_id}&select=id`),
+      svcRow<{ id: string }>(
+        `audit_logs?acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&registro_id=eq.${r4.body[0].assistido_id}&select=id`,
+      ),
     ]);
     expect(p.length).toBe(1);
     expect(ur.length).toBe(1);
     expect(a.length).toBe(1);
     expect(iu.length).toBe(1);
     expect(aud.length).toBe(1);
+    for (const row of aud) auditIds.add(row.id);
   }, 45_000);
 
   it("concorrência real: duas keys em Promise.all disputam o mesmo Auth user; 1 vencedora, 1 USER_ID_JA_EM_USO", async () => {
@@ -191,6 +229,7 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
     const rA = crypto.randomUUID();
     const kB = crypto.randomUUID();
     const rB = crypto.randomUUID();
+    idempotencyKeys.push(kA, kB);
 
     // Duas reservas independentes
     await Promise.all([
@@ -232,6 +271,9 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
     const exp = new Date(Date.now() + 10 * 60_000).toISOString();
     const k1 = crypto.randomUUID();
     const r1 = crypto.randomUUID();
+    const k2 = crypto.randomUUID();
+    const r2 = crypto.randomUUID();
+    idempotencyKeys.push(k1, k2);
 
     await rpc("fn_autocadastro_reservar", {
       p_idempotency_key: k1, p_request_fingerprint: fp, p_request_id: r1,
@@ -265,8 +307,6 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
     expect(fail2.body[0].result_code).toBe("rollback_falhou");
 
     // Nova key tentando associar mesmo user_id → USER_ID_JA_EM_USO (bloqueado pelo índice)
-    const k2 = crypto.randomUUID();
-    const r2 = crypto.randomUUID();
     await rpc("fn_autocadastro_reservar", {
       p_idempotency_key: k2, p_request_fingerprint: fp, p_request_id: r2,
       p_instituicao_id: instId, p_expires_at: exp,
@@ -289,6 +329,7 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
     const exp = new Date(Date.now() + 10 * 60_000).toISOString();
     const k = crypto.randomUUID();
     const req = crypto.randomUUID();
+    idempotencyKeys.push(k);
 
     await rpc("fn_autocadastro_reservar", {
       p_idempotency_key: k, p_request_fingerprint: fp, p_request_id: req,
@@ -323,7 +364,7 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
     tracker.authUsers.push(uid);
     tracker.emails.push(email);
 
-    // anon
+    // anon — usa key aleatória (bloqueado antes de gravar); não rastreamos.
     const anon = await fetch(`${SUPABASE_URL}/rest/v1/rpc/fn_autocadastro_marcar_resultado_falha`, {
       method: "POST",
       headers: { apikey: ANON_KEY, "Content-Type": "application/json" },
