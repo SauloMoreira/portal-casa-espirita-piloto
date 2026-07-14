@@ -156,14 +156,17 @@ function findTrackingIssues(file: string, text: string): Hit[] {
     // Heurística de ordem: em cada bloco que chama a RPC, o primeiro
     // expect(...) posterior deve vir DEPOIS de tracker.auditRefs.push com
     // AUTOCADASTRO_PUBLICO_ASSISTIDO.
-    const rpcRegex = /fn_autocadastro_assistido_publico/g;
-    let m: RegExpExecArray | null;
-    while ((m = rpcRegex.exec(text)) !== null) {
-      const slice = text.slice(m.index, m.index + 4000);
+    // Ordem no caminho feliz: exigir que a PRIMEIRA chamada da RPC no arquivo
+    // registre auditRef AUTOCADASTRO_PUBLICO_ASSISTIDO antes do primeiro
+    // expect sobre a resposta. Chamadas subsequentes (idempotência / retomada)
+    // reutilizam o assistidoId já rastreado e não exigem novo push.
+    const firstRpcIdx = text.search(/fn_autocadastro_assistido_publico/);
+    if (firstRpcIdx >= 0) {
+      const slice = text.slice(firstRpcIdx, firstRpcIdx + 6000);
       const firstExpect = slice.search(/expect\s*\(\s*[A-Za-z_$][\w$]*\s*\.\s*ok/);
       const firstAuditRefPush = slice.search(/tracker\.auditRefs\.push\s*\(\s*\{[^}]*AUTOCADASTRO_PUBLICO_ASSISTIDO/s);
       if (firstExpect >= 0 && (firstAuditRefPush < 0 || firstAuditRefPush > firstExpect)) {
-        push("tracker.auditRefs.push(AUTOCADASTRO_PUBLICO_ASSISTIDO) deve ocorrer ANTES do primeiro expect sobre a resposta da RPC");
+        push("tracker.auditRefs.push(AUTOCADASTRO_PUBLICO_ASSISTIDO) deve ocorrer ANTES do primeiro expect sobre a resposta da RPC no caminho feliz");
       }
     }
   }
