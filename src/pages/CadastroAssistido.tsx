@@ -33,6 +33,14 @@ export default function CadastroAssistido() {
     return crypto.randomUUID().replace(/-/g, "");
   }
 
+  function normalizarCelularBR(valor: string): string {
+    let digitos = valor.replace(/\D/g, "");
+    if (digitos.length >= 12 && digitos.startsWith("55")) {
+      digitos = digitos.slice(2);
+    }
+    return digitos;
+  }
+
 
   useEffect(() => {
     setIdempotencyKey(crypto.randomUUID());
@@ -45,6 +53,15 @@ export default function CadastroAssistido() {
       toast({ title: "Preencha todos os campos obrigatórios.", variant: "destructive" });
       return;
     }
+    const celularNormalizado = normalizarCelularBR(celular);
+    if (celularNormalizado.length < 10 || celularNormalizado.length > 11) {
+      toast({
+        title: "Celular inválido",
+        description: "Digite o celular com DDD, sem o +55 (ex: 21999998888).",
+        variant: "destructive",
+      });
+      return;
+    }
     setLoading(true);
     const senhaGerada = gerarSenhaSegura();
     try {
@@ -54,7 +71,7 @@ export default function CadastroAssistido() {
           nome_completo: nome.trim(),
           email: email.trim(),
           senha: senhaGerada,
-          celular: celular.replace(/\D/g, ""),
+          celular: celularNormalizado,
           aceite_termos: true,
           termos_versao: TERMOS_VERSAO,
           privacidade_versao: PRIVACIDADE_VERSAO,
