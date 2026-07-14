@@ -4343,6 +4343,10 @@ export type Database = {
         | { Args: { p_desde: string; p_instituicao_id: string }; Returns: Json }
       fn_normalize_phone: { Args: { p: string }; Returns: string }
       fn_notif_ping: { Args: never; Returns: string }
+      fn_notificacao_log_no_meu_tenant: {
+        Args: { _fila_id: string }
+        Returns: boolean
+      }
       fn_observabilidade_operacional:
         | { Args: { p_janela?: string }; Returns: Json }
         | {
