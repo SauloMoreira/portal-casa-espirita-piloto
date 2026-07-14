@@ -9,6 +9,34 @@ import type {
   PeriodKey,
 } from "@/types/adminDashboard";
 
+interface DashboardAdminRpcResult {
+  autorizado: boolean;
+  assistidos_total?: number;
+  trat_ativos?: number;
+  trat_concluidos?: number;
+  ent_agendadas?: number;
+  presencas_hoje?: number;
+  lista_espera?: number;
+  aguardando_agend?: number;
+  faltas_mes?: number;
+  publico_palestras?: number;
+  ent_recentes?: {
+    id: string;
+    data: string;
+    status: string;
+    assistido_id: string;
+    entrevistador_id: string | null;
+    tipo_entrevista: string;
+    assistido_nome: string;
+    entrevistador_nome: string;
+  }[];
+  trat_por_tipo?: { nome: string; count: number }[];
+  carga_tarefeiros?: { nome: string; total: number }[];
+  presenca_pontos?: { data: string; presentes: number; ausentes: number }[];
+  entrevistas_por_tipo?: { regulares: number; livres: number; realizadas: number; total: number };
+  faixa_etaria?: { name: string; value: number }[];
+}
+
 
 /** Resolve the date range for a given period key. */
 export function getPeriodRange(key: PeriodKey): DateRange {
