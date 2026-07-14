@@ -2,7 +2,7 @@
 -- Reverte SOMENTE o hardening FIX01: restaura o predicado do índice ao estado A1,
 -- remove o CHECK de coerência status × user_id e restaura as versões A1 EFETIVAS
 -- das três RPCs alteradas (marcar_auth_criado, marcar_resultado_falha,
--- assistido_publico). NÃO altera fn_autocadastro_reservar (o FIX01 não a tocou).
+-- assistido_publico). Não toca na RPC de reserva (FIX01 não a alterou).
 --
 -- Precondição: nenhuma linha viva pode violar o predicado antigo. Verificar:
 --   SELECT count(*) FROM public.autocadastro_idempotencia

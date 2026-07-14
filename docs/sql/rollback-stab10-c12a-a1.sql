@@ -1,7 +1,7 @@
 -- Rollback: SAAS-06-C1-STAB10-C1.2-A1 (hardening base)
 -- Executar APÓS aplicar rollback-stab10-c12a-fix01.sql.
--- Restaura as quatro RPCs C1.2-A EFETIVAS (considerando as migrations corretivas
--- 20260713195303 clock_timestamp e 20260713195717 use_column) e remove o índice
+-- Restaura as quatro RPCs C1.2-A EFETIVAS (incluindo as correções de
+-- clock_timestamp e #variable_conflict use_column) e remove o índice
 -- único parcial introduzido pelo A1.
 --
 -- Executar em transação única, em janela de manutenção.
