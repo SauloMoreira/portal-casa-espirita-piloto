@@ -19,6 +19,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import SolicitarCadastro from "./pages/SolicitarCadastro";
 import MfaVerify from "./pages/MfaVerify";
+import CadastroAssistido from "./pages/CadastroAssistido";
 
 // Lazy: route-split the heavier authenticated pages to lighten the initial bundle.
 const CheckinPublico = lazy(() => import("./pages/CheckinPublico"));
@@ -117,6 +118,7 @@ const App = () => (
                 <Route path={ROUTES.forgotPassword} element={<ForgotPassword />} />
                 <Route path={ROUTES.resetPassword} element={<ResetPassword />} />
                 <Route path={ROUTES.mfaVerify} element={<MfaVerify />} />
+                <Route path={ROUTES.cadastroAssistido()} element={guard(<CadastroAssistido />, "Cadastro de Assistido")} />
                 <Route path={ROUTES.checkinPublico()} element={guard(<CheckinPublico />, "Check-in Público")} />
                 <Route path={ROUTES.segurancaPrivacidade} element={guard(<SegurancaPrivacidade />, "Segurança e Privacidade")} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
