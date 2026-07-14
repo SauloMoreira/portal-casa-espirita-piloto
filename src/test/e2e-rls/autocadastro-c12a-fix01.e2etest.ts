@@ -21,6 +21,7 @@ import {
   adminGetAuthUser,
   seedInstituicaoEfemera,
   cleanupTracked,
+  residuosFinais,
   closeStab10A3Pool,
   type CreatedIds,
 } from "./_stab10a3Fixtures";
@@ -78,47 +79,28 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
 
   afterAll(async () => {
     try {
-      await cleanupTracked(tracker, { strict: true });
+      // FIX01-R1.c-FIX01 — cleanup strict NUNCA lança.
+      const { auditIssues, cleanupErrors } = await cleanupTracked(tracker, { strict: true });
 
-      // Zero resíduos ESTRUTURAL (FIX01-R1.b).
-      for (const aid of tracker.auditIds) {
-        const r = await svcRow<{ id: string }>(`audit_logs?id=eq.${aid}&select=id`);
-        expect(r.length, `resíduo audit_logs.id=${aid}`).toBe(0);
+      // Zero resíduos ESTRUTURAL — verificado ANTES de qualquer erro agregado.
+      const residuos = await residuosFinais(tracker);
+      for (const [chave, quantidade] of Object.entries(residuos)) {
+        expect(quantidade, `residuo ${chave}`).toBe(0);
       }
-      for (const ref of tracker.auditRefs) {
-        const r = await svcRow<any>(
-          `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
-        );
-        const remain = r.filter((row: any) => {
-          const k = row?.dados_novos?.idempotency_key;
-          return typeof k === "string" && k === ref.idempotencyKey;
-        });
-        expect(remain.length, `resíduo audit ${ref.acao}/${ref.registroId}`).toBe(0);
-      }
-      for (const k of tracker.idempotencyKeys) {
-        const r = await svcRow(`autocadastro_idempotencia?idempotency_key=eq.${k}&select=idempotency_key`);
-        expect(r.length, `resíduo idempotencia key=${k}`).toBe(0);
-      }
-      for (const id of tracker.assistidos) {
-        const r = await svcRow(`assistidos?id=eq.${id}&select=id`);
-        expect(r.length, `resíduo assistidos.id=${id}`).toBe(0);
-      }
-      for (const id of tracker.instituicaoUsuarios) {
-        const r = await svcRow(`instituicao_usuarios?id=eq.${id}&select=id`);
-        expect(r.length, `resíduo iu.id=${id}`).toBe(0);
-      }
-      for (const id of tracker.userRoles) {
-        const r = await svcRow(`user_roles?id=eq.${id}&select=id`);
-        expect(r.length, `resíduo user_roles.id=${id}`).toBe(0);
-      }
-      for (const uid of tracker.authUsers) {
-        const r = await svcRow(`profiles?user_id=eq.${uid}&select=user_id`);
-        expect(r.length, `resíduo profiles.user_id=${uid}`).toBe(0);
-        expect(await adminGetAuthUser(uid), `resíduo auth.users ${uid}`).toBe(null);
-      }
-      for (const id of tracker.instituicoes) {
-        const r = await svcRow(`instituicoes?id=eq.${id}&select=id`);
-        expect(r.length, `resíduo instituicoes.id=${id}`).toBe(0);
+
+      // Erro agregado somente APÓS a comprovação de zero resíduos.
+      const erros = [
+        ...cleanupErrors,
+        ...auditIssues.map(
+          (issue) =>
+            `${issue.code} acao=${issue.acao} ` +
+            `registro_id=${issue.registroId} ` +
+            `idempotency_key=${issue.idempotencyKey} ` +
+            `quantidade=${issue.quantidade}`,
+        ),
+      ];
+      if (erros.length > 0) {
+        throw new Error(`[cleanup strict] ${erros.join(" | ")}`);
       }
     } finally {
       await closeStab10A3Pool();
@@ -159,7 +141,7 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
     expect(r3.ok, JSON.stringify(r3.body)).toBe(true);
     expect(r3.body[0].canonical_request_id).toBe(R1);
 
-    const r4 = await rpc("fn_autocadastro_assistido_publico", {
+    const r4 = await rpc<any>("fn_autocadastro_assistido_publico", {
       p_request_id: R1, p_idempotency_key: key, p_request_fingerprint: fp,
       p_instituicao_id: instId, p_user_id: uid, p_email_normalizado: email,
       p_nome_completo: `FIX01 Retomada ${runId}`, p_cpf_normalizado: "",
@@ -167,19 +149,26 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
       p_termos_versao: "v1.0", p_privacidade_versao: "v1.0",
       p_aceito_em: new Date().toISOString(),
     });
-    expect(r4.ok, JSON.stringify(r4.body)).toBe(true);
-    const r4row = r4.body[0];
-    // FIX01-R1.c — tracking fail-safe antes de qualquer expect funcional.
-    if (r4row?.assistido_id) {
-      tracker.assistidos.push(r4row.assistido_id);
+    // FIX01-R1.c-FIX01 — normalizar payload PostgREST e registrar tracking
+    // ANTES de qualquer expect sobre a resposta.
+    const r4raw: any = r4.body;
+    const r4row = Array.isArray(r4raw)
+      ? r4raw[0]
+      : Array.isArray(r4raw?.data)
+        ? r4raw.data[0]
+        : r4raw?.data ?? r4raw ?? {};
+    const assistidoId = r4row?.assistido_id;
+    if (assistidoId) {
+      if (!tracker.assistidos.includes(assistidoId)) tracker.assistidos.push(assistidoId);
       tracker.auditRefs.push({
         acao: "AUTOCADASTRO_PUBLICO_ASSISTIDO",
-        registroId: r4row.assistido_id,
+        registroId: assistidoId,
         idempotencyKey: key,
       });
     }
-    expect(r4row.result_code).toBe("SUCESSO");
-    const assistidoId = r4row.assistido_id;
+    expect(r4.ok, JSON.stringify(r4.body)).toBe(true);
+    expect(r4row?.result_code).toBe("SUCESSO");
+    expect(assistidoId).toBeTruthy();
 
     const [p, ur, a, iu, aud] = await Promise.all([
       svcRow(`profiles?user_id=eq.${uid}&select=user_id`),

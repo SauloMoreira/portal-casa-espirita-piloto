@@ -417,64 +417,103 @@ async function resolveAuditRefs(
 }
 
 /**
+ * FIX01-R1.c-FIX01 — Resultado do cleanup. Modo estrito NUNCA lança;
+ * expõe auditIssues e cleanupErrors para os callers agregarem depois de
+ * verificar zero resíduos.
+ */
+export interface CleanupResult {
+  auditIssues: AuditResolutionIssue[];
+  cleanupErrors: string[];
+}
+
+async function safeStep(
+  errors: string[],
+  label: string,
+  fn: () => Promise<unknown>,
+): Promise<void> {
+  try {
+    await fn();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    errors.push(`${label}: ${msg}`);
+  }
+}
+
+/**
  * Cleanup integral por IDs rastreados. Ordem: tabelas públicas primeiro,
  * auth.users por último, instituicoes por último de todos. Idempotente.
  *
  * FIX01-R1.b — modo estrito (opts.strict=true): remove exclusivamente por
  * IDs técnicos previamente rastreados; sem DELETE amplo.
  *
- * FIX01-R1.c — mesmo com issues de auditoria (ausente/duplicada), TODO o
- * cleanup dos demais dados é executado; ao final, se houver issues, lança
- * um erro agregado com acao/registroId/idempotencyKey/quantidade.
+ * FIX01-R1.c-FIX01 — modo estrito NUNCA lança. Cada etapa é isolada; falhas
+ * operacionais são acumuladas em `cleanupErrors`. As issues de auditoria são
+ * devolvidas em `auditIssues` para o caller lançar o erro agregado somente
+ * DEPOIS de verificar zero resíduos.
  */
 export async function cleanupTracked(
   tracker: CreatedIds,
   opts: CleanupOptions = {},
-): Promise<void> {
+): Promise<CleanupResult> {
   if (opts.strict) {
+    const cleanupErrors: string[] = [];
     // 1) Resolver auditRefs (coleta issues, NUNCA lança).
-    const issues = await resolveAuditRefs(tracker);
-    // 2) Apagar audit_logs por id (inclui duplicatas).
+    let auditIssues: AuditResolutionIssue[] = [];
+    try {
+      auditIssues = await resolveAuditRefs(tracker);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      cleanupErrors.push(`resolveAuditRefs: ${msg}`);
+    }
+    // 2) audit_logs por id (inclui duplicatas resolvidas).
     for (const auditId of tracker.auditIds) {
-      await svc(`audit_logs?id=eq.${auditId}`, { method: "DELETE" });
+      await safeStep(cleanupErrors, `audit_logs.id=${auditId}`, () =>
+        svc(`audit_logs?id=eq.${auditId}`, { method: "DELETE" }),
+      );
     }
-
-    // 2) assistidos por id
+    // 3) assistidos por id
     for (const id of tracker.assistidos) {
-      await svc(`assistidos?id=eq.${id}`, { method: "DELETE" });
+      await safeStep(cleanupErrors, `assistidos.id=${id}`, () =>
+        svc(`assistidos?id=eq.${id}`, { method: "DELETE" }),
+      );
     }
-    // 3) instituicao_usuarios por id
+    // 4) instituicao_usuarios por id
     for (const id of tracker.instituicaoUsuarios) {
-      await svc(`instituicao_usuarios?id=eq.${id}`, { method: "DELETE" });
+      await safeStep(cleanupErrors, `instituicao_usuarios.id=${id}`, () =>
+        svc(`instituicao_usuarios?id=eq.${id}`, { method: "DELETE" }),
+      );
     }
-    // 4) user_roles por id
+    // 5) user_roles por id
     for (const id of tracker.userRoles) {
-      await svc(`user_roles?id=eq.${id}`, { method: "DELETE" });
+      await safeStep(cleanupErrors, `user_roles.id=${id}`, () =>
+        svc(`user_roles?id=eq.${id}`, { method: "DELETE" }),
+      );
     }
-    // 5) profiles: chave é o user_id Auth rastreado (não há id técnico próprio).
+    // 6) profiles por user_id
     for (const uid of tracker.authUsers) {
-      await svc(`profiles?user_id=eq.${uid}`, { method: "DELETE" });
+      await safeStep(cleanupErrors, `profiles.user_id=${uid}`, () =>
+        svc(`profiles?user_id=eq.${uid}`, { method: "DELETE" }),
+      );
     }
-    // 6) autocadastro_idempotencia por idempotency_key rastreada
+    // 7) autocadastro_idempotencia por idempotency_key rastreada
     for (const key of tracker.idempotencyKeys) {
-      await svc(`autocadastro_idempotencia?idempotency_key=eq.${key}`, { method: "DELETE" });
+      await safeStep(cleanupErrors, `autocadastro_idempotencia.key=${key}`, () =>
+        svc(`autocadastro_idempotencia?idempotency_key=eq.${key}`, { method: "DELETE" }),
+      );
     }
-    // 7) auth.users por UUID (por último entre registros ligados ao usuário)
+    // 8) auth.users por UUID
     for (const uid of tracker.authUsers) {
-      await adminDeleteAuthUser(uid);
+      await safeStep(cleanupErrors, `auth.users.uid=${uid}`, () =>
+        adminDeleteAuthUser(uid),
+      );
     }
-    // 8) instituicoes por id exato (depois de tudo)
+    // 9) instituicoes efêmeras por id
     for (const id of tracker.instituicoes) {
-      await svc(`instituicoes?id=eq.${id}`, { method: "DELETE" });
+      await safeStep(cleanupErrors, `instituicoes.id=${id}`, () =>
+        svc(`instituicoes?id=eq.${id}`, { method: "DELETE" }),
+      );
     }
-    // 9) FIX01-R1.c — só agora, com cleanup completo, propaga issues.
-    if (issues.length > 0) {
-      const detalhes = issues
-        .map((i) => `${i.code} acao=${i.acao} registro_id=${i.registroId} idempotency_key=${i.idempotencyKey} quantidade=${i.quantidade}`)
-        .join(" | ");
-      throw new Error(`[cleanup strict] issues de auditoria: ${detalhes}`);
-    }
-    return;
+    return { auditIssues, cleanupErrors };
   }
 
   // ------ Modo legado (retrocompatível) — usado por E2Es antigos. ------
@@ -503,20 +542,55 @@ export async function cleanupTracked(
     await svc(`assistidos?instituicao_id=eq.${id}`, { method: "DELETE" });
     await svc(`instituicoes?id=eq.${id}`, { method: "DELETE" });
   }
+  return { auditIssues: [], cleanupErrors: [] };
 }
 
 /**
  * Confirma zero resíduos por IDs rastreados + por prefixo de nome/email.
- * Retorna dicionário de contagens residuais.
+ * FIX01-R1.c-FIX01 — inclui audit_logs (por id e por combinação
+ * acao+registro_id+idempotency_key) e autocadastro_idempotencia
+ * (por idempotency_key), para permitir asserção estrutural única
+ * via residuosFinais no afterAll dos E2Es.
  */
 export async function residuosFinais(
   tracker: CreatedIds,
 ): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
+  // audit_logs por id rastreado
+  for (const aid of tracker.auditIds) {
+    const r = await svc<Array<unknown>>(`audit_logs?id=eq.${aid}&select=id`);
+    counts[`audit_logs.id:${aid}`] = (r.body ?? []).length;
+  }
+  // audit_logs por combinação (acao + registro_id + idempotency_key)
+  for (const ref of tracker.auditRefs) {
+    const r = await svc<Array<{ dados_novos: Record<string, unknown> | null }>>(
+      `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
+    );
+    const remain = (r.body ?? []).filter((row) => {
+      const k = (row.dados_novos as Record<string, unknown> | null)?.idempotency_key;
+      return typeof k === "string" && k === ref.idempotencyKey;
+    });
+    counts[`audit_logs.ref:${ref.acao}/${ref.registroId}`] = remain.length;
+  }
+  // autocadastro_idempotencia por key rastreada
+  for (const key of tracker.idempotencyKeys) {
+    const r = await svc<Array<unknown>>(
+      `autocadastro_idempotencia?idempotency_key=eq.${key}&select=idempotency_key`,
+    );
+    counts[`autocadastro_idempotencia:${key}`] = (r.body ?? []).length;
+  }
   // Por IDs rastreados
   for (const id of tracker.assistidos) {
     const r = await svc<Array<unknown>>(`assistidos?id=eq.${id}&select=id`);
     counts[`assistidos:${id}`] = (r.body ?? []).length;
+  }
+  for (const id of tracker.instituicaoUsuarios) {
+    const r = await svc<Array<unknown>>(`instituicao_usuarios?id=eq.${id}&select=id`);
+    counts[`instituicao_usuarios:${id}`] = (r.body ?? []).length;
+  }
+  for (const id of tracker.userRoles) {
+    const r = await svc<Array<unknown>>(`user_roles?id=eq.${id}&select=id`);
+    counts[`user_roles:${id}`] = (r.body ?? []).length;
   }
   for (const uid of tracker.authUsers) {
     const [p, ur, iu, a, au] = await Promise.all([
@@ -527,8 +601,8 @@ export async function residuosFinais(
       adminGetAuthUser(uid),
     ]);
     counts[`profiles:${uid}`] = (p.body ?? []).length;
-    counts[`user_roles:${uid}`] = (ur.body ?? []).length;
-    counts[`instituicao_usuarios:${uid}`] = (iu.body ?? []).length;
+    counts[`user_roles.user_id:${uid}`] = (ur.body ?? []).length;
+    counts[`instituicao_usuarios.user_id:${uid}`] = (iu.body ?? []).length;
     counts[`assistidos.user_id:${uid}`] = (a.body ?? []).length;
     counts[`auth.users:${uid}`] = au ? 1 : 0;
   }

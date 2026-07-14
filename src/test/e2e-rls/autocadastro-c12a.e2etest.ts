@@ -24,8 +24,8 @@ import {
   adminCreateAuthUser,
   seedInstituicaoEfemera,
   cleanupTracked,
+  residuosFinais,
   closeStab10A3Pool,
-  adminGetAuthUser,
   type CreatedIds,
 } from "./_stab10a3Fixtures";
 
@@ -106,60 +106,28 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
 
   afterAll(async () => {
     try {
-      await cleanupTracked(tracker, { strict: true });
+      // FIX01-R1.c-FIX01 — cleanup strict NUNCA lança.
+      const { auditIssues, cleanupErrors } = await cleanupTracked(tracker, { strict: true });
 
-      // FIX01-R1.b — Zero resíduos ESTRUTURAL (falha se sobrar qualquer coisa).
-      // 1) audit_logs por auditIds rastreados
-      for (const aid of tracker.auditIds) {
-        const r = await restSvcGet<any[]>(`audit_logs?id=eq.${aid}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo audit_logs.id=${aid}`).toBe(0);
+      // Zero resíduos ESTRUTURAL — verificado ANTES de qualquer erro agregado.
+      const residuos = await residuosFinais(tracker);
+      for (const [chave, quantidade] of Object.entries(residuos)) {
+        expect(quantidade, `residuo ${chave}`).toBe(0);
       }
-      // 2) audit_logs por combinação (ação + registro_id + idempotency_key)
-      for (const ref of tracker.auditRefs) {
-        const r = await restSvcGet<any[]>(
-          `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
-        );
-        const remain = (r.body ?? []).filter((row: any) => {
-          const k = row?.dados_novos?.idempotency_key;
-          return typeof k === "string" && k === ref.idempotencyKey;
-        });
-        expect(remain.length, `resíduo audit ref ${ref.acao}/${ref.registroId}`).toBe(0);
-      }
-      // 3) autocadastro_idempotencia por idempotencyKeys
-      for (const k of tracker.idempotencyKeys) {
-        const r = await restSvcGet<any[]>(
-          `autocadastro_idempotencia?idempotency_key=eq.${k}&select=idempotency_key`,
-        );
-        expect(r.body?.length ?? 0, `resíduo idempotencia key=${k}`).toBe(0);
-      }
-      // 4) assistidos por id
-      for (const id of tracker.assistidos) {
-        const r = await restSvcGet<any[]>(`assistidos?id=eq.${id}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo assistidos.id=${id}`).toBe(0);
-      }
-      // 5) instituicao_usuarios por id
-      for (const id of tracker.instituicaoUsuarios) {
-        const r = await restSvcGet<any[]>(`instituicao_usuarios?id=eq.${id}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo iu.id=${id}`).toBe(0);
-      }
-      // 6) user_roles por id
-      for (const id of tracker.userRoles) {
-        const r = await restSvcGet<any[]>(`user_roles?id=eq.${id}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo user_roles.id=${id}`).toBe(0);
-      }
-      // 7) profiles por user_id
-      for (const uid of tracker.authUsers) {
-        const r = await restSvcGet<any[]>(`profiles?user_id=eq.${uid}&select=user_id`);
-        expect(r.body?.length ?? 0, `resíduo profiles.user_id=${uid}`).toBe(0);
-      }
-      // 8) auth.users por UUID
-      for (const uid of tracker.authUsers) {
-        expect(await adminGetAuthUser(uid), `resíduo auth.users ${uid}`).toBe(null);
-      }
-      // 9) instituicoes por id
-      for (const id of tracker.instituicoes) {
-        const r = await restSvcGet<any[]>(`instituicoes?id=eq.${id}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo instituicoes.id=${id}`).toBe(0);
+
+      // Erro agregado somente APÓS a comprovação de zero resíduos.
+      const erros = [
+        ...cleanupErrors,
+        ...auditIssues.map(
+          (issue) =>
+            `${issue.code} acao=${issue.acao} ` +
+            `registro_id=${issue.registroId} ` +
+            `idempotency_key=${issue.idempotencyKey} ` +
+            `quantidade=${issue.quantidade}`,
+        ),
+      ];
+      if (erros.length > 0) {
+        throw new Error(`[cleanup strict] ${erros.join(" | ")}`);
       }
     } finally {
       await closeStab10A3Pool();
@@ -188,7 +156,7 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     expect(r2.ok, JSON.stringify(r2.body)).toBe(true);
     expect(r2.body[0].result_code).toBe("AUTH_CRIADO");
 
-    const r3 = await rpcSvc<Array<{ result_code: string; assistido_id: string; instituicao_id: string }>>(
+    const r3 = await rpcSvc<any>(
       "fn_autocadastro_assistido_publico",
       {
         p_request_id: requestId,
@@ -205,28 +173,34 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
         p_aceito_em: new Date().toISOString(),
       },
     );
-    expect(r3.ok, JSON.stringify(r3.body)).toBe(true);
-    const row = r3.body[0];
-    // FIX01-R1.c — tracking fail-safe: armazenar assistido_id e auditRef
-    // ANTES de qualquer expect funcional subsequente.
-    if (row?.assistido_id) {
-      tracker.assistidos.push(row.assistido_id);
+    // FIX01-R1.c-FIX01 — normalizar payload PostgREST (array/data.data/data)
+    // e registrar tracking ANTES de qualquer expect sobre a resposta.
+    const rawBody: any = r3.body;
+    const row = Array.isArray(rawBody)
+      ? rawBody[0]
+      : Array.isArray(rawBody?.data)
+        ? rawBody.data[0]
+        : rawBody?.data ?? rawBody ?? {};
+    const assistidoId = row?.assistido_id;
+    if (assistidoId) {
+      if (!tracker.assistidos.includes(assistidoId)) tracker.assistidos.push(assistidoId);
       tracker.auditRefs.push({
         acao: "AUTOCADASTRO_PUBLICO_ASSISTIDO",
-        registroId: row.assistido_id,
+        registroId: assistidoId,
         idempotencyKey: idempKey,
       });
     }
-    expect(row.result_code).toBe("SUCESSO");
+    expect(r3.ok, JSON.stringify(r3.body)).toBe(true);
+    expect(row?.result_code).toBe("SUCESSO");
     expect(row.instituicao_id).toBe(instId);
-    expect(row.assistido_id).toBeTruthy();
+    expect(assistidoId).toBeTruthy();
 
     const [prof, roles, ass, vin, aud, idem] = await Promise.all([
       restSvcGet<any[]>(`profiles?user_id=eq.${userId}&select=user_id,nome_completo,status`),
       restSvcGet<any[]>(`user_roles?user_id=eq.${userId}&role=eq.assistido&select=id`),
-      restSvcGet<any[]>(`assistidos?id=eq.${row.assistido_id}&select=id,user_id,instituicao_id,status,email,celular`),
+      restSvcGet<any[]>(`assistidos?id=eq.${assistidoId}&select=id,user_id,instituicao_id,status,email,celular`),
       restSvcGet<any[]>(`instituicao_usuarios?user_id=eq.${userId}&instituicao_id=eq.${instId}&select=id,papel_local,status`),
-      restSvcGet<any[]>(`audit_logs?registro_id=eq.${row.assistido_id}&acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&select=id,user_id,dados_novos`),
+      restSvcGet<any[]>(`audit_logs?registro_id=eq.${assistidoId}&acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&select=id,user_id,dados_novos`),
       restSvcGet<any[]>(`autocadastro_idempotencia?idempotency_key=eq.${idempKey}&select=status,assistido_id,result_code,user_id`),
     ]);
     expect(prof.body).toHaveLength(1);
@@ -252,7 +226,7 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     expect(idem.body).toHaveLength(1);
     expect(idem.body[0].status).toBe("concluido");
     expect(idem.body[0].result_code).toBe("SUCESSO");
-    expect(idem.body[0].assistido_id).toBe(row.assistido_id);
+    expect(idem.body[0].assistido_id).toBe(assistidoId);
   }, 30_000);
 
   it("reexecução da finalização é idempotente e não duplica escrita", async () => {
