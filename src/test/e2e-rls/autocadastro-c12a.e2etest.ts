@@ -109,13 +109,22 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
       // FIX01-R1.c-FIX01 — cleanup strict NUNCA lança.
       const { auditIssues, cleanupErrors } = await cleanupTracked(tracker, { strict: true });
 
-      // Zero resíduos ESTRUTURAL — verificado ANTES de qualquer erro agregado.
-      const residuos = await residuosFinais(tracker);
-      for (const [chave, quantidade] of Object.entries(residuos)) {
-        expect(quantidade, `residuo ${chave}`).toBe(0);
+      // FIX01-R1.c-FIX02 — residuosFinais pode lançar em falha HTTP/formato;
+      // agrega em verificationErrors sem interromper o fluxo.
+      const verificationErrors: string[] = [];
+      try {
+        const residuos = await residuosFinais(tracker);
+        for (const [chave, quantidade] of Object.entries(residuos)) {
+          if (quantidade !== 0) {
+            verificationErrors.push(`residuo ${chave} quantidade=${quantidade}`);
+          }
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        verificationErrors.push(`residuosFinais: ${msg}`);
       }
 
-      // Erro agregado somente APÓS a comprovação de zero resíduos.
+      // Erro agregado somente APÓS coletar cleanupErrors + auditIssues + verificationErrors.
       const erros = [
         ...cleanupErrors,
         ...auditIssues.map(
@@ -125,6 +134,7 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
             `idempotency_key=${issue.idempotencyKey} ` +
             `quantidade=${issue.quantidade}`,
         ),
+        ...verificationErrors,
       ];
       if (erros.length > 0) {
         throw new Error(`[cleanup strict] ${erros.join(" | ")}`);
