@@ -87,7 +87,10 @@ export default function SegurancaConta() {
   };
 
   const auditEvent = (evento: string, detalhe?: string) =>
-    supabase.functions.invoke("mfa-manager", { body: { action: "audit", evento, detalhe } }).catch(() => {});
+    supabase.functions.invoke("mfa-manager", { body: { action: "audit", evento, detalhe } })
+      .catch((err) => {
+        console.error(`[auditoria-mfa] Falha ao registrar evento "${evento}":`, err);
+      });
 
   // Step 1: confirm current password, then enroll a TOTP factor.
   const startActivation = async () => {
