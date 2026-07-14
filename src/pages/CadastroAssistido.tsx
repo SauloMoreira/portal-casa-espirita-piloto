@@ -71,7 +71,7 @@ export default function CadastroAssistido() {
           nome_completo: nome.trim(),
           email: email.trim(),
           senha: senhaGerada,
-          celular: celular.replace(/\D/g, ""),
+          celular: celularNormalizado,
           aceite_termos: true,
           termos_versao: TERMOS_VERSAO,
           privacidade_versao: PRIVACIDADE_VERSAO,
