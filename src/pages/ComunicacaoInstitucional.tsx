@@ -140,7 +140,11 @@ export default function ComunicacaoInstitucional() {
   const handleDisparar = async (c: ComunicacaoInstitucional) => {
     setEnviando(true);
     try {
-      const r: any = await dispararLote(c.id, LOTE_PADRAO);
+      const r = (await dispararLote(c.id, LOTE_PADRAO)) as {
+        enviados?: number;
+        falhas?: number;
+        bloqueados?: number;
+      };
       toast({
         title: "Lote processado",
         description: `Enviados: ${r?.enviados ?? 0} · Falhas: ${r?.falhas ?? 0} · Bloqueados: ${r?.bloqueados ?? 0}.`,
