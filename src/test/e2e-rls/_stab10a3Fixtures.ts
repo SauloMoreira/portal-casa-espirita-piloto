@@ -547,16 +547,50 @@ export async function cleanupTracked(
 
 /**
  * Confirma zero resíduos por IDs rastreados + por prefixo de nome/email.
- * Retorna dicionário de contagens residuais.
+ * FIX01-R1.c-FIX01 — inclui audit_logs (por id e por combinação
+ * acao+registro_id+idempotency_key) e autocadastro_idempotencia
+ * (por idempotency_key), para permitir asserção estrutural única
+ * via residuosFinais no afterAll dos E2Es.
  */
 export async function residuosFinais(
   tracker: CreatedIds,
 ): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
+  // audit_logs por id rastreado
+  for (const aid of tracker.auditIds) {
+    const r = await svc<Array<unknown>>(`audit_logs?id=eq.${aid}&select=id`);
+    counts[`audit_logs.id:${aid}`] = (r.body ?? []).length;
+  }
+  // audit_logs por combinação (acao + registro_id + idempotency_key)
+  for (const ref of tracker.auditRefs) {
+    const r = await svc<Array<{ dados_novos: Record<string, unknown> | null }>>(
+      `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
+    );
+    const remain = (r.body ?? []).filter((row) => {
+      const k = (row.dados_novos as Record<string, unknown> | null)?.idempotency_key;
+      return typeof k === "string" && k === ref.idempotencyKey;
+    });
+    counts[`audit_logs.ref:${ref.acao}/${ref.registroId}`] = remain.length;
+  }
+  // autocadastro_idempotencia por key rastreada
+  for (const key of tracker.idempotencyKeys) {
+    const r = await svc<Array<unknown>>(
+      `autocadastro_idempotencia?idempotency_key=eq.${key}&select=idempotency_key`,
+    );
+    counts[`autocadastro_idempotencia:${key}`] = (r.body ?? []).length;
+  }
   // Por IDs rastreados
   for (const id of tracker.assistidos) {
     const r = await svc<Array<unknown>>(`assistidos?id=eq.${id}&select=id`);
     counts[`assistidos:${id}`] = (r.body ?? []).length;
+  }
+  for (const id of tracker.instituicaoUsuarios) {
+    const r = await svc<Array<unknown>>(`instituicao_usuarios?id=eq.${id}&select=id`);
+    counts[`instituicao_usuarios:${id}`] = (r.body ?? []).length;
+  }
+  for (const id of tracker.userRoles) {
+    const r = await svc<Array<unknown>>(`user_roles?id=eq.${id}&select=id`);
+    counts[`user_roles:${id}`] = (r.body ?? []).length;
   }
   for (const uid of tracker.authUsers) {
     const [p, ur, iu, a, au] = await Promise.all([
@@ -567,8 +601,8 @@ export async function residuosFinais(
       adminGetAuthUser(uid),
     ]);
     counts[`profiles:${uid}`] = (p.body ?? []).length;
-    counts[`user_roles:${uid}`] = (ur.body ?? []).length;
-    counts[`instituicao_usuarios:${uid}`] = (iu.body ?? []).length;
+    counts[`user_roles.user_id:${uid}`] = (ur.body ?? []).length;
+    counts[`instituicao_usuarios.user_id:${uid}`] = (iu.body ?? []).length;
     counts[`assistidos.user_id:${uid}`] = (a.body ?? []).length;
     counts[`auth.users:${uid}`] = au ? 1 : 0;
   }
