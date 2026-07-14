@@ -46,7 +46,7 @@ export default function CoordenadorTratamentos() {
         .in("id", tratIds);
 
       if (!meusTrat || meusTrat.length === 0) { setItems([]); return; }
-      const tratMap = Object.fromEntries(meusTrat.map((t: any) => [t.id, t.nome]));
+      const tratMap = Object.fromEntries(meusTrat.map((t) => [t.id, t.nome]));
 
       const { data: vinculos } = await supabase
         .from("assistido_tratamentos")
@@ -56,12 +56,12 @@ export default function CoordenadorTratamentos() {
 
       if (!vinculos || vinculos.length === 0) { setItems([]); return; }
 
-      const assistidoIds = [...new Set(vinculos.map((v: any) => v.assistido_id))];
+      const assistidoIds = [...new Set(vinculos.map((v) => v.assistido_id))];
       const { data: assistidos } = await supabase.from("assistidos").select("id, nome").in("id", assistidoIds);
-      const assistMap = Object.fromEntries((assistidos || []).map((a: any) => [a.id, a.nome]));
+      const assistMap = Object.fromEntries((assistidos || []).map((a) => [a.id, a.nome]));
 
       const today = format(new Date(), "yyyy-MM-dd");
-      const vinculoIds = vinculos.map((v: any) => v.id);
+      const vinculoIds = vinculos.map((v) => v.id);
       const { data: agendas } = await supabase
         .from("agenda_tratamentos_assistido")
         .select("assistido_tratamento_id, data_sessao")
@@ -71,13 +71,13 @@ export default function CoordenadorTratamentos() {
         .order("data_sessao", { ascending: true });
 
       const nextSessionMap: Record<string, string> = {};
-      for (const a of (agendas || []) as any[]) {
+      for (const a of (agendas || [])) {
         if (!nextSessionMap[a.assistido_tratamento_id]) {
           nextSessionMap[a.assistido_tratamento_id] = a.data_sessao;
         }
       }
 
-      setItems(vinculos.map((v: any) => ({
+      setItems(vinculos.map((v) => ({
         id: v.id,
         assistido_nome: assistMap[v.assistido_id] || "—",
         tratamento_nome: tratMap[v.tratamento_id] || "—",
