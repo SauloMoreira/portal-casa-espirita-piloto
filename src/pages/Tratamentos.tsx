@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, Heart, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
