@@ -467,6 +467,13 @@ export async function cleanupTracked(
     for (const id of tracker.instituicoes) {
       await svc(`instituicoes?id=eq.${id}`, { method: "DELETE" });
     }
+    // 9) FIX01-R1.c — só agora, com cleanup completo, propaga issues.
+    if (issues.length > 0) {
+      const detalhes = issues
+        .map((i) => `${i.code} acao=${i.acao} registro_id=${i.registroId} idempotency_key=${i.idempotencyKey} quantidade=${i.quantidade}`)
+        .join(" | ");
+      throw new Error(`[cleanup strict] issues de auditoria: ${detalhes}`);
+    }
     return;
   }
 
