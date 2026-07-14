@@ -359,7 +359,22 @@ export interface CleanupOptions {
   strict?: boolean;
 }
 
-async function resolveAuditRefs(tracker: CreatedIds): Promise<void> {
+export type AuditResolutionIssue = {
+  code: "AUDITORIA_OBRIGATORIA_AUSENTE" | "AUDITORIA_DUPLICADA";
+  acao: string;
+  registroId: string;
+  idempotencyKey: string;
+  quantidade: number;
+};
+
+/**
+ * FIX01-R1.c — Resolução resiliente: nunca lança.
+ * Retorna issues coletadas. Duplicatas → todos os IDs vão para auditIds.
+ */
+async function resolveAuditRefs(
+  tracker: CreatedIds,
+): Promise<AuditResolutionIssue[]> {
+  const issues: AuditResolutionIssue[] = [];
   for (const ref of tracker.auditRefs) {
     if (ref.id) {
       if (!tracker.auditIds.includes(ref.id)) tracker.auditIds.push(ref.id);
@@ -368,18 +383,37 @@ async function resolveAuditRefs(tracker: CreatedIds): Promise<void> {
     const rows = await svc<Array<{ id: string; dados_novos: Record<string, unknown> | null }>>(
       `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
     );
-    const match = (rows.body ?? []).find((r) => {
+    const matches = (rows.body ?? []).filter((r) => {
       const key = (r.dados_novos as Record<string, unknown> | null)?.idempotency_key;
       return typeof key === "string" && key === ref.idempotencyKey;
     });
-    if (!match) {
-      throw new Error(
-        `[cleanup strict] auditoria obrigatória ausente: acao=${ref.acao} registro_id=${ref.registroId} idempotency_key=${ref.idempotencyKey}`,
-      );
+    if (matches.length === 0) {
+      issues.push({
+        code: "AUDITORIA_OBRIGATORIA_AUSENTE",
+        acao: ref.acao,
+        registroId: ref.registroId,
+        idempotencyKey: ref.idempotencyKey,
+        quantidade: 0,
+      });
+      continue;
     }
-    ref.id = match.id;
-    if (!tracker.auditIds.includes(match.id)) tracker.auditIds.push(match.id);
+    for (const m of matches) {
+      if (!tracker.auditIds.includes(m.id)) tracker.auditIds.push(m.id);
+    }
+    if (matches.length === 1) {
+      ref.id = matches[0].id;
+    } else {
+      ref.id = matches[0].id;
+      issues.push({
+        code: "AUDITORIA_DUPLICADA",
+        acao: ref.acao,
+        registroId: ref.registroId,
+        idempotencyKey: ref.idempotencyKey,
+        quantidade: matches.length,
+      });
+    }
   }
+  return issues;
 }
 
 /**
@@ -388,17 +422,23 @@ async function resolveAuditRefs(tracker: CreatedIds): Promise<void> {
  *
  * FIX01-R1.b — modo estrito (opts.strict=true): remove exclusivamente por
  * IDs técnicos previamente rastreados; sem DELETE amplo.
+ *
+ * FIX01-R1.c — mesmo com issues de auditoria (ausente/duplicada), TODO o
+ * cleanup dos demais dados é executado; ao final, se houver issues, lança
+ * um erro agregado com acao/registroId/idempotencyKey/quantidade.
  */
 export async function cleanupTracked(
   tracker: CreatedIds,
   opts: CleanupOptions = {},
 ): Promise<void> {
   if (opts.strict) {
-    // 1) Resolver e apagar audit_logs SOMENTE por id.
-    await resolveAuditRefs(tracker);
+    // 1) Resolver auditRefs (coleta issues, NUNCA lança).
+    const issues = await resolveAuditRefs(tracker);
+    // 2) Apagar audit_logs por id (inclui duplicatas).
     for (const auditId of tracker.auditIds) {
       await svc(`audit_logs?id=eq.${auditId}`, { method: "DELETE" });
     }
+
     // 2) assistidos por id
     for (const id of tracker.assistidos) {
       await svc(`assistidos?id=eq.${id}`, { method: "DELETE" });
