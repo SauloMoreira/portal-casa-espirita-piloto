@@ -166,6 +166,7 @@ export default function PortalAdmin() {
                   <tr>
                     <th className="py-2 pr-4">Instituição</th>
                     <th className="py-2 pr-4">Status</th>
+                    <th className="py-2 pr-4">Autocadastro</th>
                     <th className="py-2 pr-4">Plano</th>
                     <th className="py-2 pr-4">Assinatura</th>
                     <th className="py-2 pr-4">Trial até</th>
