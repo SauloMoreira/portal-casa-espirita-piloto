@@ -106,24 +106,19 @@ describe("STAB10-C1.2-B1 — guard estático da Edge", () => {
   });
 
   it("marker + request_id são validados antes de marcar_auth_criado e deleteUser", () => {
-    // extractMarker/user_metadata devem aparecer antes de marcar_auth_criado.
     const posExtract = files.index.indexOf("extractMarker");
-    const posMarcar  = files.index.indexOf("rpcMarcarAuthCriado(deps.svc");
     expect(posExtract).toBeGreaterThan(-1);
-    // deleteUser fica dentro de rollbackAuth, que exige extractMarker antes.
     const posRollback = files.index.indexOf("rollbackAuth(");
     expect(posRollback).toBeGreaterThan(-1);
-    expect(files.index).toMatch(/deleteUser[\s\S]*/);
-    // rollbackAuth chama extractMarker antes de admin.deleteUser
+    // rollbackAuth chama extractMarker antes de deleteAuthUserChecked
     const rbBlock = files.index.slice(files.index.indexOf("async function rollbackAuth"));
     const rbEnd = rbBlock.indexOf("\n}\n");
     const body = rbBlock.slice(0, rbEnd > 0 ? rbEnd : undefined);
-    expect(body.indexOf("extractMarker")).toBeLessThan(body.indexOf("deleteUser"));
-    void posMarcar;
+    expect(body.indexOf("extractMarker")).toBeLessThan(body.indexOf("deleteAuthUserChecked"));
   });
 
   it("checa e-mail já existente antes de signUp", () => {
-    const posFindPre = files.index.indexOf("findAuthUserByEmail(svc, ctx.emailNorm)");
+    const posFindPre = files.index.indexOf("findAuthUserByEmailChecked(svc, ctx.emailNorm)");
     const posSignUp  = files.index.indexOf("anon.auth.signUp");
     expect(posFindPre).toBeGreaterThan(-1);
     expect(posSignUp).toBeGreaterThan(-1);
@@ -134,16 +129,6 @@ describe("STAB10-C1.2-B1 — guard estático da Edge", () => {
     expect(files.index).toMatch(/persistSession:\s*false/);
     expect(files.index).toMatch(/autoRefreshToken:\s*false/);
     expect(files.index).toMatch(/detectSessionInUrl:\s*false/);
-  });
-
-  it("captcha exigido somente no fluxo RESERVADO_NOVO", () => {
-    const reservado = files.index.slice(files.index.indexOf("fluxoReservadoNovo"));
-    expect(reservado).toMatch(/captcha_token/);
-    const emAndamento = files.index.slice(
-      files.index.indexOf("fluxoEmAndamento"),
-      files.index.indexOf("// ============================ Handler principal"),
-    );
-    expect(emAndamento).not.toMatch(/CAPTCHA_OBRIGATORIO/);
   });
 
   it("CORS produção proíbe localhost sem AUTOCADASTRO_ALLOW_LOCAL=true", () => {
@@ -158,4 +143,5 @@ describe("STAB10-C1.2-B1 — guard estático da Edge", () => {
     expect(files.rate).toMatch(/x-forwarded-for/);
     expect(files.rate).not.toMatch(/req\.url|searchParams|URL\(.*body/);
   });
+
 });

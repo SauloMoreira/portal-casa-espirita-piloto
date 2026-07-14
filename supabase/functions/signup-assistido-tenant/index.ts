@@ -1,30 +1,17 @@
 /**
- * SAAS-06-C1-STAB10-C1.2-B1 — Edge pública de autocadastro tenant-aware.
+ * SAAS-06-C1-STAB10-C1.2-B1-FIX01 — Edge pública tenant-aware do autocadastro.
  *
- * NÃO retorna sessão, access_token, refresh_token, user_id, instituicao_id
- * ou o marcador técnico. Códigos funcionais estáveis; PII nunca é logada.
- *
- * Fluxo (resumo — detalhes por bloco):
- *   1. CORS fail-closed + preflight.
- *   2. Método POST + body ≤ 8 KB + Content-Type application/json.
- *   3. Timeout global de 15s via AbortSignal.
- *   4. Validação Zod + normalização.
- *   5. Resolução tenant via slug (server-side).
- *   6. Rate-limit persistente (IP → email → instituição).
- *   7. Fingerprint HMAC v1 (sem senha/captcha).
- *   8. `fn_autocadastro_reservar` — dispatch por result_code:
- *        RESERVADO_NOVO       → captcha obrigatório → checagem prévia de e-mail
- *                                → signUp → verificação Auth Admin exigindo
- *                                  marker + request_id + email → marcar_auth_criado
- *                                → assistido_publico → next_action.
- *        EM_ANDAMENTO         → 202 se recente; recuperação de crash se antigo.
- *        RETOMAR_AUTH_CRIADO  → valida Auth Admin (marker/req_id/email) →
- *                                assistido_publico → next_action.
- *        CONCLUIDO            → next_action derivado do Auth Admin.
- *        FALHA_ANTERIOR       → AUTOCADASTRO_INDISPONIVEL_RETENTAR.
- *        ROLLBACK_FALHOU      → AUTOCADASTRO_INDISPONIVEL_RETENTAR + log crítico.
- *   9. Rollback com ownership check (marker) antes de deleteUser.
- *  10. `fn_autocadastro_marcar_resultado_falha` sempre com código técnico estável.
+ * Correções obrigatórias (FIX01):
+ *  - Request IDs separados: correlation_id (só logs), request_id_inicial
+ *    (server-side), canonical_request_id (devolvido pela reserva).
+ *  - Auth Admin sempre via helpers "checked" (sem `.catch(() => null)`).
+ *  - Timeout cooperativo baseado em deadline (sem Promise.race).
+ *  - Reconciliação (leituras curtas) antes de rollback final.
+ *  - Env fail-closed; redirect obrigatório validado por allowlist server-side.
+ *  - CONCLUIDO exige Auth real; LOGIN/CONFIRM_EMAIL derivam do Auth confirmado.
+ *  - RETOMAR_AUTH_CRIADO: ownership divergente NÃO exclui; marca falha.
+ *  - Reserva EM_ANDAMENTO por `created_at` (nunca por updated_at).
+ *  - Rate-limit: IP fail-closed → 503 AUTOCADASTRO_INDISPONIVEL_RETENTAR.
  */
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
@@ -35,58 +22,44 @@ import {
   computeAuthMarker,
   computeFingerprint,
   fingerprintMaterial,
+  isValidUuid,
   normalizeCelular,
   normalizeCpf,
   normalizeEmail,
   normalizeNome,
+  sanitizeCorrelationId,
   validateCelular,
   validateCpf,
   type SignupBody,
 } from "./contract.ts";
 import { enforceAll, extractClientIp } from "./rateLimit.ts";
+import {
+  deleteAuthUserChecked,
+  extractMarker,
+  findAuthUserByEmailChecked,
+  getAuthUserByIdChecked,
+  readEnvChecked,
+  type AuthUserMinimo,
+  type EnvSeguro,
+} from "./authAdmin.ts";
 
-// ============================ Env / const ==================================
+// ============================ Constantes ===================================
 
-const TIMEOUT_MS   = 15_000;
-const BODY_MAX     = 8 * 1024;
-const EM_ANDAMENTO_RECUPERAVEL_MS = 30_000;
-
-interface Env {
-  supabaseUrl: string;
-  serviceRoleKey: string;
-  anonKey: string;
-  fingerprintSecret: string;
-  rateLimitSecret: string;
-  emailRedirectUrl: string | null;
-  allowLocal: boolean;
-}
-
-function readEnv(): Env {
-  const emailRedirect = Deno.env.get("AUTOCADASTRO_EMAIL_REDIRECT_URL") ?? null;
-  // Se definido, exige HTTPS.
-  if (emailRedirect && !/^https:\/\//i.test(emailRedirect)) {
-    throw new Error("AUTOCADASTRO_EMAIL_REDIRECT_URL_INVALIDA");
-  }
-  return {
-    supabaseUrl:       Deno.env.get("SUPABASE_URL") ?? "",
-    serviceRoleKey:    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    anonKey:           Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-    fingerprintSecret: Deno.env.get("AUTOCADASTRO_FINGERPRINT_SECRET") ?? "",
-    rateLimitSecret:   Deno.env.get("AUTOCADASTRO_RATE_LIMIT_SECRET") ?? "",
-    emailRedirectUrl:  emailRedirect,
-    allowLocal:        Deno.env.get("AUTOCADASTRO_ALLOW_LOCAL") === "true",
-  };
-}
+const TIMEOUT_MS = 15_000;
+const BODY_MAX   = 8 * 1024;
+const EM_ANDAMENTO_RECENTE_MS = 90_000; // threshold por created_at
 
 // ============================ Deps injetáveis ==============================
 
-/** Interface mínima do cliente Supabase usada pelo handler (para testes). */
 export interface HandlerDeps {
-  env: Env;
-  logger: Logger;
+  env: EnvSeguro;
+  logger: Logger;               // usa apenas .info/.warn/.error; requestId aqui é correlation_id
   svc: SupabaseClient;
   anon: SupabaseClient;
   now: () => Date;
+  correlationId: string;
+  requestIdInicial: string;
+  deadlineAt: number;           // epoch ms; para deadline cooperativo
 }
 
 // ============================ Respostas ====================================
@@ -103,7 +76,11 @@ function ok(status: number, body: Record<string, unknown>, extra?: Record<string
   return { status, body, extraHeaders: extra };
 }
 
-// ============================ Body reader (limitado) =======================
+function deriveNextAction(user: AuthUserMinimo | null): NextAction {
+  return user?.email_confirmed_at ? "LOGIN" : "CONFIRM_EMAIL";
+}
+
+// ============================ Body reader ==================================
 
 async function readLimitedBody(req: Request, max: number): Promise<Uint8Array | null> {
   if (!req.body) return new Uint8Array();
@@ -115,10 +92,7 @@ async function readLimitedBody(req: Request, max: number): Promise<Uint8Array | 
     if (done) break;
     if (value) {
       total += value.byteLength;
-      if (total > max) {
-        try { reader.releaseLock(); } catch { /* ignore */ }
-        return null;
-      }
+      if (total > max) { try { reader.releaseLock(); } catch { /* ignore */ } return null; }
       chunks.push(value);
     }
   }
@@ -128,85 +102,39 @@ async function readLimitedBody(req: Request, max: number): Promise<Uint8Array | 
   return out;
 }
 
-// ============================ Auth Admin helpers ===========================
+// ============================ Deadline cooperativo =========================
 
-async function findAuthUserByEmail(
-  svc: SupabaseClient,
-  email: string,
-): Promise<{ id: string; email: string | null; email_confirmed_at: string | null; user_metadata: Record<string, unknown> } | null> {
-  // A Admin API não expõe query direta por e-mail: paginamos até encontrar.
-  // Custo aceitável nesta fase (fallback + prevenção de enumeração).
-  const target = email.toLowerCase();
-  const perPage = 200;
-  for (let page = 1; page <= 5; page++) {
-    const { data, error } = await (svc.auth.admin as unknown as {
-      listUsers: (o: { page: number; perPage: number }) => Promise<{
-        data: { users: Array<{ id: string; email: string | null; email_confirmed_at: string | null; user_metadata: Record<string, unknown> }> } | null;
-        error: unknown;
-      }>;
-    }).listUsers({ page, perPage });
-    if (error) throw error;
-    const users = data?.users ?? [];
-    for (const u of users) {
-      if ((u.email ?? "").toLowerCase() === target) return u;
-    }
-    if (users.length < perPage) break;
-  }
-  return null;
-}
-
-async function getAuthUserById(
-  svc: SupabaseClient,
-  userId: string,
-): Promise<{ id: string; email: string | null; email_confirmed_at: string | null; user_metadata: Record<string, unknown> } | null> {
-  const { data, error } = await svc.auth.admin.getUserById(userId);
-  if (error) {
-    if ((error as { status?: number }).status === 404) return null;
-    throw error;
-  }
-  const u = data?.user;
-  if (!u) return null;
-  return {
-    id: u.id,
-    email: u.email ?? null,
-    email_confirmed_at: u.email_confirmed_at ?? null,
-    user_metadata: (u.user_metadata ?? {}) as Record<string, unknown>,
-  };
-}
-
-function extractMarker(user: { user_metadata?: Record<string, unknown> } | null): {
-  marker: string | null;
-  requestId: string | null;
-} {
-  const md = user?.user_metadata ?? {};
-  const marker = typeof md.autocadastro_marker === "string" ? md.autocadastro_marker : null;
-  const requestId = typeof md.autocadastro_request_id === "string" ? md.autocadastro_request_id : null;
-  return { marker, requestId };
-}
-
-function deriveNextAction(user: { email_confirmed_at?: string | null } | null): NextAction {
-  return user?.email_confirmed_at ? "LOGIN" : "CONFIRM_EMAIL";
+function deadlineExpirado(deps: HandlerDeps): boolean {
+  return deps.now().getTime() >= deps.deadlineAt;
 }
 
 // ============================ RPCs wrappers ================================
 
-interface ReservarRow { result_code: string; user_id: string | null; assistido_id: string | null; instituicao_id: string | null }
+interface ReservarRow {
+  result_code: string;
+  user_id: string | null;
+  assistido_id: string | null;
+  instituicao_id: string | null;
+  canonical_request_id: string;
+}
 
 async function rpcReservar(
   svc: SupabaseClient,
   args: { idempotency_key: string; fingerprint: string; request_id: string; instituicao_id: string; expires_at: string },
 ): Promise<ReservarRow> {
   const { data, error } = await svc.rpc("fn_autocadastro_reservar", {
-    p_idempotency_key:      args.idempotency_key,
-    p_request_fingerprint:  args.fingerprint,
-    p_request_id:           args.request_id,
-    p_instituicao_id:       args.instituicao_id,
-    p_expires_at:           args.expires_at,
+    p_idempotency_key:     args.idempotency_key,
+    p_request_fingerprint: args.fingerprint,
+    p_request_id:          args.request_id,
+    p_instituicao_id:      args.instituicao_id,
+    p_expires_at:          args.expires_at,
   });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) throw new Error("RESERVAR_SEM_LINHA");
-  return row as ReservarRow;
+  const r = row as ReservarRow;
+  if (!isValidUuid(r.canonical_request_id)) throw new Error("RESERVAR_CANONICAL_INVALIDO");
+  return r;
 }
 
 async function rpcMarcarAuthCriado(
@@ -224,6 +152,7 @@ async function rpcMarcarAuthCriado(
 
 async function rpcMarcarFalha(
   svc: SupabaseClient,
+  logger: Logger,
   args: { idempotency_key: string; fingerprint: string; request_id: string; resultado: string; auth_delete_ok: boolean },
 ): Promise<void> {
   const { error } = await svc.rpc("fn_autocadastro_marcar_resultado_falha", {
@@ -233,80 +162,131 @@ async function rpcMarcarFalha(
     p_resultado:           args.resultado,
     p_auth_delete_ok:      args.auth_delete_ok,
   });
-  if (error) throw error;
+  if (error) {
+    logger.error("CRITICAL_marcar_falha_falhou", { resultado: args.resultado });
+    throw error;
+  }
 }
 
 async function rpcFinalizarAssistido(
   svc: SupabaseClient,
   args: {
-    request_id: string;
-    idempotency_key: string;
-    fingerprint: string;
-    instituicao_id: string;
-    user_id: string;
-    email_normalizado: string;
-    nome_completo: string;
-    cpf_normalizado: string;
-    celular_normalizado: string;
-    termos_versao: string;
-    privacidade_versao: string;
-    aceito_em: string;
+    request_id: string; idempotency_key: string; fingerprint: string;
+    instituicao_id: string; user_id: string;
+    email_normalizado: string; nome_completo: string; cpf_normalizado: string;
+    celular_normalizado: string; termos_versao: string; privacidade_versao: string; aceito_em: string;
   },
 ): Promise<{ result_code: string; assistido_id: string | null }> {
   const { data, error } = await svc.rpc("fn_autocadastro_assistido_publico", {
-    p_request_id:           args.request_id,
-    p_idempotency_key:      args.idempotency_key,
-    p_request_fingerprint:  args.fingerprint,
-    p_instituicao_id:       args.instituicao_id,
-    p_user_id:              args.user_id,
-    p_email_normalizado:    args.email_normalizado,
-    p_nome_completo:        args.nome_completo,
-    p_cpf_normalizado:      args.cpf_normalizado,
-    p_celular_normalizado:  args.celular_normalizado,
-    p_termos_versao:        args.termos_versao,
-    p_privacidade_versao:   args.privacidade_versao,
-    p_aceito_em:            args.aceito_em,
+    p_request_id:          args.request_id,
+    p_idempotency_key:     args.idempotency_key,
+    p_request_fingerprint: args.fingerprint,
+    p_instituicao_id:      args.instituicao_id,
+    p_user_id:             args.user_id,
+    p_email_normalizado:   args.email_normalizado,
+    p_nome_completo:       args.nome_completo,
+    p_cpf_normalizado:     args.cpf_normalizado,
+    p_celular_normalizado: args.celular_normalizado,
+    p_termos_versao:       args.termos_versao,
+    p_privacidade_versao:  args.privacidade_versao,
+    p_aceito_em:           args.aceito_em,
   });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
-  return { result_code: String((row as { result_code: string }).result_code), assistido_id: (row as { assistido_id: string | null }).assistido_id ?? null };
+  return {
+    result_code: String((row as { result_code: string }).result_code),
+    assistido_id: (row as { assistido_id: string | null }).assistido_id ?? null,
+  };
 }
 
-// ============================ Ownership + rollback =========================
+// ============================ Reconciliação idem ===========================
+
+interface IdemSnapshot {
+  status: string;
+  user_id: string | null;
+  request_id: string | null;
+  request_fingerprint: string | null;
+  instituicao_id: string | null;
+  created_at: string | null;
+}
+
+async function lerIdempotencia(svc: SupabaseClient, idempotencyKey: string): Promise<IdemSnapshot | null> {
+  const { data, error } = await svc
+    .from("autocadastro_idempotencia")
+    .select("status,user_id,request_id,request_fingerprint,instituicao_id,created_at")
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as IdemSnapshot | null) ?? null;
+}
+
+async function reconciliar(
+  svc: SupabaseClient,
+  idempotencyKey: string,
+  esperado: { canonical: string; fingerprint: string; instituicaoId: string; userId: string },
+  tentativas = 3,
+): Promise<IdemSnapshot | null> {
+  for (let i = 0; i < tentativas; i++) {
+    const snap = await lerIdempotencia(svc, idempotencyKey);
+    if (snap) {
+      const bate =
+        snap.request_id === esperado.canonical &&
+        snap.request_fingerprint === esperado.fingerprint &&
+        snap.instituicao_id === esperado.instituicaoId &&
+        (snap.user_id === esperado.userId || snap.user_id === null);
+      if (bate) return snap;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return null;
+}
+
+// ============================ Rollback checked =============================
 
 /**
- * Rollback controlado do Auth. NUNCA apaga usuário cujo `autocadastro_marker`
- * não bata com a operação corrente.
- * Retorna: { deleted, reason }.
+ * Rollback controlado: extrai marker → só apaga se ownership bater.
+ * `auth_delete_ok=true` só quando GET posterior confirma 404.
  */
 async function rollbackAuth(
   svc: SupabaseClient,
   userId: string,
   expectedMarker: string,
   expectedRequestId: string,
+  expectedEmail: string,
   logger: Logger,
 ): Promise<{ deleted: boolean; reason: string }> {
-  const u = await getAuthUserById(svc, userId).catch(() => null);
-  if (!u) {
-    return { deleted: true, reason: "AUTH_JA_AUSENTE" };
+  let u: AuthUserMinimo | null;
+  try {
+    u = await getAuthUserByIdChecked(svc, userId);
+  } catch {
+    return { deleted: false, reason: "GET_INICIAL_FALHOU" };
   }
+  if (!u) return { deleted: true, reason: "AUTH_JA_AUSENTE" };
+
   const { marker, requestId } = extractMarker(u);
-  if (marker !== expectedMarker || requestId !== expectedRequestId) {
+  if (marker !== expectedMarker || requestId !== expectedRequestId ||
+      (u.email ?? "").toLowerCase() !== expectedEmail) {
     logger.error("rollback_ownership_divergente", {});
-    return { deleted: false, reason: "MARKER_DIVERGENTE" };
+    return { deleted: false, reason: "OWNERSHIP_DIVERGENTE" };
   }
-  const { error } = await svc.auth.admin.deleteUser(userId);
-  if (error && (error as { status?: number }).status !== 404) {
-    logger.error("rollback_deleteUser_falhou", {});
+
+  try {
+    await deleteAuthUserChecked(svc, userId);
+  } catch {
     return { deleted: false, reason: "DELETE_FALHOU" };
   }
-  // Confirma ausência
-  const check = await getAuthUserById(svc, userId).catch(() => null);
-  if (check) return { deleted: false, reason: "AUTH_AINDA_PRESENTE" };
+
+  // Confirma ausência via GET posterior.
+  try {
+    const check = await getAuthUserByIdChecked(svc, userId);
+    if (check) return { deleted: false, reason: "AUTH_AINDA_PRESENTE" };
+  } catch {
+    return { deleted: false, reason: "GET_CONFIRMATORIO_FALHOU" };
+  }
   return { deleted: true, reason: "OK" };
 }
 
-// ============================ Fluxos completos =============================
+// ============================ Contexto operacional =========================
 
 interface OperationCtx {
   body: SignupBody;
@@ -317,9 +297,11 @@ interface OperationCtx {
   instituicaoId: string;
   fingerprint: string;
   marker: string;
-  requestId: string;
+  canonical: string;   // canonical_request_id da RPC de reserva
   aceitoEm: string;
 }
+
+// ============================ Finalização (com Auth) =======================
 
 async function finalizarComUsuarioExistente(
   deps: HandlerDeps,
@@ -328,30 +310,41 @@ async function finalizarComUsuarioExistente(
 ): Promise<EdgeResponse> {
   const { svc, logger } = deps;
 
-  // Consulta Auth Admin ANTES de finalizar (marker/req/email).
-  const u = await getAuthUserById(svc, userId);
+  let u: AuthUserMinimo | null;
+  try {
+    u = await getAuthUserByIdChecked(svc, userId);
+  } catch (e) {
+    logger.error("finalize_get_falhou", { msg: (e as Error).message });
+    return ok(500, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
+  }
   if (!u) {
-    // Auth sumiu — não deveria acontecer em CONCLUIDO/RETOMAR sem crash.
-    await rpcMarcarFalha(svc, {
+    logger.error("finalize_auth_ausente", {});
+    await rpcMarcarFalha(svc, logger, {
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
-      resultado: "AUTH_RECOVERY_NAO_LOCALIZADO",
+      request_id: ctx.canonical,
+      resultado: "AUTH_AUSENTE_NA_RETOMADA",
       auth_delete_ok: true,
-    }).catch(() => { /* já registrado */ });
-    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.requestId });
+    });
+    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
   }
   const { marker, requestId } = extractMarker(u);
-  if (marker !== ctx.marker || requestId !== ctx.requestId ||
+  if (marker !== ctx.marker || requestId !== ctx.canonical ||
       (u.email ?? "").toLowerCase() !== ctx.emailNorm) {
-    logger.error("finalize_marker_divergente", {});
-    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.requestId });
+    logger.error("finalize_ownership_divergente", {});
+    await rpcMarcarFalha(svc, logger, {
+      idempotency_key: ctx.body.idempotency_key,
+      fingerprint: ctx.fingerprint,
+      request_id: ctx.canonical,
+      resultado: "OWNERSHIP_DIVERGENTE",
+      auth_delete_ok: false,
+    });
+    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
   }
 
-  // Finaliza vínculo assistido.
   try {
     await rpcFinalizarAssistido(svc, {
-      request_id: ctx.requestId,
+      request_id: ctx.canonical,
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
       instituicao_id: ctx.instituicaoId,
@@ -366,190 +359,233 @@ async function finalizarComUsuarioExistente(
     });
   } catch (e) {
     logger.error("assistido_publico_falhou", { msg: (e as Error).message });
-    // Rollback controlado
-    const rb = await rollbackAuth(svc, userId, ctx.marker, ctx.requestId, logger);
-    await rpcMarcarFalha(svc, {
+    // Reconciliação curta ANTES de rollback.
+    const snap = await reconciliar(svc, ctx.body.idempotency_key, {
+      canonical: ctx.canonical, fingerprint: ctx.fingerprint,
+      instituicaoId: ctx.instituicaoId, userId,
+    });
+    if (snap?.status === "concluido") {
+      // Estado já persistido — derivar next_action pelo Auth.
+      return ok(200, {
+        code: "AUTOCADASTRO_CONCLUIDO",
+        next_action: deriveNextAction(u),
+        request_id: ctx.canonical,
+      });
+    }
+    if (snap?.status === "falhou" || snap?.status === "rollback_falhou") {
+      return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
+    }
+    // Só executa rollback se o estado permaneceu em auth_criado.
+    const rb = await rollbackAuth(svc, userId, ctx.marker, ctx.canonical, ctx.emailNorm, logger);
+    await rpcMarcarFalha(svc, logger, {
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
+      request_id: ctx.canonical,
       resultado: rb.deleted ? "FINALIZACAO_FALHOU" : "AUTH_DELETE_NAO_CONFIRMADO",
       auth_delete_ok: rb.deleted,
-    }).catch(() => { /* ignore */ });
-    return ok(409, { code: rb.deleted ? "DADOS_JA_CADASTRADOS" : "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.requestId });
+    });
+    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
   }
 
   return ok(200, {
     code: "AUTOCADASTRO_CONCLUIDO",
     next_action: deriveNextAction(u),
-    request_id: ctx.requestId,
+    request_id: ctx.canonical,
   });
 }
 
-async function fluxoReservadoNovo(
-  deps: HandlerDeps,
-  ctx: OperationCtx,
-): Promise<EdgeResponse> {
+// ============================ Fluxos =======================================
+
+async function fluxoReservadoNovo(deps: HandlerDeps, ctx: OperationCtx): Promise<EdgeResponse> {
   const { svc, anon, env, logger } = deps;
 
   if (!ctx.body.captcha_token) {
-    // Marcar falha na reserva já criada (nada de Auth foi tocado).
-    await rpcMarcarFalha(svc, {
+    await rpcMarcarFalha(svc, logger, {
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
+      request_id: ctx.canonical,
       resultado: "AUTH_SIGNUP_FALHOU",
       auth_delete_ok: true,
-    }).catch(() => { /* ignore */ });
-    return ok(400, { code: "CAPTCHA_OBRIGATORIO", request_id: ctx.requestId });
+    });
+    return ok(400, { code: "CAPTCHA_OBRIGATORIO", request_id: ctx.canonical });
   }
 
-  // Checagem prévia server-side (nunca revela existência específica).
-  const existente = await findAuthUserByEmail(svc, ctx.emailNorm);
+  // Checagem defensiva ANTES de gastar signUp/quota.
+  const existente = await findAuthUserByEmailChecked(svc, ctx.emailNorm);
   if (existente) {
-    await rpcMarcarFalha(svc, {
+    await rpcMarcarFalha(svc, logger, {
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
+      request_id: ctx.canonical,
       resultado: "AUTH_SIGNUP_FALHOU",
       auth_delete_ok: true,
-    }).catch(() => { /* ignore */ });
-    return ok(409, { code: "DADOS_JA_CADASTRADOS", request_id: ctx.requestId });
+    });
+    return ok(409, { code: "DADOS_JA_CADASTRADOS", request_id: ctx.canonical });
   }
 
-  // signUp com cliente anon + captchaToken + metadados obrigatórios.
+  // Deadline antes do Auth: aborta cooperativamente.
+  if (deadlineExpirado(deps)) {
+    await rpcMarcarFalha(svc, logger, {
+      idempotency_key: ctx.body.idempotency_key,
+      fingerprint: ctx.fingerprint,
+      request_id: ctx.canonical,
+      resultado: "TIMEOUT_ANTES_AUTH",
+      auth_delete_ok: true,
+    });
+    return ok(504, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
+  }
+
   const signUpOptions: Record<string, unknown> = {
     captchaToken: ctx.body.captcha_token,
+    emailRedirectTo: env.emailRedirectUrl,
     data: {
       autocadastro_marker: ctx.marker,
-      autocadastro_request_id: ctx.requestId,
+      autocadastro_request_id: ctx.canonical,
     },
   };
-  if (env.emailRedirectUrl) signUpOptions.emailRedirectTo = env.emailRedirectUrl;
-
   const signUp = await anon.auth.signUp({
     email: ctx.emailNorm,
     password: ctx.body.senha,
     options: signUpOptions,
   });
 
-  // Verificação real de criação (nunca confiar apenas em data.user.id).
-  let uid: string | null = signUp.data?.user?.id ?? null;
+  // Extrai UUID válido ou reconcilia por e-mail. NUNCA re-invoca signUp.
+  let uid: string | null = null;
+  const candidato = signUp.data?.user?.id;
+  if (typeof candidato === "string" && isValidUuid(candidato)) uid = candidato;
+
   if (!uid) {
-    // Recuperação: procura por e-mail exato + marker/req_id.
-    const found = await findAuthUserByEmail(svc, ctx.emailNorm);
-    if (found) {
-      const { marker, requestId } = extractMarker(found);
-      if (marker === ctx.marker && requestId === ctx.requestId) uid = found.id;
+    // Polling limitado: até 3 tentativas com ~200ms.
+    for (let i = 0; i < 3 && !uid; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      const found = await findAuthUserByEmailChecked(svc, ctx.emailNorm);
+      if (found) {
+        const { marker, requestId } = extractMarker(found);
+        if (marker === ctx.marker && requestId === ctx.canonical) uid = found.id;
+      }
     }
   }
 
   if (!uid) {
     logger.warn("signup_sem_uid", { hasError: Boolean(signUp.error) });
-    await rpcMarcarFalha(svc, {
+    await rpcMarcarFalha(svc, logger, {
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
+      request_id: ctx.canonical,
       resultado: "AUTH_SIGNUP_FALHOU",
       auth_delete_ok: true,
-    }).catch(() => { /* ignore */ });
-    return ok(409, { code: "DADOS_JA_CADASTRADOS", request_id: ctx.requestId });
+    });
+    return ok(409, { code: "DADOS_JA_CADASTRADOS", request_id: ctx.canonical });
   }
 
-  // Confirma via Auth Admin: marker + request_id + email.
-  const u = await getAuthUserById(svc, uid);
-  const { marker, requestId } = extractMarker(u);
-  if (!u || marker !== ctx.marker || requestId !== ctx.requestId ||
+  // Verificação pós-signup: marker + canonical + email.
+  let u: AuthUserMinimo | null;
+  try {
+    u = await getAuthUserByIdChecked(svc, uid);
+  } catch (e) {
+    logger.error("post_signup_get_falhou", { msg: (e as Error).message });
+    return ok(500, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
+  }
+  const meta = extractMarker(u);
+  if (!u || meta.marker !== ctx.marker || meta.requestId !== ctx.canonical ||
       (u.email ?? "").toLowerCase() !== ctx.emailNorm) {
     logger.error("post_signup_verificacao_falhou", {});
-    // NÃO deleta — pode ser usuário alheio com mesmo e-mail (race raríssima).
-    await rpcMarcarFalha(svc, {
+    await rpcMarcarFalha(svc, logger, {
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
+      request_id: ctx.canonical,
       resultado: "AUTH_SIGNUP_FALHOU",
       auth_delete_ok: false,
-    }).catch(() => { /* ignore */ });
-    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.requestId });
+    });
+    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
   }
 
-  // Marca auth_criado (idempotente).
   try {
     await rpcMarcarAuthCriado(svc, {
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
+      request_id: ctx.canonical,
       user_id: uid,
     });
   } catch (e) {
     logger.error("marcar_auth_criado_falhou", { msg: (e as Error).message });
-    const rb = await rollbackAuth(svc, uid, ctx.marker, ctx.requestId, logger);
-    await rpcMarcarFalha(svc, {
+    const rb = await rollbackAuth(svc, uid, ctx.marker, ctx.canonical, ctx.emailNorm, logger);
+    await rpcMarcarFalha(svc, logger, {
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
+      request_id: ctx.canonical,
       resultado: rb.deleted ? "AUTH_MARK_FALHOU" : "AUTH_DELETE_NAO_CONFIRMADO",
       auth_delete_ok: rb.deleted,
-    }).catch(() => { /* ignore */ });
-    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.requestId });
+    });
+    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
   }
 
-  // Finaliza vínculo.
   return finalizarComUsuarioExistente(deps, ctx, uid);
 }
 
-async function fluxoEmAndamento(
-  deps: HandlerDeps,
-  ctx: OperationCtx,
-): Promise<EdgeResponse> {
+/** EM_ANDAMENTO: usa created_at (nunca updated_at) para decidir idade. */
+async function fluxoEmAndamento(deps: HandlerDeps, ctx: OperationCtx): Promise<EdgeResponse> {
   const { svc, logger } = deps;
 
-  // Consulta a linha atual para decidir recente vs antigo.
-  const { data, error } = await svc
-    .from("autocadastro_idempotencia")
-    .select("updated_at,status,user_id")
-    .eq("idempotency_key", ctx.body.idempotency_key)
-    .maybeSingle();
-  if (error) throw error;
-  const updatedAt = data?.updated_at ? new Date(data.updated_at as string).getTime() : 0;
-  const age = deps.now().getTime() - updatedAt;
+  const snap = await lerIdempotencia(svc, ctx.body.idempotency_key);
+  if (!snap) {
+    logger.error("em_andamento_sem_linha", {});
+    return ok(500, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
+  }
+  // Confirma escopo: canonical + fingerprint + instituicao.
+  if (snap.request_id !== ctx.canonical || snap.request_fingerprint !== ctx.fingerprint ||
+      snap.instituicao_id !== ctx.instituicaoId) {
+    logger.error("em_andamento_escopo_divergente", {});
+    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
+  }
 
-  if (age < EM_ANDAMENTO_RECUPERAVEL_MS) {
+  const createdAt = snap.created_at ? new Date(snap.created_at).getTime() : 0;
+  const age = deps.now().getTime() - createdAt;
+
+  if (age < EM_ANDAMENTO_RECENTE_MS) {
     return ok(202, {
       code: "PROCESSANDO_RETENTE",
-      request_id: ctx.requestId,
+      request_id: ctx.canonical,
     }, { "Retry-After": "5" });
   }
 
-  // Recuperação de crash: procura Auth por e-mail + marker.
-  const u = await findAuthUserByEmail(svc, ctx.emailNorm);
-  if (!u) {
-    await rpcMarcarFalha(svc, {
+  // EM_ANDAMENTO antigo: procura Auth por e-mail via helper checked.
+  const u = await findAuthUserByEmailChecked(svc, ctx.emailNorm);
+  if (u) {
+    const { marker, requestId } = extractMarker(u);
+    if (marker === ctx.marker && requestId === ctx.canonical) {
+      // Auth pertence à operação → marca auth_criado e finaliza.
+      try {
+        await rpcMarcarAuthCriado(svc, {
+          idempotency_key: ctx.body.idempotency_key,
+          fingerprint: ctx.fingerprint,
+          request_id: ctx.canonical,
+          user_id: u.id,
+        });
+      } catch (e) {
+        logger.error("recovery_marcar_auth_criado_falhou", { msg: (e as Error).message });
+        return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
+      }
+      return finalizarComUsuarioExistente(deps, ctx, u.id);
+    }
+    // Ownership divergente com mesmo e-mail: NÃO deleta.
+    await rpcMarcarFalha(svc, logger, {
       idempotency_key: ctx.body.idempotency_key,
       fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
-      resultado: "AUTH_RECOVERY_NAO_LOCALIZADO",
-      auth_delete_ok: true,
-    }).catch(() => { /* ignore */ });
-    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.requestId });
-  }
-  const { marker, requestId } = extractMarker(u);
-  if (marker !== ctx.marker || requestId !== ctx.requestId) {
-    logger.error("recovery_marker_divergente", {});
-    return ok(409, { code: "DADOS_JA_CADASTRADOS", request_id: ctx.requestId });
-  }
-  // Marker bate — retoma marcando auth_criado.
-  try {
-    await rpcMarcarAuthCriado(svc, {
-      idempotency_key: ctx.body.idempotency_key,
-      fingerprint: ctx.fingerprint,
-      request_id: ctx.requestId,
-      user_id: u.id,
+      request_id: ctx.canonical,
+      resultado: "OWNERSHIP_DIVERGENTE",
+      auth_delete_ok: false,
     });
-  } catch (e) {
-    logger.error("recovery_marcar_auth_criado_falhou", { msg: (e as Error).message });
-    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.requestId });
+    return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
   }
-  return finalizarComUsuarioExistente(deps, ctx, u.id);
+
+  // EM_ANDAMENTO antigo sem Auth: NÃO cria nova reserva; exige captcha_token
+  // e prossegue direto para signUp reutilizando o mesmo canonical/fingerprint.
+  if (!ctx.body.captcha_token) {
+    return ok(400, { code: "CAPTCHA_OBRIGATORIO", request_id: ctx.canonical });
+  }
+  // Reaproveita fluxo signUp da reserva atual.
+  return fluxoReservadoNovo(deps, ctx);
 }
 
 // ============================ Handler principal ============================
@@ -559,6 +595,8 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   const cors = corsHeaders(req);
 
   if (req.method === "OPTIONS") {
+    const forb = enforceOriginOrForbid(req);
+    if (forb) return forb;
     return new Response("ok", { headers: cors });
   }
 
@@ -586,9 +624,8 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   }
 
   let parsed: unknown;
-  try {
-    parsed = JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
+  try { parsed = JSON.parse(new TextDecoder().decode(bytes)); }
+  catch {
     return new Response(JSON.stringify({ code: "PAYLOAD_INVALIDO" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });
@@ -602,24 +639,18 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   }
   const body = check.data;
 
-  // Normalização + validação semântica.
   const emailNorm   = normalizeEmail(body.email);
   const nomeNorm    = normalizeNome(body.nome_completo);
   const celularNorm = normalizeCelular(body.celular);
   const cpfNorm     = normalizeCpf(body.cpf);
 
-  if (!validateCelular(celularNorm)) {
-    return new Response(JSON.stringify({ code: "PAYLOAD_INVALIDO" }), {
-      status: 400, headers: { ...cors, "Content-Type": "application/json" },
-    });
-  }
-  if (cpfNorm && !validateCpf(cpfNorm)) {
+  if (!validateCelular(celularNorm) || (cpfNorm && !validateCpf(cpfNorm))) {
     return new Response(JSON.stringify({ code: "PAYLOAD_INVALIDO" }), {
       status: 400, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 
-  // Resolução tenant via slug (server-side).
+  // Resolução tenant.
   const { data: inst, error: instErr } = await deps.svc
     .from("instituicoes")
     .select("id,status,autocadastro_habilitado")
@@ -639,11 +670,16 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   }
   const instituicaoId = inst.id as string;
 
-  // Rate-limit persistente (toda tentativa conta).
+  // Rate-limit — IP fail-closed.
+  const ip = extractClientIp(req);
+  if (!ip) {
+    logger.warn("IP_GATEWAY_INDISPONIVEL", {});
+    return new Response(JSON.stringify({ code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR" }), {
+      status: 503, headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
   const rate = await enforceAll(deps.svc as unknown as Parameters<typeof enforceAll>[0], env.rateLimitSecret, {
-    ip: extractClientIp(req),
-    email: emailNorm,
-    instituicaoId,
+    ip, email: emailNorm, instituicaoId,
   });
   if (rate) {
     return new Response(JSON.stringify({ code: "RATE_LIMIT_EXCEDIDO" }), {
@@ -652,7 +688,7 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
     });
   }
 
-  // Fingerprint HMAC v1 (usa instituicao_id real).
+  // Fingerprint HMAC v1.
   const material = fingerprintMaterial({
     instituicao_id: instituicaoId,
     email_normalizado: emailNorm,
@@ -664,23 +700,14 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   });
   const fingerprint = await computeFingerprint(env.fingerprintSecret, material);
 
-  const requestId = logger.requestId;
-  const marker = await computeAuthMarker(env.fingerprintSecret, body.idempotency_key, requestId, emailNorm);
-  const aceitoEm = deps.now().toISOString();
-
-  const ctx: OperationCtx = {
-    body, emailNorm, nomeNorm, celularNorm, cpfNorm,
-    instituicaoId, fingerprint, marker, requestId, aceitoEm,
-  };
-
-  // Reserva de idempotência
+  // Reserva idempotente — request_id_inicial vai para a RPC; canonical volta.
   const expiresAt = new Date(deps.now().getTime() + 30 * 60 * 1000).toISOString();
   let reserva: ReservarRow;
   try {
     reserva = await rpcReservar(deps.svc, {
       idempotency_key: body.idempotency_key,
       fingerprint,
-      request_id: requestId,
+      request_id: deps.requestIdInicial,
       instituicao_id: instituicaoId,
       expires_at: expiresAt,
     });
@@ -697,6 +724,14 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
     });
   }
 
+  const canonical = reserva.canonical_request_id;
+  const marker = await computeAuthMarker(env.fingerprintSecret, body.idempotency_key, canonical, emailNorm);
+  const ctx: OperationCtx = {
+    body, emailNorm, nomeNorm, celularNorm, cpfNorm,
+    instituicaoId, fingerprint, marker, canonical,
+    aceitoEm: deps.now().toISOString(),
+  };
+
   let resp: EdgeResponse;
   switch (reserva.result_code) {
     case "RESERVADO_NOVO":
@@ -706,30 +741,54 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
       resp = await fluxoEmAndamento(deps, ctx);
       break;
     case "RETOMAR_AUTH_CRIADO":
-      resp = reserva.user_id
+      resp = reserva.user_id && isValidUuid(reserva.user_id)
         ? await finalizarComUsuarioExistente(deps, ctx, reserva.user_id)
-        : ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: requestId });
+        : ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: canonical });
       break;
-    case "CONCLUIDO":
-      resp = reserva.user_id
-        ? await (async () => {
-            const u = await getAuthUserById(deps.svc, reserva.user_id!);
-            return ok(200, {
-              code: "AUTOCADASTRO_CONCLUIDO",
-              next_action: deriveNextAction(u),
-              request_id: requestId,
-            });
-          })()
-        : ok(200, { code: "AUTOCADASTRO_CONCLUIDO", next_action: "LOGIN", request_id: requestId });
+    case "CONCLUIDO": {
+      if (!reserva.user_id || !isValidUuid(reserva.user_id)) {
+        logger.error("CONCLUIDO_SEM_USER_ID", {});
+        resp = ok(500, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: canonical });
+        break;
+      }
+      let u: AuthUserMinimo | null;
+      try {
+        u = await getAuthUserByIdChecked(deps.svc, reserva.user_id);
+      } catch (e) {
+        logger.error("CONCLUIDO_get_falhou", { msg: (e as Error).message });
+        resp = ok(500, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: canonical });
+        break;
+      }
+      if (!u) {
+        logger.error("CONCLUIDO_SEM_AUTH", {});
+        resp = ok(500, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: canonical });
+        break;
+      }
+      if ((u.email ?? "").toLowerCase() !== emailNorm) {
+        logger.error("CONCLUIDO_EMAIL_DIVERGENTE", {});
+        resp = ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: canonical });
+        break;
+      }
+      resp = ok(200, {
+        code: "AUTOCADASTRO_CONCLUIDO",
+        next_action: deriveNextAction(u),
+        request_id: canonical,
+      });
       break;
+    }
     case "FALHA_ANTERIOR":
     case "ROLLBACK_FALHOU":
       if (reserva.result_code === "ROLLBACK_FALHOU") logger.error("rollback_falhou_persistente", {});
-      resp = ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: requestId });
+      resp = ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: canonical });
       break;
     default:
       logger.error("result_code_desconhecido", { result_code: reserva.result_code });
-      resp = ok(500, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: requestId });
+      resp = ok(500, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: canonical });
+  }
+
+  // Log soft de excedente pós-Auth (não impede resposta).
+  if (deadlineExpirado(deps)) {
+    logger.warn("deadline_soft_excedido", {});
   }
 
   return new Response(JSON.stringify(resp.body), {
@@ -741,13 +800,20 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
 // ============================ Serve ========================================
 
 Deno.serve(async (req) => {
-  const logger = createLogger("signup-assistido-tenant", req);
-  let env: Env;
-  try {
-    env = readEnv();
-  } catch (e) {
-    logger.error("env_invalido", { msg: (e as Error).message });
-    return new Response(JSON.stringify({ code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR" }), {
+  const correlationHeader = sanitizeCorrelationId(
+    req.headers.get("x-correlation-id") ?? req.headers.get("x-request-id"),
+  );
+  const correlationId = correlationHeader ?? crypto.randomUUID();
+  const logger = createLogger("signup-assistido-tenant",
+    // logger usa header interno; injetamos por objeto controlado.
+    new Request(req.url, { headers: { "x-correlation-id": correlationId } }),
+  );
+
+  let env: EnvSeguro;
+  try { env = readEnvChecked(); }
+  catch (e) {
+    logger.error("CONFIG_INVALIDA", { key: (e as Error).message });
+    return new Response(JSON.stringify({ code: "CONFIG_INVALIDA" }), {
       status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(req) },
     });
   }
@@ -758,24 +824,20 @@ Deno.serve(async (req) => {
   const svc  = createClient(env.supabaseUrl, env.serviceRoleKey, commonOpts);
   const anon = createClient(env.supabaseUrl, env.anonKey, commonOpts);
 
-  const deps: HandlerDeps = { env, logger, svc, anon, now: () => new Date() };
+  const deps: HandlerDeps = {
+    env, logger, svc, anon,
+    now: () => new Date(),
+    correlationId,
+    requestIdInicial: crypto.randomUUID(),
+    deadlineAt: Date.now() + TIMEOUT_MS,
+  };
 
-  // Timeout global de 15s.
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    return await Promise.race([
-      handleRequest(req, deps),
-      new Promise<Response>((_, reject) =>
-        ctrl.signal.addEventListener("abort", () => reject(new Error("TIMEOUT"))),
-      ),
-    ]);
+    return await handleRequest(req, deps);
   } catch (e) {
     logger.error("handler_exception", { msg: (e as Error).message });
     return new Response(JSON.stringify({ code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR" }), {
       status: 500, headers: { "Content-Type": "application/json", ...corsHeaders(req) },
     });
-  } finally {
-    clearTimeout(t);
   }
 });

@@ -1,13 +1,16 @@
 /**
- * STAB10-C1.2-B1 — Aplicação do rate-limit persistente no autocadastro público.
+ * STAB10-C1.2-B1-FIX01 — Rate-limit persistente e IP fail-closed.
  *
- * Extrai o IP APENAS de headers do gateway (nunca do body/query), calcula HMAC
- * de IP/e-mail e chama a RPC atômica `fn_autocadastro_rate_limit_hit`.
+ * IP extraído SOMENTE de headers do gateway.
+ *   1) `cf-connecting-ip` (fonte principal do Supabase Edge Gateway).
+ *   2) primeiro salto de `x-forwarded-for`, apenas quando
+ *      `AUTOCADASTRO_TRUST_XFF=true` (falso por padrão).
+ * IP ausente ou inválido devolve `null` — o handler responde 503
+ * `AUTOCADASTRO_INDISPONIVEL_RETENTAR` (nunca 400 IP_INDISPONIVEL).
  *
- * Escolha do header:
- *   1) `cf-connecting-ip` (Cloudflare — provedor confirmado no gateway Supabase).
- *   2) primeiro salto do `x-forwarded-for`, sanitizado (rejeita listas mal-formadas).
- * Nunca aceitamos cadeia arbitrária sem validação.
+ * A RPC `fn_autocadastro_rate_limit_hit` passa a receber apenas
+ * (scope, bucket_key) — a janela de 10 min é calculada no servidor.
+ * O `instituicao_id` é sempre convertido em HMAC (v1) antes de virar bucket_key.
  */
 
 import { bucketHmac } from "./contract.ts";
@@ -21,52 +24,55 @@ export interface RateResult {
   retry_after_seconds: number;
 }
 
-const IP_V4 = /^(\d{1,3}\.){3}\d{1,3}$/;
-const IP_V6 = /^[0-9a-f:]+$/i;
+// ---- IP parsing --------------------------------------------------------------
 
-/**
- * Extrai o IP do gateway. Retorna null se nenhum header confiável estiver
- * presente ou se a cadeia for inválida.
- */
+const IP_V4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+
+function isValidIpv6(v: string): boolean {
+  // Aceita representações com colons e opcionalmente porção IPv4 embutida.
+  if (!/^[0-9a-f:.]+$/i.test(v)) return false;
+  if (!v.includes(":")) return false;
+  if (v === "::") return false; // unspecified
+  const parts = v.split(":");
+  if (parts.length < 3 || parts.length > 8) return false;
+  return true;
+}
+
+function isValidIp(v: string): boolean {
+  const s = v.trim();
+  if (!s) return false;
+  if (s === "0.0.0.0" || s === "::" || s === "::1" || s === "127.0.0.1") return false;
+  if (IP_V4.test(s)) return true;
+  if (isValidIpv6(s)) return true;
+  return false;
+}
+
+/** Devolve IP do gateway ou null. Nunca lê body/query. */
 export function extractClientIp(req: Request): string | null {
-  const cf = req.headers.get("cf-connecting-ip");
-  if (cf && (IP_V4.test(cf) || IP_V6.test(cf))) return cf;
+  const cf = (req.headers.get("cf-connecting-ip") ?? "").trim();
+  if (cf && isValidIp(cf)) return cf;
 
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first && (IP_V4.test(first) || IP_V6.test(first))) return first;
+  const trustXff = Deno.env.get("AUTOCADASTRO_TRUST_XFF") === "true";
+  if (trustXff) {
+    const xff = req.headers.get("x-forwarded-for");
+    if (xff) {
+      const first = xff.split(",")[0]?.trim() ?? "";
+      if (isValidIp(first)) return first;
+    }
   }
   return null;
 }
 
-/** Janela FIXA de 10 minutos alinhada ao múltiplo do minuto. */
-export function windowStart(now: Date = new Date()): Date {
-  const ms = now.getTime();
-  const bucket = Math.floor(ms / (10 * 60 * 1000)) * (10 * 60 * 1000);
-  return new Date(bucket);
-}
+// ---- Bucket calls ------------------------------------------------------------
 
-export function windowExpiry(start: Date): Date {
-  return new Date(start.getTime() + 10 * 60 * 1000);
-}
-
-/**
- * Chama a RPC de rate-limit para um escopo. Retorna resultado padronizado.
- * O cliente supabase passado DEVE ser o service_role.
- */
 export async function hit(
   svc: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> },
   scope: RateScope,
   bucketKey: string,
 ): Promise<RateResult> {
-  const start = windowStart();
-  const exp = windowExpiry(start);
   const { data, error } = await svc.rpc("fn_autocadastro_rate_limit_hit", {
     p_scope: scope,
     p_bucket_key: bucketKey,
-    p_window_start: start.toISOString(),
-    p_expires_at: exp.toISOString(),
   });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
@@ -80,7 +86,7 @@ export async function hit(
   };
 }
 
-/** Verifica sequencialmente IP → email → instituição, retornando o primeiro reject. */
+/** Sequência IP → email → instituição. Retorna o primeiro bloqueio ou null. */
 export async function enforceAll(
   svc: Parameters<typeof hit>[0],
   hmacSecret: string,
@@ -97,7 +103,9 @@ export async function enforceAll(
     if (!r.permitido) return r;
   }
   {
-    const r = await hit(svc, "instituicao", ctx.instituicaoId);
+    // instituicao_id NUNCA persistido em claro — sempre HMAC v1.
+    const key = await bucketHmac(hmacSecret, "instituicao", ctx.instituicaoId);
+    const r = await hit(svc, "instituicao", key);
     if (!r.permitido) return r;
   }
   return null;

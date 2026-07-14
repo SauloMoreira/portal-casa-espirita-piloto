@@ -3986,12 +3986,7 @@ export type Database = {
         }[]
       }
       fn_autocadastro_rate_limit_hit: {
-        Args: {
-          p_bucket_key: string
-          p_expires_at: string
-          p_scope: string
-          p_window_start: string
-        }
+        Args: { p_bucket_key: string; p_scope: string }
         Returns: {
           contador: number
           limite: number

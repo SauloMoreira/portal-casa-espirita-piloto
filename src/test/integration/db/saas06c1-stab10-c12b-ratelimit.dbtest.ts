@@ -16,14 +16,8 @@ const d = HAS_DB ? describe : describe.skip;
 
 afterAll(async () => { await closePool(); });
 
-const janelaFixaISO = (): { start: string; exp: string } => {
-  const now = Date.now();
-  const start = Math.floor(now / (10 * 60 * 1000)) * (10 * 60 * 1000);
-  return {
-    start: new Date(start).toISOString(),
-    exp:   new Date(start + 10 * 60 * 1000).toISOString(),
-  };
-};
+// Janela agora calculada internamente pela RPC (FIX01).
+
 
 d("STAB10-C1.2-B1 — tabela de rate-limit", () => {
   it("existe com PK composta e CHECKs obrigatórios", async () => {
@@ -148,12 +142,11 @@ d("STAB10-C1.2-B1 — RPC fn_autocadastro_rate_limit_hit", () => {
 
   it("valida scope e retorna limites 5/3/30 (janela fixa)", async () => {
     await withRollback(async (c) => {
-      const { start, exp } = janelaFixaISO();
       const cases: Array<[string, number]> = [["ip", 5], ["email", 3], ["instituicao", 30]];
       for (const [scope, limite] of cases) {
         const r = await c.query(
-          "SELECT * FROM public.fn_autocadastro_rate_limit_hit($1,$2,$3::timestamptz,$4::timestamptz)",
-          [scope, `${scope}-bkt-${crypto.randomUUID()}`, start, exp],
+          "SELECT * FROM public.fn_autocadastro_rate_limit_hit($1,$2)",
+          [scope, `${scope}-bkt-${crypto.randomUUID()}`],
         );
         expect(r.rows[0].limite).toBe(limite);
         expect(r.rows[0].contador).toBe(1);
@@ -163,21 +156,19 @@ d("STAB10-C1.2-B1 — RPC fn_autocadastro_rate_limit_hit", () => {
       await expectReject(
         c,
         /SCOPE_INVALIDO|scope_check/i,
-        "SELECT public.fn_autocadastro_rate_limit_hit('outro','k',$1::timestamptz,$2::timestamptz)",
-        [start, exp],
+        "SELECT public.fn_autocadastro_rate_limit_hit('outro','k')",
       );
     });
   });
 
   it("incrementa atomicamente e bloqueia acima do limite (email=3)", async () => {
     await withRollback(async (c) => {
-      const { start, exp } = janelaFixaISO();
       const bkt = `email-bkt-${crypto.randomUUID()}`;
       const results: number[] = [];
       for (let i = 0; i < 4; i++) {
         const r = await c.query(
-          "SELECT * FROM public.fn_autocadastro_rate_limit_hit('email',$1,$2::timestamptz,$3::timestamptz)",
-          [bkt, start, exp],
+          "SELECT * FROM public.fn_autocadastro_rate_limit_hit('email',$1)",
+          [bkt],
         );
         results.push(r.rows[0].contador);
         if (i < 3) expect(r.rows[0].permitido).toBe(true);
@@ -189,16 +180,14 @@ d("STAB10-C1.2-B1 — RPC fn_autocadastro_rate_limit_hit", () => {
 
   it("cleanup remove apenas linhas expiradas e é limitado", async () => {
     await withRollback(async (c) => {
-      // Insere linha expirada e outra ativa; ambas devem coexistir até o hit.
       await c.query(
         `INSERT INTO public.autocadastro_rate_limit
            (scope,bucket_key,window_start,contador,expires_at)
          VALUES ('ip','antiga-b1', now()-interval '30 minutes', 1, now()-interval '15 minutes')`,
       );
-      const { start, exp } = janelaFixaISO();
       await c.query(
-        "SELECT public.fn_autocadastro_rate_limit_hit('ip',$1,$2::timestamptz,$3::timestamptz)",
-        [`ip-nova-${crypto.randomUUID()}`, start, exp],
+        "SELECT public.fn_autocadastro_rate_limit_hit('ip',$1)",
+        [`ip-nova-${crypto.randomUUID()}`],
       );
       const r = await c.query(
         "SELECT count(*)::int n FROM public.autocadastro_rate_limit WHERE bucket_key='antiga-b1'",
@@ -209,22 +198,21 @@ d("STAB10-C1.2-B1 — RPC fn_autocadastro_rate_limit_hit", () => {
 
   it("bucket_key vazio ou muito grande é rejeitado", async () => {
     await withRollback(async (c) => {
-      const { start, exp } = janelaFixaISO();
       await expectReject(
         c,
         /BUCKET_KEY_INVALIDA|bucket_key_check/i,
-        "SELECT public.fn_autocadastro_rate_limit_hit('ip','',$1::timestamptz,$2::timestamptz)",
-        [start, exp],
+        "SELECT public.fn_autocadastro_rate_limit_hit('ip','')",
       );
       await expectReject(
         c,
         /BUCKET_KEY_INVALIDA|bucket_key_check/i,
-        "SELECT public.fn_autocadastro_rate_limit_hit('ip',$1,$2::timestamptz,$3::timestamptz)",
-        ["x".repeat(129), start, exp],
+        "SELECT public.fn_autocadastro_rate_limit_hit('ip',$1)",
+        ["x".repeat(129)],
       );
     });
   });
 });
+
 
 d("STAB10-C1.2-B1 — preservação", () => {
   it("nenhuma instituição foi habilitada pela etapa B1", async () => {
