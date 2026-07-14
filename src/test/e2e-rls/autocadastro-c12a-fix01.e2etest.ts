@@ -168,14 +168,18 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
       p_aceito_em: new Date().toISOString(),
     });
     expect(r4.ok, JSON.stringify(r4.body)).toBe(true);
-    expect(r4.body[0].result_code).toBe("SUCESSO");
-    const assistidoId = r4.body[0].assistido_id;
-    tracker.assistidos.push(assistidoId);
-    tracker.auditRefs.push({
-      acao: "AUTOCADASTRO_PUBLICO_ASSISTIDO",
-      registroId: assistidoId,
-      idempotencyKey: key,
-    });
+    const r4row = r4.body[0];
+    // FIX01-R1.c — tracking fail-safe antes de qualquer expect funcional.
+    if (r4row?.assistido_id) {
+      tracker.assistidos.push(r4row.assistido_id);
+      tracker.auditRefs.push({
+        acao: "AUTOCADASTRO_PUBLICO_ASSISTIDO",
+        registroId: r4row.assistido_id,
+        idempotencyKey: key,
+      });
+    }
+    expect(r4row.result_code).toBe("SUCESSO");
+    const assistidoId = r4row.assistido_id;
 
     const [p, ur, a, iu, aud] = await Promise.all([
       svcRow(`profiles?user_id=eq.${uid}&select=user_id`),
