@@ -273,18 +273,19 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
     expect(linha.user_id).toBe(uid);
     expect(linha.result_code).toBe("AUTH_CRIADO");
 
+    // FIX01-R1.c — tracking fail-safe: registrar auditRef ANTES da RPC.
+    // acao, registro_id (uid Auth) e idempotency_key (k1) já são conhecidos.
+    tracker.auditRefs.push({
+      acao: "AUTOCADASTRO_ROLLBACK_FALHOU",
+      registroId: uid,
+      idempotencyKey: k1,
+    });
     const fail2 = await rpc("fn_autocadastro_marcar_resultado_falha", {
       p_idempotency_key: k1, p_request_fingerprint: fp, p_request_id: r1,
       p_resultado: "ROLLBACK_APP", p_auth_delete_ok: false,
     });
     expect(fail2.ok).toBe(true);
     expect(fail2.body[0].result_code).toBe("rollback_falhou");
-    // Auditoria AUTOCADASTRO_ROLLBACK_FALHOU: user_id=NULL, registro_id=uid, dados_novos.idempotency_key=k1
-    tracker.auditRefs.push({
-      acao: "AUTOCADASTRO_ROLLBACK_FALHOU",
-      registroId: uid,
-      idempotencyKey: k1,
-    });
 
     await rpc("fn_autocadastro_reservar", {
       p_idempotency_key: k2, p_request_fingerprint: fp, p_request_id: r2,
