@@ -108,7 +108,7 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
       const tratMap = Object.fromEntries((tiposTrat || []).map((t) => [t.id, t]));
 
       // Get agenda sessions for each vinculo
-      const vinculoIds = vinculos.map((v: any) => v.id);
+      const vinculoIds = vinculos.map((v) => v.id);
       const { data: agendaSessoes } = await supabase
         .from("agenda_tratamentos_assistido")
         .select("assistido_tratamento_id, data_sessao, horario")
