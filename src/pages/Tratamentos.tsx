@@ -114,7 +114,7 @@ export default function Tratamentos() {
     if (editId) {
       ({ error } = await supabase.from("tipos_tratamento").update(payload).eq("id", editId));
     } else {
-      ({ error } = await supabase.from("tipos_tratamento").insert({ ...payload, created_by: user?.id }));
+      ({ error } = await supabase.from("tipos_tratamento").insert({ ...payload, created_by: user?.id, instituicao_id: requireInstituicaoId() }));
     }
 
     if (error) {
