@@ -63,7 +63,10 @@ export default function MfaVerify() {
         code: code.trim(),
       });
       if (verErr) {
-        await supabase.functions.invoke("mfa-manager", { body: { action: "audit", evento: "MFA_FALHA", detalhe: "login" } }).catch(() => {});
+        await supabase.functions.invoke("mfa-manager", { body: { action: "audit", evento: "MFA_FALHA", detalhe: "login" } })
+          .catch((err) => {
+            console.error("[auditoria-mfa] Falha ao registrar evento MFA_FALHA:", err);
+          });
         throw verErr;
       }
       await refreshMfa();
