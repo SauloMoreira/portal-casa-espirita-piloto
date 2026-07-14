@@ -71,7 +71,7 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
       const instData = instRes.data;
       const assistData = assistRes.data;
 
-      let entData: any = null;
+      let entData = null;
       if (entrevistaId) {
         // BUG-03: leitura via RPC operacional (sem conteúdo sigiloso); funciona
         // para tarefeiro, que não tem mais acesso direto à tabela de entrevistas.
