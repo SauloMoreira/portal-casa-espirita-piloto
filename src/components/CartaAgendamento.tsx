@@ -122,16 +122,16 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
         sessoesByVinculo[s.assistido_tratamento_id].push({ data_sessao: s.data_sessao, horario: s.horario });
       }
 
-      const result: TratamentoAgendado[] = vinculos.map((v: any) => {
-        const trat = tratMap[v.tratamento_id] || {};
+      const result: TratamentoAgendado[] = vinculos.map((v) => {
+        const trat = tratMap[v.tratamento_id];
         return {
-          tratamento_nome: trat.nome || "—",
-          tratamento_tipo: trat.tipo || "—",
+          tratamento_nome: trat?.nome || "—",
+          tratamento_tipo: trat?.tipo || "—",
           quantidade_total: v.quantidade_total,
-          frequencia_valor: trat.frequencia_valor,
-          frequencia_unidade: trat.frequencia_unidade,
-          dia_semana: trat.dia_semana,
-          horario: trat.horario,
+          frequencia_valor: trat?.frequencia_valor,
+          frequencia_unidade: trat?.frequencia_unidade,
+          dia_semana: trat?.dia_semana,
+          horario: trat?.horario,
           sessoes: sessoesByVinculo[v.id] || [],
         };
       });
