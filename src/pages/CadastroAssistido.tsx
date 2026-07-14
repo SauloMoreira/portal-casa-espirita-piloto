@@ -204,35 +204,7 @@ export default function CadastroAssistido() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="cpf">CPF (opcional)</Label>
-                <Input id="cpf" value={cpf} onChange={(e) => setCpf(e.target.value)} className="h-12 text-base" />
-              </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="senha">Crie uma senha</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="senha"
-                    type={showSenha ? "text" : "password"}
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                    className="h-12 pl-10 pr-10 text-base"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSenha(!showSenha)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={showSenha ? "Ocultar senha" : "Mostrar senha"}
-                  >
-                    {showSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
 
               <div className="flex items-start gap-2 pt-2">
                 <Checkbox id="aceite" checked={aceite} onCheckedChange={(v) => setAceite(v === true)} className="mt-0.5" />
