@@ -439,6 +439,123 @@ async function safeStep(
   }
 }
 
+// ============================================================
+// FIX01-R1.c-FIX02 — Wrappers "checked" para o modo strict e para
+// residuosFinais. Não alteram o contrato legado de svc/adminDeleteAuthUser
+// /adminGetAuthUser/adminListAuthUserByEmail. Qualquer resposta HTTP não-ok
+// é convertida em Error (capturado por safeStep no cleanup; propagado em
+// residuosFinais para os callers agregarem em verificationErrors).
+// ============================================================
+
+/** DELETE REST com validação HTTP. Lança em qualquer status não-ok. */
+async function svcDeleteChecked(path: string, label: string): Promise<void> {
+  const res = await svc(path, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(
+      `${label} [DELETE ${path}] HTTP ${res.status} :: ${JSON.stringify(res.body)}`,
+    );
+  }
+}
+
+/**
+ * DELETE Auth com validação HTTP. 200/204 = sucesso; 404 = idempotente
+ * (usuário já removido). Qualquer outro status não-ok lança.
+ */
+async function adminDeleteAuthUserChecked(userId: string): Promise<void> {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    method: "DELETE",
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
+  });
+  if (r.ok) return;
+  if (r.status === 404) return;
+  const body = await r.json().catch(() => null);
+  throw new Error(
+    `auth.users.uid=${userId} [DELETE admin/users] HTTP ${r.status} :: ${JSON.stringify(body)}`,
+  );
+}
+
+/**
+ * GET REST com validação HTTP + formato. Exige body em array; qualquer
+ * violação lança erro contendo o marcador FORMATO_RESPOSTA_INVALIDO.
+ */
+async function svcReadChecked<T = unknown>(
+  path: string,
+  label: string,
+): Promise<T[]> {
+  const res = await svc<unknown>(path);
+  if (!res.ok) {
+    throw new Error(
+      `${label} [GET ${path}] HTTP ${res.status} :: ${JSON.stringify(res.body)}`,
+    );
+  }
+  if (!Array.isArray(res.body)) {
+    throw new Error(
+      `${label} [GET ${path}] FORMATO_RESPOSTA_INVALIDO body_type=${typeof res.body} :: ${JSON.stringify(res.body)}`,
+    );
+  }
+  return res.body as T[];
+}
+
+/**
+ * GET Auth individual com validação HTTP + formato. 200 exige objeto com
+ * `id` string; 404 devolve null; qualquer outro status lança.
+ */
+async function adminGetAuthUserChecked(
+  userId: string,
+): Promise<{ id: string; email: string; email_confirmed_at: string | null } | null> {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
+  });
+  if (r.status === 404) return null;
+  const body = await r.json().catch(() => null);
+  if (!r.ok) {
+    throw new Error(
+      `auth.users.get uid=${userId} HTTP ${r.status} :: ${JSON.stringify(body)}`,
+    );
+  }
+  if (
+    !body ||
+    typeof body !== "object" ||
+    typeof (body as { id?: unknown }).id !== "string"
+  ) {
+    throw new Error(
+      `auth.users.get uid=${userId} FORMATO_RESPOSTA_INVALIDO :: ${JSON.stringify(body)}`,
+    );
+  }
+  const b = body as { id: string; email?: string; email_confirmed_at?: string | null };
+  return { id: b.id, email: b.email ?? "", email_confirmed_at: b.email_confirmed_at ?? null };
+}
+
+/**
+ * GET Auth list-by-email com validação HTTP + formato. Somente resposta ok
+ * com `body.users` array é aceita. Qualquer não-ok (inclusive 404) lança.
+ */
+async function adminListAuthUserByEmailChecked(
+  email: string,
+): Promise<Array<{ id: string; email: string }>> {
+  const r = await fetch(
+    `${SUPABASE_URL}/auth/v1/admin/users?filter=${encodeURIComponent(`email eq "${email}"`)}`,
+    { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
+  );
+  const body = await r.json().catch(() => null);
+  if (!r.ok) {
+    throw new Error(
+      `auth.users.list email=${email} HTTP ${r.status} :: ${JSON.stringify(body)}`,
+    );
+  }
+  if (
+    !body ||
+    typeof body !== "object" ||
+    !Array.isArray((body as { users?: unknown }).users)
+  ) {
+    throw new Error(
+      `auth.users.list email=${email} FORMATO_RESPOSTA_INVALIDO :: ${JSON.stringify(body)}`,
+    );
+  }
+  const users = (body as { users: Array<{ id: string; email: string }> }).users;
+  return users.filter((u) => (u.email || "").toLowerCase() === email.toLowerCase());
+}
+
 /**
  * Cleanup integral por IDs rastreados. Ordem: tabelas públicas primeiro,
  * auth.users por último, instituicoes por último de todos. Idempotente.
@@ -450,6 +567,12 @@ async function safeStep(
  * operacionais são acumuladas em `cleanupErrors`. As issues de auditoria são
  * devolvidas em `auditIssues` para o caller lançar o erro agregado somente
  * DEPOIS de verificar zero resíduos.
+ *
+ * FIX01-R1.c-FIX02 — modo estrito passa a usar wrappers checked
+ * (svcDeleteChecked, adminDeleteAuthUserChecked). Respostas HTTP 4xx/5xx
+ * agora são registradas em cleanupErrors em vez de silenciosamente aceitas.
+ * 404 no DELETE Auth continua idempotente. Contrato legado (svc,
+ * adminDeleteAuthUser) preservado — usado exclusivamente no ramo não strict.
  */
 export async function cleanupTracked(
   tracker: CreatedIds,
@@ -468,49 +591,52 @@ export async function cleanupTracked(
     // 2) audit_logs por id (inclui duplicatas resolvidas).
     for (const auditId of tracker.auditIds) {
       await safeStep(cleanupErrors, `audit_logs.id=${auditId}`, () =>
-        svc(`audit_logs?id=eq.${auditId}`, { method: "DELETE" }),
+        svcDeleteChecked(`audit_logs?id=eq.${auditId}`, `audit_logs.id=${auditId}`),
       );
     }
     // 3) assistidos por id
     for (const id of tracker.assistidos) {
       await safeStep(cleanupErrors, `assistidos.id=${id}`, () =>
-        svc(`assistidos?id=eq.${id}`, { method: "DELETE" }),
+        svcDeleteChecked(`assistidos?id=eq.${id}`, `assistidos.id=${id}`),
       );
     }
     // 4) instituicao_usuarios por id
     for (const id of tracker.instituicaoUsuarios) {
       await safeStep(cleanupErrors, `instituicao_usuarios.id=${id}`, () =>
-        svc(`instituicao_usuarios?id=eq.${id}`, { method: "DELETE" }),
+        svcDeleteChecked(`instituicao_usuarios?id=eq.${id}`, `instituicao_usuarios.id=${id}`),
       );
     }
     // 5) user_roles por id
     for (const id of tracker.userRoles) {
       await safeStep(cleanupErrors, `user_roles.id=${id}`, () =>
-        svc(`user_roles?id=eq.${id}`, { method: "DELETE" }),
+        svcDeleteChecked(`user_roles?id=eq.${id}`, `user_roles.id=${id}`),
       );
     }
     // 6) profiles por user_id
     for (const uid of tracker.authUsers) {
       await safeStep(cleanupErrors, `profiles.user_id=${uid}`, () =>
-        svc(`profiles?user_id=eq.${uid}`, { method: "DELETE" }),
+        svcDeleteChecked(`profiles?user_id=eq.${uid}`, `profiles.user_id=${uid}`),
       );
     }
     // 7) autocadastro_idempotencia por idempotency_key rastreada
     for (const key of tracker.idempotencyKeys) {
       await safeStep(cleanupErrors, `autocadastro_idempotencia.key=${key}`, () =>
-        svc(`autocadastro_idempotencia?idempotency_key=eq.${key}`, { method: "DELETE" }),
+        svcDeleteChecked(
+          `autocadastro_idempotencia?idempotency_key=eq.${key}`,
+          `autocadastro_idempotencia.key=${key}`,
+        ),
       );
     }
-    // 8) auth.users por UUID
+    // 8) auth.users por UUID (404 idempotente).
     for (const uid of tracker.authUsers) {
       await safeStep(cleanupErrors, `auth.users.uid=${uid}`, () =>
-        adminDeleteAuthUser(uid),
+        adminDeleteAuthUserChecked(uid),
       );
     }
     // 9) instituicoes efêmeras por id
     for (const id of tracker.instituicoes) {
       await safeStep(cleanupErrors, `instituicoes.id=${id}`, () =>
-        svc(`instituicoes?id=eq.${id}`, { method: "DELETE" }),
+        svcDeleteChecked(`instituicoes?id=eq.${id}`, `instituicoes.id=${id}`),
       );
     }
     return { auditIssues, cleanupErrors };
@@ -551,72 +677,96 @@ export async function cleanupTracked(
  * acao+registro_id+idempotency_key) e autocadastro_idempotencia
  * (por idempotency_key), para permitir asserção estrutural única
  * via residuosFinais no afterAll dos E2Es.
+ *
+ * FIX01-R1.c-FIX02 — todas as leituras passam por wrappers checked
+ * (svcReadChecked, adminGetAuthUserChecked, adminListAuthUserByEmailChecked).
+ * Respostas HTTP com erro ou formato inesperado LANÇAM em vez de virarem
+ * quantidade zero. Os callers devem capturar em `verificationErrors` e
+ * agregar junto de cleanupErrors e auditIssues no erro final.
  */
 export async function residuosFinais(
   tracker: CreatedIds,
 ): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
-  // audit_logs por id rastreado
   for (const aid of tracker.auditIds) {
-    const r = await svc<Array<unknown>>(`audit_logs?id=eq.${aid}&select=id`);
-    counts[`audit_logs.id:${aid}`] = (r.body ?? []).length;
-  }
-  // audit_logs por combinação (acao + registro_id + idempotency_key)
-  for (const ref of tracker.auditRefs) {
-    const r = await svc<Array<{ dados_novos: Record<string, unknown> | null }>>(
-      `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
+    const rows = await svcReadChecked<{ id: string }>(
+      `audit_logs?id=eq.${aid}&select=id`,
+      `audit_logs.id:${aid}`,
     );
-    const remain = (r.body ?? []).filter((row) => {
+    counts[`audit_logs.id:${aid}`] = rows.length;
+  }
+  for (const ref of tracker.auditRefs) {
+    const rows = await svcReadChecked<{ dados_novos: Record<string, unknown> | null }>(
+      `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
+      `audit_logs.ref:${ref.acao}/${ref.registroId}`,
+    );
+    const remain = rows.filter((row) => {
       const k = (row.dados_novos as Record<string, unknown> | null)?.idempotency_key;
       return typeof k === "string" && k === ref.idempotencyKey;
     });
     counts[`audit_logs.ref:${ref.acao}/${ref.registroId}`] = remain.length;
   }
-  // autocadastro_idempotencia por key rastreada
   for (const key of tracker.idempotencyKeys) {
-    const r = await svc<Array<unknown>>(
+    const rows = await svcReadChecked<unknown>(
       `autocadastro_idempotencia?idempotency_key=eq.${key}&select=idempotency_key`,
+      `autocadastro_idempotencia:${key}`,
     );
-    counts[`autocadastro_idempotencia:${key}`] = (r.body ?? []).length;
+    counts[`autocadastro_idempotencia:${key}`] = rows.length;
   }
-  // Por IDs rastreados
   for (const id of tracker.assistidos) {
-    const r = await svc<Array<unknown>>(`assistidos?id=eq.${id}&select=id`);
-    counts[`assistidos:${id}`] = (r.body ?? []).length;
+    const rows = await svcReadChecked<unknown>(
+      `assistidos?id=eq.${id}&select=id`,
+      `assistidos:${id}`,
+    );
+    counts[`assistidos:${id}`] = rows.length;
   }
   for (const id of tracker.instituicaoUsuarios) {
-    const r = await svc<Array<unknown>>(`instituicao_usuarios?id=eq.${id}&select=id`);
-    counts[`instituicao_usuarios:${id}`] = (r.body ?? []).length;
+    const rows = await svcReadChecked<unknown>(
+      `instituicao_usuarios?id=eq.${id}&select=id`,
+      `instituicao_usuarios:${id}`,
+    );
+    counts[`instituicao_usuarios:${id}`] = rows.length;
   }
   for (const id of tracker.userRoles) {
-    const r = await svc<Array<unknown>>(`user_roles?id=eq.${id}&select=id`);
-    counts[`user_roles:${id}`] = (r.body ?? []).length;
+    const rows = await svcReadChecked<unknown>(
+      `user_roles?id=eq.${id}&select=id`,
+      `user_roles:${id}`,
+    );
+    counts[`user_roles:${id}`] = rows.length;
   }
   for (const uid of tracker.authUsers) {
     const [p, ur, iu, a, au] = await Promise.all([
-      svc<Array<unknown>>(`profiles?user_id=eq.${uid}&select=user_id`),
-      svc<Array<unknown>>(`user_roles?user_id=eq.${uid}&select=id`),
-      svc<Array<unknown>>(`instituicao_usuarios?user_id=eq.${uid}&select=id`),
-      svc<Array<unknown>>(`assistidos?user_id=eq.${uid}&select=id`),
-      adminGetAuthUser(uid),
+      svcReadChecked<unknown>(`profiles?user_id=eq.${uid}&select=user_id`, `profiles:${uid}`),
+      svcReadChecked<unknown>(`user_roles?user_id=eq.${uid}&select=id`, `user_roles.user_id:${uid}`),
+      svcReadChecked<unknown>(`instituicao_usuarios?user_id=eq.${uid}&select=id`, `instituicao_usuarios.user_id:${uid}`),
+      svcReadChecked<unknown>(`assistidos?user_id=eq.${uid}&select=id`, `assistidos.user_id:${uid}`),
+      adminGetAuthUserChecked(uid),
     ]);
-    counts[`profiles:${uid}`] = (p.body ?? []).length;
-    counts[`user_roles.user_id:${uid}`] = (ur.body ?? []).length;
-    counts[`instituicao_usuarios.user_id:${uid}`] = (iu.body ?? []).length;
-    counts[`assistidos.user_id:${uid}`] = (a.body ?? []).length;
+    counts[`profiles:${uid}`] = p.length;
+    counts[`user_roles.user_id:${uid}`] = ur.length;
+    counts[`instituicao_usuarios.user_id:${uid}`] = iu.length;
+    counts[`assistidos.user_id:${uid}`] = a.length;
     counts[`auth.users:${uid}`] = au ? 1 : 0;
   }
-  // Por prefixo textual (defensivo)
-  const pref = await svc<Array<unknown>>(`assistidos?nome=like.${NS}%25&select=id`);
-  counts[`assistidos.prefix`] = (pref.body ?? []).length;
+  const pref = await svcReadChecked<unknown>(
+    `assistidos?nome=like.${NS}%25&select=id`,
+    `assistidos.prefix`,
+  );
+  counts[`assistidos.prefix`] = pref.length;
   for (const email of tracker.emails) {
-    counts[`auth.email:${email}`] = (await adminListAuthUserByEmail(email)).length;
+    counts[`auth.email:${email}`] = (await adminListAuthUserByEmailChecked(email)).length;
   }
   for (const id of tracker.instituicoes) {
-    const r = await svc<Array<unknown>>(`instituicoes?id=eq.${id}&select=id`);
-    counts[`instituicoes:${id}`] = (r.body ?? []).length;
+    const rows = await svcReadChecked<unknown>(
+      `instituicoes?id=eq.${id}&select=id`,
+      `instituicoes:${id}`,
+    );
+    counts[`instituicoes:${id}`] = rows.length;
   }
-  const prefInst = await svc<Array<unknown>>(`instituicoes?slug=like.${NS}-%25&select=id`);
-  counts[`instituicoes.prefix`] = (prefInst.body ?? []).length;
+  const prefInst = await svcReadChecked<unknown>(
+    `instituicoes?slug=like.${NS}-%25&select=id`,
+    `instituicoes.prefix`,
+  );
+  counts[`instituicoes.prefix`] = prefInst.length;
   return counts;
 }
