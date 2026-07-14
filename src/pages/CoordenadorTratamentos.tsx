@@ -77,7 +77,7 @@ export default function CoordenadorTratamentos() {
         }
       }
 
-      setItems(vinculos.map((v: any) => ({
+      setItems(vinculos.map((v) => ({
         id: v.id,
         assistido_nome: assistMap[v.assistido_id] || "—",
         tratamento_nome: tratMap[v.tratamento_id] || "—",
