@@ -141,7 +141,7 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
     expect(r3.ok, JSON.stringify(r3.body)).toBe(true);
     expect(r3.body[0].canonical_request_id).toBe(R1);
 
-    const r4 = await rpc("fn_autocadastro_assistido_publico", {
+    const r4 = await rpc<any>("fn_autocadastro_assistido_publico", {
       p_request_id: R1, p_idempotency_key: key, p_request_fingerprint: fp,
       p_instituicao_id: instId, p_user_id: uid, p_email_normalizado: email,
       p_nome_completo: `FIX01 Retomada ${runId}`, p_cpf_normalizado: "",
@@ -149,19 +149,26 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
       p_termos_versao: "v1.0", p_privacidade_versao: "v1.0",
       p_aceito_em: new Date().toISOString(),
     });
-    expect(r4.ok, JSON.stringify(r4.body)).toBe(true);
-    const r4row = r4.body[0];
-    // FIX01-R1.c — tracking fail-safe antes de qualquer expect funcional.
-    if (r4row?.assistido_id) {
-      tracker.assistidos.push(r4row.assistido_id);
+    // FIX01-R1.c-FIX01 — normalizar payload PostgREST e registrar tracking
+    // ANTES de qualquer expect sobre a resposta.
+    const r4raw: any = r4.body;
+    const r4row = Array.isArray(r4raw)
+      ? r4raw[0]
+      : Array.isArray(r4raw?.data)
+        ? r4raw.data[0]
+        : r4raw?.data ?? r4raw ?? {};
+    const assistidoId = r4row?.assistido_id;
+    if (assistidoId) {
+      if (!tracker.assistidos.includes(assistidoId)) tracker.assistidos.push(assistidoId);
       tracker.auditRefs.push({
         acao: "AUTOCADASTRO_PUBLICO_ASSISTIDO",
-        registroId: r4row.assistido_id,
+        registroId: assistidoId,
         idempotencyKey: key,
       });
     }
-    expect(r4row.result_code).toBe("SUCESSO");
-    const assistidoId = r4row.assistido_id;
+    expect(r4.ok, JSON.stringify(r4.body)).toBe(true);
+    expect(r4row?.result_code).toBe("SUCESSO");
+    expect(assistidoId).toBeTruthy();
 
     const [p, ur, a, iu, aud] = await Promise.all([
       svcRow(`profiles?user_id=eq.${uid}&select=user_id`),
