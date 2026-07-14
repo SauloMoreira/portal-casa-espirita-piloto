@@ -45,6 +45,13 @@ export const FER_ID =
 // STAB10-A.4: sem fallback hardcoded. O tenant secundário é criado como
 // instituição efêmera namespaced no beforeAll (ver seedInstituicaoEfemera).
 
+export interface AuditRef {
+  id?: string;
+  acao: string;
+  registroId: string;
+  idempotencyKey: string;
+}
+
 export interface CreatedIds {
   authUsers: string[];
   profiles: string[];
@@ -53,6 +60,10 @@ export interface CreatedIds {
   assistidos: string[];
   instituicoes: string[];
   emails: string[];
+  // FIX01-R1.b — cirurgia estrita
+  auditIds: string[];
+  idempotencyKeys: string[];
+  auditRefs: AuditRef[];
 }
 
 export function newTracker(): CreatedIds {
@@ -64,6 +75,9 @@ export function newTracker(): CreatedIds {
     assistidos: [],
     instituicoes: [],
     emails: [],
+    auditIds: [],
+    idempotencyKeys: [],
+    auditRefs: [],
   };
 }
 
