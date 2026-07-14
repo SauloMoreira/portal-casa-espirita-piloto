@@ -87,7 +87,7 @@ export default function PortalAdmin() {
       const [instRes, asgRes, planosRes] = await Promise.all([
         supabase
           .from("instituicoes")
-          .select("id, nome, slug, status, cidade, uf, created_at")
+          .select("id, nome, slug, status, cidade, uf, created_at, autocadastro_habilitado")
           .order("created_at", { ascending: false }),
         supabase
           .from("assinaturas")
