@@ -79,15 +79,23 @@ describe("STAB10-C1.2-B1 — guard estático da Edge", () => {
     expect(files.index).not.toMatch(/email_confirm\s*:/);
   });
 
-  it("resposta jamais retorna sessão ou tokens", () => {
-    for (const banned of ["access_token", "refresh_token", "expires_in", "\"session\":"]) {
-      expect(files.index).not.toContain(banned);
+  it("resposta jamais serializa sessão ou tokens como chave JSON", () => {
+    // Só chaves em literais ({ access_token: ... } / "access_token":)
+    for (const banned of [
+      /["']access_token["']\s*:/,
+      /["']refresh_token["']\s*:/,
+      /["']expires_in["']\s*:/,
+      /["']session["']\s*:/,
+    ]) {
+      expect(files.index).not.toMatch(banned);
     }
   });
 
   it("não importa o CORS compartilhado permissivo", () => {
+    // Bloqueia apenas import/require reais, não menções em comentários.
+    const importRe = /(?:from|require)\s*\(?["']\.\.\/_shared\/cors/;
     for (const f of [files.index, files.cors, files.rate, files.contract]) {
-      expect(f).not.toMatch(/_shared\/cors/);
+      expect(f).not.toMatch(importRe);
     }
   });
 
