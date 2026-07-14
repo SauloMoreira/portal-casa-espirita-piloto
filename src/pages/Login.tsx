@@ -162,7 +162,12 @@ export default function Login() {
               </Button>
             </form>
 
-            {/* STAB10-C.0 — cadastro público temporariamente indisponível: link removido. */}
+            <div className="mt-6 text-center text-sm text-muted-foreground">
+              Ainda não tem cadastro?{" "}
+              <Link to="/cadastro" className="font-medium text-primary hover:underline">
+                Cadastre-se
+              </Link>
+            </div>
           </CardContent>
         </Card>
 

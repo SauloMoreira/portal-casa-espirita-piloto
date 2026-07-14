@@ -4267,6 +4267,13 @@ export type Database = {
         Args: { p_fila_id: string }
         Returns: string
       }
+      fn_instituicoes_autocadastro_publico: {
+        Args: never
+        Returns: {
+          nome: string
+          slug: string
+        }[]
+      }
       fn_is_admin_instituicao: {
         Args: { _inst_id: string; _user_id: string }
         Returns: boolean
