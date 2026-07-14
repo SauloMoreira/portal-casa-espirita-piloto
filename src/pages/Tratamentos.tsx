@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, Heart, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requireInstituicaoId } from "@/lib/tenant/currentTenant";
 
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -113,7 +114,7 @@ export default function Tratamentos() {
     if (editId) {
       ({ error } = await supabase.from("tipos_tratamento").update(payload).eq("id", editId));
     } else {
-      ({ error } = await supabase.from("tipos_tratamento").insert({ ...payload, created_by: user?.id }));
+      ({ error } = await supabase.from("tipos_tratamento").insert({ ...payload, created_by: user?.id, instituicao_id: requireInstituicaoId() }));
     }
 
     if (error) {
