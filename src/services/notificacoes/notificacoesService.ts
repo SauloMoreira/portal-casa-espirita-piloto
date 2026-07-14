@@ -455,6 +455,21 @@ export interface FilaItemDetalhe {
   logs: FilaLogEntry[];
 }
 
+interface PayloadEnviadoLog {
+  mensagem?: string;
+  telefone?: string;
+  autor?: string;
+}
+
+interface PayloadRecebidoLog {
+  texto?: string;
+  telefone?: string;
+  messageId?: string;
+  id?: string;
+  tipo_mensagem?: string;
+  conteudo_exibicao?: string;
+}
+
 /**
  * Carrega o detalhe completo de um item da fila para auditoria/transparência:
  * dados do envio, conteúdo efetivamente enviado e a trilha em notificacoes_log.
