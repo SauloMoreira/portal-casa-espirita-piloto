@@ -7,6 +7,8 @@ import { Loader2, ShieldCheck, CreditCard, Send, LifeBuoy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalHub } from "@/hooks/usePortalHub";
 import { ROUTES } from "@/constants";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
 
 interface InstituicaoAdminRow {
   id: string;
