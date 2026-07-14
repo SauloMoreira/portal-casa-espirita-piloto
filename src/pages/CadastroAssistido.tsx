@@ -111,13 +111,6 @@ export default function CadastroAssistido() {
         return;
       }
 
-      const mensagens: Record<string, string> = {
-        PAYLOAD_INVALIDO: "Confira os dados informados — algum campo está incorreto.",
-        INSTITUICAO_INDISPONIVEL: "O cadastro público não está disponível para esta instituição no momento.",
-        RATE_LIMIT_EXCEDIDO: "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.",
-        IDEMPOTENCY_KEY_INVALIDA: "Ocorreu um problema técnico. Atualize a página e tente novamente.",
-        AUTOCADASTRO_INDISPONIVEL_RETENTAR: "O cadastro está temporariamente indisponível. Tente novamente em instantes.",
-      };
       toast({
         title: "Não foi possível concluir o cadastro",
         description: mensagens[code ?? ""] ?? "Tente novamente ou procure a recepção da casa.",
