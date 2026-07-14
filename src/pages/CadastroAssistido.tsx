@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Lock, User, Phone, Eye, EyeOff, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Mail, User, Phone, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import brandIcon from "@/assets/portal-casa-espirita-icon.png";
 import { SAAS_BRANDING } from "@/config/saasBranding";
@@ -23,14 +23,16 @@ export default function CadastroAssistido() {
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [showSenha, setShowSenha] = useState(false);
   const [celular, setCelular] = useState("");
-  const [cpf, setCpf] = useState("");
   const [aceite, setAceite] = useState(false);
   const [loading, setLoading] = useState(false);
   const [etapa, setEtapa] = useState<Etapa>("form");
   const [idempotencyKey, setIdempotencyKey] = useState("");
+
+  function gerarSenhaSegura(): string {
+    return crypto.randomUUID().replace(/-/g, "");
+  }
+
 
   useEffect(() => {
     setIdempotencyKey(crypto.randomUUID());
@@ -39,20 +41,20 @@ export default function CadastroAssistido() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!instituicaoSlug) return;
-    if (!nome.trim() || !email.trim() || !senha.trim() || !celular.trim() || !aceite) {
+    if (!nome.trim() || !email.trim() || !celular.trim() || !aceite) {
       toast({ title: "Preencha todos os campos obrigatórios.", variant: "destructive" });
       return;
     }
     setLoading(true);
+    const senhaGerada = gerarSenhaSegura();
     try {
       const { data, error } = await supabase.functions.invoke("signup-assistido-tenant", {
         body: {
           instituicao_slug: instituicaoSlug,
           nome_completo: nome.trim(),
           email: email.trim(),
-          senha,
+          senha: senhaGerada,
           celular: celular.replace(/\D/g, ""),
-          cpf: cpf.trim() ? cpf.replace(/\D/g, "") : undefined,
           aceite_termos: true,
           termos_versao: TERMOS_VERSAO,
           privacidade_versao: PRIVACIDADE_VERSAO,
@@ -75,7 +77,7 @@ export default function CadastroAssistido() {
       if (code === "AUTOCADASTRO_CONCLUIDO" && nextAction === "LOGIN") {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email.trim(),
-          password: senha,
+          password: senhaGerada,
         });
         if (!signInError) {
           navigate("/dashboard", { replace: true });
@@ -171,6 +173,11 @@ export default function CadastroAssistido() {
               <h2 className="font-display text-xl font-semibold text-foreground">Criar meu cadastro</h2>
               <p className="text-sm text-muted-foreground">Preencha seus dados para começar</p>
             </div>
+
+            <p className="mb-4 text-center text-sm text-muted-foreground">
+              Não precisa criar senha — é só confirmar pelo seu e-mail.
+            </p>
+
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
