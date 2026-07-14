@@ -455,6 +455,21 @@ export interface FilaItemDetalhe {
   logs: FilaLogEntry[];
 }
 
+interface PayloadEnviadoLog {
+  mensagem?: string;
+  telefone?: string;
+  autor?: string;
+}
+
+interface PayloadRecebidoLog {
+  texto?: string;
+  telefone?: string;
+  messageId?: string;
+  id?: string;
+  tipo_mensagem?: string;
+  conteudo_exibicao?: string;
+}
+
 /**
  * Carrega o detalhe completo de um item da fila para auditoria/transparência:
  * dados do envio, conteúdo efetivamente enviado e a trilha em notificacoes_log.
@@ -467,17 +482,20 @@ export async function getFilaItemDetalhe(item: FilaItem): Promise<FilaItemDetalh
     .order("created_at", { ascending: true });
   if (error) throw error;
 
-  const logs: FilaLogEntry[] = (logsRaw ?? []).map((l: any) => ({
-    id: l.id,
-    direcao: l.direcao,
-    status: l.status,
-    erro: l.erro,
-    mensagem: l.payload_enviado?.mensagem ?? l.payload_recebido?.texto ?? null,
-    telefone: l.payload_enviado?.telefone ?? l.payload_recebido?.telefone ?? null,
-    external_message_id:
-      l.payload_recebido?.messageId ?? l.payload_recebido?.id ?? null,
-    created_at: l.created_at,
-  }));
+  const logs: FilaLogEntry[] = (logsRaw ?? []).map((l) => {
+    const payloadEnviado = l.payload_enviado as PayloadEnviadoLog | null;
+    const payloadRecebido = l.payload_recebido as PayloadRecebidoLog | null;
+    return {
+      id: l.id,
+      direcao: l.direcao as "entrada" | "saida",
+      status: l.status,
+      erro: l.erro,
+      mensagem: payloadEnviado?.mensagem ?? payloadRecebido?.texto ?? null,
+      telefone: payloadEnviado?.telefone ?? payloadRecebido?.telefone ?? null,
+      external_message_id: payloadRecebido?.messageId ?? payloadRecebido?.id ?? null,
+      created_at: l.created_at,
+    };
+  });
 
   const mensagem_enviada =
     logs.find((l) => l.direcao === "saida" && l.mensagem)?.mensagem ?? null;
@@ -585,15 +603,16 @@ export async function getConversaMensagens(telefone: string): Promise<MensagemCo
     .order("created_at", { ascending: true })
     .limit(300);
   if (error) throw error;
-  return (data ?? []).map((l: any): MensagemConversa => {
+  return (data ?? []).map((l): MensagemConversa => {
     if (l.direcao === "entrada") {
-      const tipo = (l.payload_recebido?.tipo_mensagem as string | undefined) ?? null;
+      const payloadRecebido = l.payload_recebido as PayloadRecebidoLog | null;
+      const tipo = payloadRecebido?.tipo_mensagem ?? null;
       const ehMidia = !!tipo && tipo !== "texto";
       // Prioriza o conteúdo de exibição (legenda/placeholder), depois o texto puro,
       // e por fim um placeholder pelo tipo — para a pergunta NUNCA sumir do histórico.
       const texto =
-        (l.payload_recebido?.conteudo_exibicao as string | undefined)?.trim() ||
-        (l.payload_recebido?.texto as string | undefined)?.trim() ||
+        payloadRecebido?.conteudo_exibicao?.trim() ||
+        payloadRecebido?.texto?.trim() ||
         (ehMidia ? rotuloTipoMensagemConversa(tipo!) : "");
       return {
         id: l.id, direcao: "entrada",
@@ -603,12 +622,13 @@ export async function getConversaMensagens(telefone: string): Promise<MensagemCo
         tipo_mensagem: tipo, midia: ehMidia,
       };
     }
-    const autorRaw = l.payload_enviado?.autor;
+    const payloadEnviado = l.payload_enviado as PayloadEnviadoLog | null;
+    const autorRaw = payloadEnviado?.autor;
     const autor: MensagemConversa["autor"] =
       autorRaw === "humano" ? "humano" : autorRaw === "sistema" ? "sistema" : "ia";
     return {
       id: l.id, direcao: "saida",
-      texto: l.payload_enviado?.mensagem ?? "",
+      texto: payloadEnviado?.mensagem ?? "",
       autor,
       status: l.status, erro: l.erro, created_at: l.created_at,
     };
