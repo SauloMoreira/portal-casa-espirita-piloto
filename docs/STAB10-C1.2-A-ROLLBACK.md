@@ -22,10 +22,12 @@ transacional do autocadastro tenant-aware, na ordem inversa de aplicação.
    ```
 
    Se retornar > 0, sanear (DELETE ou UPDATE user_id=NULL) antes de rodar.
-4. A restauração dos corpos das RPCs A1 e C1.2-A é feita reexecutando os
-   blocos `CREATE OR REPLACE FUNCTION` das migrations canônicas citadas nos
-   scripts (evita duplicar corpo aqui e sair de sincronia).
-5. C1.1 (schema/tabela) **não** é revertido por estes scripts.
+4. **Autonomia dos scripts (FIX01-R1.b):** cada `.sql` traz o corpo completo
+   das RPCs que precisa recriar — não referencia migrations por timestamp e
+   não deixa placeholders. A governança é validada por
+   `src/test/governanca/saas06c1-stab10-fix01r1-rollback-scripts.test.ts`.
+5. C1.1 (flags institucionais e tabela `autocadastro_idempotencia`) é
+   revertido **apenas** pelo script Total.
 
 ## Validação pós-rollback
 
