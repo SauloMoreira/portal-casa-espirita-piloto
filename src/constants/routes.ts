@@ -11,6 +11,7 @@ export const ROUTES = {
   resetPassword: "/reset-password",
   mfaVerify: "/mfa-verify",
   checkinPublico: (token = ":token") => `/checkin-publico/${token}`,
+  cadastroAssistido: (slug = ":instituicaoSlug") => `/cadastro-assistido/${slug}`,
   segurancaPrivacidade: "/seguranca-privacidade",
 
   // Shared
