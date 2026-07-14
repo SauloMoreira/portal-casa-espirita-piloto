@@ -192,7 +192,7 @@ REVOKE ALL ON FUNCTION public.fn_autocadastro_marcar_resultado_falha(uuid, text,
 REVOKE ALL ON FUNCTION public.fn_autocadastro_marcar_resultado_falha(uuid, text, uuid, text, boolean) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.fn_autocadastro_marcar_resultado_falha(uuid, text, uuid, text, boolean) TO service_role;
 
--- 5) fn_autocadastro_assistido_publico — versão A1 EFETIVA (após migrations corretivas 202019/202343).
+-- 5) fn_autocadastro_assistido_publico — versão A1 EFETIVA.
 CREATE OR REPLACE FUNCTION public.fn_autocadastro_assistido_publico(
   p_request_id uuid, p_idempotency_key uuid, p_request_fingerprint text,
   p_instituicao_id uuid, p_user_id uuid, p_email_normalizado text,

@@ -1,15 +1,23 @@
 -- Rollback TOTAL: SAAS-06-C1-STAB10-C1.2-A + A1 + FIX01
--- Remove COMPLETAMENTE o backend transacional do autocadastro público
--- tenant-aware. Use somente para desativar o subsistema por inteiro.
+-- Remove somente o BACKEND TRANSACIONAL do autocadastro público tenant-aware.
+--
+-- Preserva integralmente a fundação C1.1:
+--   - tabela public.autocadastro_idempotencia (e seus dados);
+--   - flags autocadastro_habilitado / autocadastro_termos_versao /
+--     autocadastro_privacidade_versao / autocadastro_listado em
+--     public.instituicoes;
+--   - índice ix_assistidos_inst_user_ativo em public.assistidos.
+--
+-- Reversão de C1.1 é procedimento independente e não integra este script.
 --
 -- Precondição: nenhum fluxo de autocadastro em andamento; frontend/Edge
 -- Function já desligados; nenhuma referência viva às RPCs.
 --
--- Executar em transação única, em janela de manutenção.
+-- Executar em transação única, em janela de manutenção. Nunca usar CASCADE.
 
 BEGIN;
 
--- 1) Índices e constraints do FIX01/A1.
+-- 1) Índice e CHECK introduzidos por FIX01/A1 sobre a tabela de idempotência.
 DROP INDEX IF EXISTS public.ux_autocadastro_idem_user_ativo;
 ALTER TABLE IF EXISTS public.autocadastro_idempotencia
   DROP CONSTRAINT IF EXISTS autocadastro_idem_estado_user_check;
@@ -27,14 +35,5 @@ DROP FUNCTION IF EXISTS public.fn_autocadastro_marcar_resultado_falha(
 DROP FUNCTION IF EXISTS public.fn_autocadastro_assistido_publico(
   uuid, uuid, text, uuid, uuid, text, text, text, text, text, text, timestamptz
 );
-
--- 3) Remover a tabela de idempotência (nenhuma outra feature depende dela).
-DROP TABLE IF EXISTS public.autocadastro_idempotencia;
-
--- 4) Reverter as flags institucionais adicionadas no C1.1.
-ALTER TABLE IF EXISTS public.instituicoes
-  DROP COLUMN IF EXISTS autocadastro_habilitado,
-  DROP COLUMN IF EXISTS autocadastro_termos_versao,
-  DROP COLUMN IF EXISTS autocadastro_privacidade_versao;
 
 COMMIT;
