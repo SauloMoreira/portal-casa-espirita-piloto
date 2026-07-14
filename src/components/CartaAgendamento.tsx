@@ -71,7 +71,7 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
       const instData = instRes.data;
       const assistData = assistRes.data;
 
-      let entData: any = null;
+      let entData = null;
       if (entrevistaId) {
         // BUG-03: leitura via RPC operacional (sem conteúdo sigiloso); funciona
         // para tarefeiro, que não tem mais acesso direto à tabela de entrevistas.
@@ -99,13 +99,13 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
       if (!vinculos || vinculos.length === 0) { setLoading(false); return; }
 
       // Get treatment details
-      const tratIds = [...new Set(vinculos.map((v: any) => v.tratamento_id))];
+      const tratIds = [...new Set(vinculos.map((v) => v.tratamento_id))];
       const { data: tiposTrat } = await supabase
         .from("tipos_tratamento")
         .select("id, nome, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade")
         .in("id", tratIds);
 
-      const tratMap = Object.fromEntries((tiposTrat || []).map((t: any) => [t.id, t]));
+      const tratMap = Object.fromEntries((tiposTrat || []).map((t) => [t.id, t]));
 
       // Get agenda sessions for each vinculo
       const vinculoIds = vinculos.map((v: any) => v.id);
