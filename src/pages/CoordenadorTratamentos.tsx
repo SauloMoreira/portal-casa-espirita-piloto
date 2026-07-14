@@ -71,7 +71,7 @@ export default function CoordenadorTratamentos() {
         .order("data_sessao", { ascending: true });
 
       const nextSessionMap: Record<string, string> = {};
-      for (const a of (agendas || []) as any[]) {
+      for (const a of (agendas || [])) {
         if (!nextSessionMap[a.assistido_tratamento_id]) {
           nextSessionMap[a.assistido_tratamento_id] = a.data_sessao;
         }
