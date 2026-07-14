@@ -7,6 +7,8 @@ import { Loader2, ShieldCheck, CreditCard, Send, LifeBuoy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePortalHub } from "@/hooks/usePortalHub";
 import { ROUTES } from "@/constants";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
 
 interface InstituicaoAdminRow {
   id: string;
@@ -16,6 +18,7 @@ interface InstituicaoAdminRow {
   cidade: string | null;
   uf: string | null;
   created_at: string;
+  autocadastro_habilitado: boolean;
 }
 
 interface AssinaturaAdminRow {
@@ -47,6 +50,34 @@ export default function PortalAdmin() {
   const [instituicoes, setInstituicoes] = useState<InstituicaoAdminRow[]>([]);
   const [assinaturas, setAssinaturas] = useState<AssinaturaAdminRow[]>([]);
   const [planos, setPlanos] = useState<PlanoRow[]>([]);
+  const { toast } = useToast();
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const handleToggleAutocadastro = async (instituicaoId: string, novoValor: boolean) => {
+    setTogglingId(instituicaoId);
+    const anterior = instituicoes;
+    setInstituicoes((prev) =>
+      prev.map((i) => (i.id === instituicaoId ? { ...i, autocadastro_habilitado: novoValor } : i))
+    );
+    const { error } = await supabase
+      .from("instituicoes")
+      .update({ autocadastro_habilitado: novoValor })
+      .eq("id", instituicaoId);
+    if (error) {
+      setInstituicoes(anterior);
+      toast({
+        title: "Não foi possível alterar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: novoValor ? "Autocadastro ativado" : "Autocadastro desativado",
+      });
+    }
+    setTogglingId(null);
+  };
+
 
   useEffect(() => {
     if (!isPlatformAdmin) return;
@@ -56,7 +87,7 @@ export default function PortalAdmin() {
       const [instRes, asgRes, planosRes] = await Promise.all([
         supabase
           .from("instituicoes")
-          .select("id, nome, slug, status, cidade, uf, created_at")
+          .select("id, nome, slug, status, cidade, uf, created_at, autocadastro_habilitado")
           .order("created_at", { ascending: false }),
         supabase
           .from("assinaturas")
@@ -135,6 +166,7 @@ export default function PortalAdmin() {
                   <tr>
                     <th className="py-2 pr-4">Instituição</th>
                     <th className="py-2 pr-4">Status</th>
+                    <th className="py-2 pr-4">Autocadastro</th>
                     <th className="py-2 pr-4">Plano</th>
                     <th className="py-2 pr-4">Assinatura</th>
                     <th className="py-2 pr-4">Trial até</th>
@@ -154,6 +186,14 @@ export default function PortalAdmin() {
                         </td>
                         <td className="py-2 pr-4">
                           <Badge variant="outline">{inst.status}</Badge>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <Switch
+                            checked={inst.autocadastro_habilitado}
+                            disabled={togglingId === inst.id}
+                            onCheckedChange={(checked) => handleToggleAutocadastro(inst.id, checked)}
+                            aria-label={`Autocadastro ${inst.nome}`}
+                          />
                         </td>
                         <td className="py-2 pr-4">{plano?.nome ?? "—"}</td>
                         <td className="py-2 pr-4">
