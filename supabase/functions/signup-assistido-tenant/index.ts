@@ -164,7 +164,14 @@ async function getAuthUserById(
     if ((error as { status?: number }).status === 404) return null;
     throw error;
   }
-  return data?.user ?? null;
+  const u = data?.user;
+  if (!u) return null;
+  return {
+    id: u.id,
+    email: u.email ?? null,
+    email_confirmed_at: u.email_confirmed_at ?? null,
+    user_metadata: (u.user_metadata ?? {}) as Record<string, unknown>,
+  };
 }
 
 function extractMarker(user: { user_metadata?: Record<string, unknown> } | null): {
@@ -633,7 +640,7 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   const instituicaoId = inst.id as string;
 
   // Rate-limit persistente (toda tentativa conta).
-  const rate = await enforceAll(deps.svc, env.rateLimitSecret, {
+  const rate = await enforceAll(deps.svc as unknown as Parameters<typeof enforceAll>[0], env.rateLimitSecret, {
     ip: extractClientIp(req),
     email: emailNorm,
     instituicaoId,
