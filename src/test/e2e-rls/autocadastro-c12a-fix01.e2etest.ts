@@ -21,6 +21,7 @@ import {
   adminGetAuthUser,
   seedInstituicaoEfemera,
   cleanupTracked,
+  residuosFinais,
   closeStab10A3Pool,
   type CreatedIds,
 } from "./_stab10a3Fixtures";
