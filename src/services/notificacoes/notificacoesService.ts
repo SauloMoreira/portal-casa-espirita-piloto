@@ -402,7 +402,7 @@ export async function buscarDestinatariosManual(termo: string): Promise<Destinat
     .order("nome", { ascending: true })
     .limit(20);
   if (error) throw error;
-  return (data ?? []).map((a: any) => ({
+  return (data ?? []).map((a) => ({
     id: a.id,
     nome: a.nome,
     telefone: a.celular || a.telefone || null,
@@ -467,7 +467,7 @@ export async function getFilaItemDetalhe(item: FilaItem): Promise<FilaItemDetalh
     .order("created_at", { ascending: true });
   if (error) throw error;
 
-  const logs: FilaLogEntry[] = (logsRaw ?? []).map((l: any) => ({
+  const logs: FilaLogEntry[] = (logsRaw ?? []).map((l) => ({
     id: l.id,
     direcao: l.direcao,
     status: l.status,
@@ -526,25 +526,25 @@ export async function listHandoffsEnriquecidos(limit = 100): Promise<HandoffEnri
     .from("whatsapp_conversas")
     .select("id, telefone, assistido_id, nome_contato, ultima_mensagem, ultimo_contato_em")
     .in("id", conversaIds);
-  const convMap = new Map((conversas ?? []).map((c: any) => [c.id, c]));
+  const convMap = new Map((conversas ?? []).map((c) => [c.id, c]));
 
-  const assistidoIds = [...new Set((conversas ?? []).map((c: any) => c.assistido_id).filter(Boolean))];
+  const assistidoIds = [...new Set((conversas ?? []).map((c) => c.assistido_id).filter(Boolean))];
   const assistidoMap = new Map<string, string>();
   if (assistidoIds.length > 0) {
     const { data: assistidos } = await supabase
       .from("assistidos").select("id, nome").in("id", assistidoIds);
-    (assistidos ?? []).forEach((a: any) => assistidoMap.set(a.id, a.nome));
+    (assistidos ?? []).forEach((a) => assistidoMap.set(a.id, a.nome));
   }
 
   const atendenteIds = [...new Set(handoffs.map((h) => h.atendente_id).filter(Boolean))] as string[];
   const atendenteMap = new Map<string, string>();
   if (atendenteIds.length > 0) {
     const { data: staff } = await supabase.rpc("staff_names", { _ids: atendenteIds });
-    (staff ?? []).forEach((s: any) => atendenteMap.set(s.user_id, s.nome_completo));
+    (staff ?? []).forEach((s) => atendenteMap.set(s.user_id, s.nome_completo));
   }
 
   return handoffs.map((h) => {
-    const c: any = convMap.get(h.conversa_id);
+    const c = convMap.get(h.conversa_id);
     const assistidoId = c?.assistido_id ?? null;
     const nomeContato: string | null = c?.nome_contato ?? null;
     const nome = assistidoId ? assistidoMap.get(assistidoId) ?? null : nomeContato;
@@ -585,7 +585,7 @@ export async function getConversaMensagens(telefone: string): Promise<MensagemCo
     .order("created_at", { ascending: true })
     .limit(300);
   if (error) throw error;
-  return (data ?? []).map((l: any): MensagemConversa => {
+  return (data ?? []).map((l): MensagemConversa => {
     if (l.direcao === "entrada") {
       const tipo = (l.payload_recebido?.tipo_mensagem as string | undefined) ?? null;
       const ehMidia = !!tipo && tipo !== "texto";
