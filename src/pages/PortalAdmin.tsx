@@ -187,6 +187,14 @@ export default function PortalAdmin() {
                         <td className="py-2 pr-4">
                           <Badge variant="outline">{inst.status}</Badge>
                         </td>
+                        <td className="py-2 pr-4">
+                          <Switch
+                            checked={inst.autocadastro_habilitado}
+                            disabled={togglingId === inst.id}
+                            onCheckedChange={(checked) => handleToggleAutocadastro(inst.id, checked)}
+                            aria-label={`Autocadastro ${inst.nome}`}
+                          />
+                        </td>
                         <td className="py-2 pr-4">{plano?.nome ?? "—"}</td>
                         <td className="py-2 pr-4">
                           {asg ? <Badge>{asg.status}</Badge> : "—"}
