@@ -97,7 +97,7 @@ export async function fetchAdminDashboard(
   );
   if (error) throw error;
 
-  const p = (data ?? {}) as any;
+  const p = (data ?? {}) as Partial<DashboardAdminRpcResult>;
   if (!p.autorizado) return EMPTY(range);
 
   const et = p.entrevistas_por_tipo ?? {};
