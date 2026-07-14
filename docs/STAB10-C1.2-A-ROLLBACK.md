@@ -26,8 +26,11 @@ transacional do autocadastro tenant-aware, na ordem inversa de aplicação.
    das RPCs que precisa recriar — não referencia migrations por timestamp e
    não deixa placeholders. A governança é validada por
    `src/test/governanca/saas06c1-stab10-fix01r1-rollback-scripts.test.ts`.
-5. C1.1 (flags institucionais e tabela `autocadastro_idempotencia`) é
-   revertido **apenas** pelo script Total.
+5. **Preservação de C1.1 (FIX01-R1.c):** os três scripts preservam
+   integralmente a fundação C1.1 — tabela `autocadastro_idempotencia`,
+   flags institucionais e índice `ix_assistidos_inst_user_ativo`. Uma
+   reversão de C1.1 é procedimento independente e não integra o rollback
+   C1.2-A/A1/FIX01.
 
 ## Validação pós-rollback
 

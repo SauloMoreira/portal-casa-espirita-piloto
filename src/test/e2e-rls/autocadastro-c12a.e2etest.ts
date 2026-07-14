@@ -207,17 +207,19 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     );
     expect(r3.ok, JSON.stringify(r3.body)).toBe(true);
     const row = r3.body[0];
+    // FIX01-R1.c — tracking fail-safe: armazenar assistido_id e auditRef
+    // ANTES de qualquer expect funcional subsequente.
+    if (row?.assistido_id) {
+      tracker.assistidos.push(row.assistido_id);
+      tracker.auditRefs.push({
+        acao: "AUTOCADASTRO_PUBLICO_ASSISTIDO",
+        registroId: row.assistido_id,
+        idempotencyKey: idempKey,
+      });
+    }
     expect(row.result_code).toBe("SUCESSO");
     expect(row.instituicao_id).toBe(instId);
     expect(row.assistido_id).toBeTruthy();
-    tracker.assistidos.push(row.assistido_id);
-
-    // Auditoria esperada — registrar ANTES de resolver o id técnico.
-    tracker.auditRefs.push({
-      acao: "AUTOCADASTRO_PUBLICO_ASSISTIDO",
-      registroId: row.assistido_id,
-      idempotencyKey: idempKey,
-    });
 
     const [prof, roles, ass, vin, aud, idem] = await Promise.all([
       restSvcGet<any[]>(`profiles?user_id=eq.${userId}&select=user_id,nome_completo,status`),
