@@ -99,7 +99,7 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
       if (!vinculos || vinculos.length === 0) { setLoading(false); return; }
 
       // Get treatment details
-      const tratIds = [...new Set(vinculos.map((v: any) => v.tratamento_id))];
+      const tratIds = [...new Set(vinculos.map((v) => v.tratamento_id))];
       const { data: tiposTrat } = await supabase
         .from("tipos_tratamento")
         .select("id, nome, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade")
