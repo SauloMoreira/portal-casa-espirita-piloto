@@ -1,1 +1,4 @@
 project_id = "wfgorvzzlbvzajzwxxzc"
+
+[functions.signup-assistido-tenant]
+verify_jwt = false

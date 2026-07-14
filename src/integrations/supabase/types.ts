@@ -685,6 +685,36 @@ export type Database = {
           },
         ]
       }
+      autocadastro_rate_limit: {
+        Row: {
+          bucket_key: string
+          contador: number
+          created_at: string
+          expires_at: string
+          scope: string
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          contador: number
+          created_at?: string
+          expires_at: string
+          scope: string
+          updated_at?: string
+          window_start: string
+        }
+        Update: {
+          bucket_key?: string
+          contador?: number
+          created_at?: string
+          expires_at?: string
+          scope?: string
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       avisos_ausencia: {
         Row: {
           agenda_id: string | null
@@ -3953,6 +3983,20 @@ export type Database = {
         }
         Returns: {
           result_code: string
+        }[]
+      }
+      fn_autocadastro_rate_limit_hit: {
+        Args: {
+          p_bucket_key: string
+          p_expires_at: string
+          p_scope: string
+          p_window_start: string
+        }
+        Returns: {
+          contador: number
+          limite: number
+          permitido: boolean
+          retry_after_seconds: number
         }[]
       }
       fn_autocadastro_reservar: {
