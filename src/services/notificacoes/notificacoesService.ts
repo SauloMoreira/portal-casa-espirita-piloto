@@ -467,7 +467,7 @@ export async function getFilaItemDetalhe(item: FilaItem): Promise<FilaItemDetalh
     .order("created_at", { ascending: true });
   if (error) throw error;
 
-  const logs: FilaLogEntry[] = (logsRaw ?? []).map((l) => ({
+  const logs: FilaLogEntry[] = (logsRaw ?? []).map((l: any) => ({
     id: l.id,
     direcao: l.direcao,
     status: l.status,
@@ -585,7 +585,7 @@ export async function getConversaMensagens(telefone: string): Promise<MensagemCo
     .order("created_at", { ascending: true })
     .limit(300);
   if (error) throw error;
-  return (data ?? []).map((l): MensagemConversa => {
+  return (data ?? []).map((l: any): MensagemConversa => {
     if (l.direcao === "entrada") {
       const tipo = (l.payload_recebido?.tipo_mensagem as string | undefined) ?? null;
       const ehMidia = !!tipo && tipo !== "texto";
