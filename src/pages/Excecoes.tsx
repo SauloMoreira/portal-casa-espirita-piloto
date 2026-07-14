@@ -72,13 +72,13 @@ export default function Excecoes() {
       .eq("status", "realizada");
     let semTratamento = 0;
     if (entrevistas) {
-      const assistidoIds = [...new Set(entrevistas.map((e: any) => e.assistido_id))];
+      const assistidoIds = [...new Set(entrevistas.map((e) => e.assistido_id))];
       if (assistidoIds.length > 0) {
         const { data: trats } = await supabase
           .from("assistido_tratamentos")
           .select("assistido_id")
           .in("assistido_id", assistidoIds);
-        const comTrat = new Set((trats || []).map((t: any) => t.assistido_id));
+        const comTrat = new Set((trats || []).map((t) => t.assistido_id));
         semTratamento = assistidoIds.filter((id) => !comTrat.has(id)).length;
       }
     }
@@ -97,7 +97,7 @@ export default function Excecoes() {
     let comMuitasFaltas = 0;
     if (presencas) {
       const faltaCount: Record<string, number> = {};
-      presencas.forEach((p: any) => {
+      presencas.forEach((p) => {
         faltaCount[p.assistido_tratamento_id] = (faltaCount[p.assistido_tratamento_id] || 0) + 1;
       });
       comMuitasFaltas = Object.values(faltaCount).filter((c) => c >= 3).length;
@@ -140,7 +140,7 @@ export default function Excecoes() {
         .order("created_at", { ascending: true })
         .limit(100);
       if (data) {
-        data.forEach((d: any) => {
+        data.forEach((d) => {
           const prioLabel = d.prioridade === "urgente" ? "Urgente" : d.prioridade === "alta" ? "Alta" : "Normal";
           rows.push({
             id: d.id,
@@ -160,10 +160,10 @@ export default function Excecoes() {
         .order("data_sessao", { ascending: true })
         .limit(50);
       if (data) {
-        const ids = [...new Set(data.map((d: any) => d.assistido_id))];
+        const ids = [...new Set(data.map((d) => d.assistido_id))];
         const { data: nomes } = await supabase.from("assistidos").select("id, nome").in("id", ids);
-        const map = Object.fromEntries((nomes || []).map((n: any) => [n.id, n.nome]));
-        data.forEach((d: any) => {
+        const map = Object.fromEntries((nomes || []).map((n) => [n.id, n.nome]));
+        data.forEach((d) => {
           rows.push({
             id: d.id,
             label: map[d.assistido_id] || "—",
@@ -179,12 +179,12 @@ export default function Excecoes() {
         .eq("status", "realizada")
         .order("data", { ascending: true });
       if (entrevistas) {
-        const assistidoIds = [...new Set(entrevistas.map((e: any) => e.assistido_id))];
+        const assistidoIds = [...new Set(entrevistas.map((e) => e.assistido_id))];
         const { data: trats } = await supabase
           .from("assistido_tratamentos")
           .select("assistido_id")
           .in("assistido_id", assistidoIds);
-        const comTrat = new Set((trats || []).map((t: any) => t.assistido_id));
+        const comTrat = new Set((trats || []).map((t) => t.assistido_id));
         const semIds = assistidoIds.filter((id) => !comTrat.has(id));
         const { data: nomes } = semIds.length > 0 ? await supabase.from("assistidos").select("id, nome").in("id", semIds) : { data: [] };
         const map = Object.fromEntries((nomes || []).map((n: any) => [n.id, n.nome]));
