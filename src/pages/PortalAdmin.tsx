@@ -18,6 +18,7 @@ interface InstituicaoAdminRow {
   cidade: string | null;
   uf: string | null;
   created_at: string;
+  autocadastro_habilitado: boolean;
 }
 
 interface AssinaturaAdminRow {
