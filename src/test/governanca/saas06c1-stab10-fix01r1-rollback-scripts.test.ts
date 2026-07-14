@@ -223,9 +223,9 @@ describe("STAB10-FIX01-R1.c — rollback Total remove somente backend transacion
     const returnsRe =
       /CREATE\s+FUNCTION\s+public\.fn_autocadastro_reservar\s*\([^)]*\)\s*RETURNS\s+TABLE\s*\(\s*result_code\s+text\s*,\s*user_id\s+uuid\s*,\s*assistido_id\s+uuid\s*,\s*instituicao_id\s+uuid\s*\)/i;
     expect(raw, "A1: reservar RETURNS TABLE 4 colunas exatas").toMatch(returnsRe);
-    // Proibições
+    // Proibições (fora de comentários)
     for (const proibido of ["canonical_request_id", "attempt_count", "p_ip_hash", "p_ua_hash"]) {
-      expect(raw, `A1: ${proibido} não deve existir`).not.toMatch(new RegExp(`\\b${proibido}\\b`));
+      expect(noComments, `A1: ${proibido} não deve existir`).not.toMatch(new RegExp(`\\b${proibido}\\b`));
     }
   });
 
