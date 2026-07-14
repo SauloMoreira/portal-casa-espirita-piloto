@@ -3,21 +3,18 @@
  * tenant-aware. Cobre o caminho feliz e a reexecução idempotente da
  * finalização, executando as três RPCs internas via service_role REST.
  *
- * O E2E depende do mesmo conjunto de credenciais dos demais testes E2E
- * (VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY,
- * PG*). Cria SEMPRE uma instituição efêmera habilitada + um Auth user novo
- * via Admin API; ao final remove tudo por IDs rastreados.
- *
- * FIX01-R1 — Cleanup cirúrgico:
- *   - `audit_logs` só é removido por `id`, previamente localizado pela
- *     combinação (ação, registro_id) rastreada; jamais por user_id, tabela,
- *     ou filtro amplo.
- *   - `autocadastro_idempotencia` só é removida por `idempotency_key` rastreada.
- *   - Auth é removido por último, sempre depois das auditorias.
- *   - Nenhum DELETE é emitido com tracker vazio.
- *
- * Restrições: NÃO invoca Edge Function pública (que não existe nesta etapa),
- * NÃO habilita a FER, NÃO usa contas reais.
+ * FIX01-R1.b — Cleanup ESTRITO:
+ *   - Trackers cirúrgicos (`auditIds`, `auditRefs`, `idempotencyKeys`,
+ *     `userRoles`, `instituicaoUsuarios`, `assistidos`, `authUsers`,
+ *     `instituicoes`).
+ *   - Cleanup exclusivamente por IDs técnicos via
+ *     `cleanupTracked(tracker, { strict: true })`.
+ *   - Auditorias resolvidas por combinação estrita
+ *     (ação + registro_id + idempotency_key) antes do DELETE por id.
+ *   - Zero resíduos verificados após o cleanup (falha se qualquer linha
+ *     rastreada permanecer).
+ *   - Nada de DELETE por instituição, ação isolada, filtro JSON ou user_id
+ *     em tabelas com id técnico rastreável.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import {
@@ -27,8 +24,8 @@ import {
   adminCreateAuthUser,
   seedInstituicaoEfemera,
   cleanupTracked,
-  residuosFinais,
   closeStab10A3Pool,
+  adminGetAuthUser,
   type CreatedIds,
 } from "./_stab10a3Fixtures";
 
@@ -58,7 +55,6 @@ async function restSvcGet<T = any>(path: string): Promise<{ status: number; body
   return { status: r.status, body: b };
 }
 
-/** Chama uma RPC autenticado como usuário comum — deve falhar. */
 async function rpcAsAuthenticated(fn: string, body: Record<string, unknown>, jwt: string): Promise<number> {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: "POST",
@@ -85,15 +81,9 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
   const requestId = crypto.randomUUID();
   const fingerprint = `fp-${runId}`;
 
-  // Trackers cirúrgicos (FIX01-R1) — cleanup por chave/id rastreado.
-  const idempotencyKeys: string[] = [idempKey];
-  const auditIds = new Set<string>();
-  let auditosRemovidos = 0;
-
   beforeAll(async () => {
     const inst = await seedInstituicaoEfemera(tracker, `c12a-${runId}`);
     instId = inst.id;
-    // Habilita autocadastro na instituição efêmera (única deste run).
     const patch = await fetch(`${SUPABASE_URL}/rest/v1/instituicoes?id=eq.${instId}`, {
       method: "PATCH",
       headers: {
@@ -109,56 +99,76 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     userId = await adminCreateAuthUser(email, password);
     tracker.authUsers.push(userId);
     tracker.emails.push(email);
+
+    // idempKey do caminho feliz é criada na primeira RPC — registrada já aqui.
+    tracker.idempotencyKeys.push(idempKey);
   }, 60_000);
 
   afterAll(async () => {
-    const svcHdr = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };
+    try {
+      await cleanupTracked(tracker, { strict: true });
 
-    // 1) audit_logs — coletar IDs por (ação, registro_id) rastreados; DELETE só por id.
-    for (const aid of tracker.assistidos) {
-      const r = await restSvcGet<Array<{ id: string }>>(
-        `audit_logs?acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&registro_id=eq.${aid}&select=id`,
-      );
-      for (const row of r.body ?? []) auditIds.add(row.id);
-    }
-    for (const auditId of auditIds) {
-      const del = await fetch(`${SUPABASE_URL}/rest/v1/audit_logs?id=eq.${auditId}`, {
-        method: "DELETE",
-        headers: svcHdr,
-      });
-      if (del.ok) auditosRemovidos++;
-    }
-
-    // 2) autocadastro_idempotencia — DELETE somente por idempotency_key rastreada.
-    for (const key of idempotencyKeys) {
-      await fetch(`${SUPABASE_URL}/rest/v1/autocadastro_idempotencia?idempotency_key=eq.${key}`, {
-        method: "DELETE",
-        headers: svcHdr,
-      });
-    }
-
-    // 3) Estruturas públicas + Auth por último via cleanupTracked (por IDs).
-    try { await cleanupTracked(tracker); } finally {
-      try {
-        const res = await residuosFinais(tracker);
-        for (const [k, n] of Object.entries(res)) {
-          if (!/instituicoes\.prefix|assistidos\.prefix/.test(k)) {
-            expect(n, `resíduo em ${k}`).toBe(0);
-          }
-        }
-      } finally {
-        await closeStab10A3Pool();
+      // FIX01-R1.b — Zero resíduos ESTRUTURAL (falha se sobrar qualquer coisa).
+      // 1) audit_logs por auditIds rastreados
+      for (const aid of tracker.auditIds) {
+        const r = await restSvcGet<any[]>(`audit_logs?id=eq.${aid}&select=id`);
+        expect(r.body?.length ?? 0, `resíduo audit_logs.id=${aid}`).toBe(0);
       }
+      // 2) audit_logs por combinação (ação + registro_id + idempotency_key)
+      for (const ref of tracker.auditRefs) {
+        const r = await restSvcGet<any[]>(
+          `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
+        );
+        const remain = (r.body ?? []).filter((row: any) => {
+          const k = row?.dados_novos?.idempotency_key;
+          return typeof k === "string" && k === ref.idempotencyKey;
+        });
+        expect(remain.length, `resíduo audit ref ${ref.acao}/${ref.registroId}`).toBe(0);
+      }
+      // 3) autocadastro_idempotencia por idempotencyKeys
+      for (const k of tracker.idempotencyKeys) {
+        const r = await restSvcGet<any[]>(
+          `autocadastro_idempotencia?idempotency_key=eq.${k}&select=idempotency_key`,
+        );
+        expect(r.body?.length ?? 0, `resíduo idempotencia key=${k}`).toBe(0);
+      }
+      // 4) assistidos por id
+      for (const id of tracker.assistidos) {
+        const r = await restSvcGet<any[]>(`assistidos?id=eq.${id}&select=id`);
+        expect(r.body?.length ?? 0, `resíduo assistidos.id=${id}`).toBe(0);
+      }
+      // 5) instituicao_usuarios por id
+      for (const id of tracker.instituicaoUsuarios) {
+        const r = await restSvcGet<any[]>(`instituicao_usuarios?id=eq.${id}&select=id`);
+        expect(r.body?.length ?? 0, `resíduo iu.id=${id}`).toBe(0);
+      }
+      // 6) user_roles por id
+      for (const id of tracker.userRoles) {
+        const r = await restSvcGet<any[]>(`user_roles?id=eq.${id}&select=id`);
+        expect(r.body?.length ?? 0, `resíduo user_roles.id=${id}`).toBe(0);
+      }
+      // 7) profiles por user_id
+      for (const uid of tracker.authUsers) {
+        const r = await restSvcGet<any[]>(`profiles?user_id=eq.${uid}&select=user_id`);
+        expect(r.body?.length ?? 0, `resíduo profiles.user_id=${uid}`).toBe(0);
+      }
+      // 8) auth.users por UUID
+      for (const uid of tracker.authUsers) {
+        expect(await adminGetAuthUser(uid), `resíduo auth.users ${uid}`).toBe(null);
+      }
+      // 9) instituicoes por id
+      for (const id of tracker.instituicoes) {
+        const r = await restSvcGet<any[]>(`instituicoes?id=eq.${id}&select=id`);
+        expect(r.body?.length ?? 0, `resíduo instituicoes.id=${id}`).toBe(0);
+      }
+    } finally {
+      await closeStab10A3Pool();
     }
-    // Diagnóstico: quantidade de audit_logs removidos por id.
-    // eslint-disable-next-line no-console
-    console.log(`[c12a] auditosRemovidos=${auditosRemovidos}`);
   }, 60_000);
 
   it("caminho feliz: reservar → auth criado → finalizar cria estado consistente", async () => {
     const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
 
-    // 1) reservar
     const r1 = await rpcSvc("fn_autocadastro_reservar", {
       p_idempotency_key: idempKey,
       p_request_fingerprint: fingerprint,
@@ -169,7 +179,6 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     expect(r1.ok, JSON.stringify(r1.body)).toBe(true);
     expect(r1.body[0].result_code).toBe("RESERVADO_NOVO");
 
-    // 2) marcar auth_criado
     const r2 = await rpcSvc("fn_autocadastro_marcar_auth_criado", {
       p_idempotency_key: idempKey,
       p_request_fingerprint: fingerprint,
@@ -179,7 +188,6 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     expect(r2.ok, JSON.stringify(r2.body)).toBe(true);
     expect(r2.body[0].result_code).toBe("AUTH_CRIADO");
 
-    // 3) finalizar
     const r3 = await rpcSvc<Array<{ result_code: string; assistido_id: string; instituicao_id: string }>>(
       "fn_autocadastro_assistido_publico",
       {
@@ -204,7 +212,13 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     expect(row.assistido_id).toBeTruthy();
     tracker.assistidos.push(row.assistido_id);
 
-    // Asserções — exatamente 1 de cada
+    // Auditoria esperada — registrar ANTES de resolver o id técnico.
+    tracker.auditRefs.push({
+      acao: "AUTOCADASTRO_PUBLICO_ASSISTIDO",
+      registroId: row.assistido_id,
+      idempotencyKey: idempKey,
+    });
+
     const [prof, roles, ass, vin, aud, idem] = await Promise.all([
       restSvcGet<any[]>(`profiles?user_id=eq.${userId}&select=user_id,nome_completo,status`),
       restSvcGet<any[]>(`user_roles?user_id=eq.${userId}&role=eq.assistido&select=id`),
@@ -225,8 +239,9 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     expect(vin.body[0].status).toBe("ativo");
     expect(aud.body).toHaveLength(1);
     expect(aud.body[0].user_id).toBe(userId);
-    // Rastrear audit para cleanup por id.
-    for (const a of aud.body) auditIds.add(a.id);
+    // Rastrear IDs técnicos criados pela RPC.
+    tracker.userRoles.push(roles.body[0].id);
+    tracker.instituicaoUsuarios.push(vin.body[0].id);
     // Sem PII
     const dados = aud.body[0].dados_novos as Record<string, unknown>;
     for (const k of ["email", "cpf", "celular", "nome", "senha", "ip", "captcha"]) {
@@ -239,7 +254,6 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
   }, 30_000);
 
   it("reexecução da finalização é idempotente e não duplica escrita", async () => {
-    // Snapshot antes
     const antes = await restSvcGet<any[]>(
       `assistidos?user_id=eq.${userId}&instituicao_id=eq.${instId}&select=id`,
     );
@@ -274,13 +288,11 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
       `audit_logs?acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&registro_id=eq.${r.body[0].assistido_id}&select=id`,
     );
     expect(audCount.body.length).toBe(1);
-    for (const a of audCount.body) auditIds.add(a.id);
   }, 30_000);
 
   it("anon e authenticated NÃO conseguem chamar as RPCs via PostgREST", async () => {
-    // anon
     const kAnon = crypto.randomUUID();
-    idempotencyKeys.push(kAnon);
+    tracker.idempotencyKeys.push(kAnon);
     const anon = await fetch(`${SUPABASE_URL}/rest/v1/rpc/fn_autocadastro_reservar`, {
       method: "POST",
       headers: { apikey: ANON_KEY, "Content-Type": "application/json" },
@@ -294,7 +306,6 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     });
     expect([401, 403, 404]).toContain(anon.status);
 
-    // authenticated (JWT do próprio usuário criado)
     const login = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: { apikey: ANON_KEY, "Content-Type": "application/json" },
@@ -302,7 +313,7 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     });
     const jwt = (await login.json()).access_token as string;
     const kAuthed = crypto.randomUUID();
-    idempotencyKeys.push(kAuthed);
+    tracker.idempotencyKeys.push(kAuthed);
     const s = await rpcAsAuthenticated(
       "fn_autocadastro_reservar",
       {
