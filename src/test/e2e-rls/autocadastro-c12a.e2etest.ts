@@ -156,7 +156,7 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     expect(r2.ok, JSON.stringify(r2.body)).toBe(true);
     expect(r2.body[0].result_code).toBe("AUTH_CRIADO");
 
-    const r3 = await rpcSvc<Array<{ result_code: string; assistido_id: string; instituicao_id: string }>>(
+    const r3 = await rpcSvc<any>(
       "fn_autocadastro_assistido_publico",
       {
         p_request_id: requestId,
@@ -173,21 +173,27 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
         p_aceito_em: new Date().toISOString(),
       },
     );
-    expect(r3.ok, JSON.stringify(r3.body)).toBe(true);
-    const row = r3.body[0];
-    // FIX01-R1.c — tracking fail-safe: armazenar assistido_id e auditRef
-    // ANTES de qualquer expect funcional subsequente.
-    if (row?.assistido_id) {
-      tracker.assistidos.push(row.assistido_id);
+    // FIX01-R1.c-FIX01 — normalizar payload PostgREST (array/data.data/data)
+    // e registrar tracking ANTES de qualquer expect sobre a resposta.
+    const rawBody: any = r3.body;
+    const row = Array.isArray(rawBody)
+      ? rawBody[0]
+      : Array.isArray(rawBody?.data)
+        ? rawBody.data[0]
+        : rawBody?.data ?? rawBody ?? {};
+    const assistidoId = row?.assistido_id;
+    if (assistidoId) {
+      if (!tracker.assistidos.includes(assistidoId)) tracker.assistidos.push(assistidoId);
       tracker.auditRefs.push({
         acao: "AUTOCADASTRO_PUBLICO_ASSISTIDO",
-        registroId: row.assistido_id,
+        registroId: assistidoId,
         idempotencyKey: idempKey,
       });
     }
-    expect(row.result_code).toBe("SUCESSO");
+    expect(r3.ok, JSON.stringify(r3.body)).toBe(true);
+    expect(row?.result_code).toBe("SUCESSO");
     expect(row.instituicao_id).toBe(instId);
-    expect(row.assistido_id).toBeTruthy();
+    expect(assistidoId).toBeTruthy();
 
     const [prof, roles, ass, vin, aud, idem] = await Promise.all([
       restSvcGet<any[]>(`profiles?user_id=eq.${userId}&select=user_id,nome_completo,status`),
