@@ -105,7 +105,7 @@ export function CartaAgendamento({ open, onOpenChange, assistidoId, entrevistaId
         .select("id, nome, tipo, dia_semana, horario, frequencia_valor, frequencia_unidade")
         .in("id", tratIds);
 
-      const tratMap = Object.fromEntries((tiposTrat || []).map((t: any) => [t.id, t]));
+      const tratMap = Object.fromEntries((tiposTrat || []).map((t) => [t.id, t]));
 
       // Get agenda sessions for each vinculo
       const vinculoIds = vinculos.map((v: any) => v.id);
