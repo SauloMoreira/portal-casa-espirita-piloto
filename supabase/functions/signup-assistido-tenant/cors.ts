@@ -4,7 +4,7 @@
  */
 
 const OFFICIAL_ORIGIN = "https://portal-casa-espirita-piloto.lovable.app";
-const ALLOW_HEADERS   = "content-type, x-correlation-id";
+const ALLOW_HEADERS   = "authorization, x-client-info, apikey, content-type, x-correlation-id";
 const ALLOW_METHODS   = "POST, OPTIONS";
 
 function parseExtra(csv: string | undefined): Set<string> {
