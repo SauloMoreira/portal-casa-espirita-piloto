@@ -34,8 +34,8 @@ export default function SolicitarCadastro() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <img src={brandIcon} alt={SAAS_BRANDING.nome} className="h-16 w-16 mb-3" />
-          <h1 className="text-2xl font-semibold text-foreground">{SAAS_BRANDING.nome}</h1>
+          <img src={brandIcon} alt={SAAS_BRANDING.name} className="h-16 w-16 mb-3" />
+          <h1 className="text-2xl font-semibold text-foreground">{SAAS_BRANDING.name}</h1>
         </div>
 
         <Card className="border-border/60 shadow-lg">
