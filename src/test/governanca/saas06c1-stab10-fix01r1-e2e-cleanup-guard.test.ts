@@ -124,6 +124,16 @@ function findOrderingIssues(file: string, text: string): Hit[] {
     push("arquivo deve lançar erro agregado `[cleanup strict] ...` após verificar zero resíduos");
   }
 
+  // FIX02: agregação obrigatória via verificationErrors (não usar expect
+  // antes do throw agregado — bloqueia coleta de cleanupErrors/auditIssues).
+  if (!/verificationErrors/.test(text)) {
+    push("arquivo deve agregar residuosFinais em verificationErrors (FIX02)");
+  }
+  // Bloqueia expect(...).toBe(0) dentro do afterAll com residuo (padrão pré-FIX02).
+  if (/expect\s*\([^)]*\)\s*[.,][^;]*toBe\s*\(\s*0\s*\)[^;]*residuo/.test(text)) {
+    push("afterAll não pode usar expect(...).toBe(0) para residuos antes da agregação — usar verificationErrors (FIX02)");
+  }
+
   // Ordem: cleanupTracked → residuosFinais → throw agregado.
   const idxCleanup = text.search(/await\s+cleanupTracked\s*\([^)]*strict\s*:\s*true[^)]*\)/);
   const idxResiduos = text.search(/residuosFinais\s*\(\s*tracker\s*\)/);
