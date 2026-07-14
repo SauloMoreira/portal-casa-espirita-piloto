@@ -106,60 +106,28 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
 
   afterAll(async () => {
     try {
-      await cleanupTracked(tracker, { strict: true });
+      // FIX01-R1.c-FIX01 — cleanup strict NUNCA lança.
+      const { auditIssues, cleanupErrors } = await cleanupTracked(tracker, { strict: true });
 
-      // FIX01-R1.b — Zero resíduos ESTRUTURAL (falha se sobrar qualquer coisa).
-      // 1) audit_logs por auditIds rastreados
-      for (const aid of tracker.auditIds) {
-        const r = await restSvcGet<any[]>(`audit_logs?id=eq.${aid}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo audit_logs.id=${aid}`).toBe(0);
+      // Zero resíduos ESTRUTURAL — verificado ANTES de qualquer erro agregado.
+      const residuos = await residuosFinais(tracker);
+      for (const [chave, quantidade] of Object.entries(residuos)) {
+        expect(quantidade, `residuo ${chave}`).toBe(0);
       }
-      // 2) audit_logs por combinação (ação + registro_id + idempotency_key)
-      for (const ref of tracker.auditRefs) {
-        const r = await restSvcGet<any[]>(
-          `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
-        );
-        const remain = (r.body ?? []).filter((row: any) => {
-          const k = row?.dados_novos?.idempotency_key;
-          return typeof k === "string" && k === ref.idempotencyKey;
-        });
-        expect(remain.length, `resíduo audit ref ${ref.acao}/${ref.registroId}`).toBe(0);
-      }
-      // 3) autocadastro_idempotencia por idempotencyKeys
-      for (const k of tracker.idempotencyKeys) {
-        const r = await restSvcGet<any[]>(
-          `autocadastro_idempotencia?idempotency_key=eq.${k}&select=idempotency_key`,
-        );
-        expect(r.body?.length ?? 0, `resíduo idempotencia key=${k}`).toBe(0);
-      }
-      // 4) assistidos por id
-      for (const id of tracker.assistidos) {
-        const r = await restSvcGet<any[]>(`assistidos?id=eq.${id}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo assistidos.id=${id}`).toBe(0);
-      }
-      // 5) instituicao_usuarios por id
-      for (const id of tracker.instituicaoUsuarios) {
-        const r = await restSvcGet<any[]>(`instituicao_usuarios?id=eq.${id}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo iu.id=${id}`).toBe(0);
-      }
-      // 6) user_roles por id
-      for (const id of tracker.userRoles) {
-        const r = await restSvcGet<any[]>(`user_roles?id=eq.${id}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo user_roles.id=${id}`).toBe(0);
-      }
-      // 7) profiles por user_id
-      for (const uid of tracker.authUsers) {
-        const r = await restSvcGet<any[]>(`profiles?user_id=eq.${uid}&select=user_id`);
-        expect(r.body?.length ?? 0, `resíduo profiles.user_id=${uid}`).toBe(0);
-      }
-      // 8) auth.users por UUID
-      for (const uid of tracker.authUsers) {
-        expect(await adminGetAuthUser(uid), `resíduo auth.users ${uid}`).toBe(null);
-      }
-      // 9) instituicoes por id
-      for (const id of tracker.instituicoes) {
-        const r = await restSvcGet<any[]>(`instituicoes?id=eq.${id}&select=id`);
-        expect(r.body?.length ?? 0, `resíduo instituicoes.id=${id}`).toBe(0);
+
+      // Erro agregado somente APÓS a comprovação de zero resíduos.
+      const erros = [
+        ...cleanupErrors,
+        ...auditIssues.map(
+          (issue) =>
+            `${issue.code} acao=${issue.acao} ` +
+            `registro_id=${issue.registroId} ` +
+            `idempotency_key=${issue.idempotencyKey} ` +
+            `quantidade=${issue.quantidade}`,
+        ),
+      ];
+      if (erros.length > 0) {
+        throw new Error(`[cleanup strict] ${erros.join(" | ")}`);
       }
     } finally {
       await closeStab10A3Pool();
