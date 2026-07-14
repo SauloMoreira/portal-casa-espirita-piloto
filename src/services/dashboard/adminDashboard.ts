@@ -112,7 +112,7 @@ export async function fetchAdminDashboard(
     aguardandoAgend: Number(p.aguardando_agend ?? 0),
     faltasMes: Number(p.faltas_mes ?? 0),
     publicoPalestras: Number(p.publico_palestras ?? 0),
-    entRecentes: (p.ent_recentes ?? []).map((r: any) => ({
+    entRecentes: (p.ent_recentes ?? []).map((r) => ({
       id: r.id,
       data: r.data,
       status: r.status,
@@ -122,15 +122,15 @@ export async function fetchAdminDashboard(
       assistido_nome: r.assistido_nome ?? "—",
       entrevistador_nome: r.entrevistador_nome ?? "—",
     })),
-    tratPorTipo: (p.trat_por_tipo ?? []).map((r: any) => ({
+    tratPorTipo: (p.trat_por_tipo ?? []).map((r) => ({
       nome: r.nome ?? "—",
       count: Number(r.count ?? 0),
     })),
-    cargaTarefeiros: (p.carga_tarefeiros ?? []).map((r: any) => ({
+    cargaTarefeiros: (p.carga_tarefeiros ?? []).map((r) => ({
       nome: r.nome ?? "—",
       total: Number(r.total ?? 0),
     })),
-    presencaPontos: (p.presenca_pontos ?? []).map((r: any) => ({
+    presencaPontos: (p.presenca_pontos ?? []).map((r) => ({
       data: r.data,
       presentes: Number(r.presentes ?? 0),
       ausentes: Number(r.ausentes ?? 0),
@@ -141,7 +141,7 @@ export async function fetchAdminDashboard(
       realizadas: Number(et.realizadas ?? 0),
       total: Number(et.total ?? 0),
     },
-    faixaEtaria: (p.faixa_etaria ?? []).map((r: any) => ({
+    faixaEtaria: (p.faixa_etaria ?? []).map((r) => ({
       name: r.name ?? "—",
       value: Number(r.value ?? 0),
     })),
