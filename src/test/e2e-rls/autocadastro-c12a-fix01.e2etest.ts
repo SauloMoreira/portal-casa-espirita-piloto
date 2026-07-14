@@ -79,47 +79,28 @@ d("STAB10-C1.2-A1-FIX01 — E2E correções do hardening A1", () => {
 
   afterAll(async () => {
     try {
-      await cleanupTracked(tracker, { strict: true });
+      // FIX01-R1.c-FIX01 — cleanup strict NUNCA lança.
+      const { auditIssues, cleanupErrors } = await cleanupTracked(tracker, { strict: true });
 
-      // Zero resíduos ESTRUTURAL (FIX01-R1.b).
-      for (const aid of tracker.auditIds) {
-        const r = await svcRow<{ id: string }>(`audit_logs?id=eq.${aid}&select=id`);
-        expect(r.length, `resíduo audit_logs.id=${aid}`).toBe(0);
+      // Zero resíduos ESTRUTURAL — verificado ANTES de qualquer erro agregado.
+      const residuos = await residuosFinais(tracker);
+      for (const [chave, quantidade] of Object.entries(residuos)) {
+        expect(quantidade, `residuo ${chave}`).toBe(0);
       }
-      for (const ref of tracker.auditRefs) {
-        const r = await svcRow<any>(
-          `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
-        );
-        const remain = r.filter((row: any) => {
-          const k = row?.dados_novos?.idempotency_key;
-          return typeof k === "string" && k === ref.idempotencyKey;
-        });
-        expect(remain.length, `resíduo audit ${ref.acao}/${ref.registroId}`).toBe(0);
-      }
-      for (const k of tracker.idempotencyKeys) {
-        const r = await svcRow(`autocadastro_idempotencia?idempotency_key=eq.${k}&select=idempotency_key`);
-        expect(r.length, `resíduo idempotencia key=${k}`).toBe(0);
-      }
-      for (const id of tracker.assistidos) {
-        const r = await svcRow(`assistidos?id=eq.${id}&select=id`);
-        expect(r.length, `resíduo assistidos.id=${id}`).toBe(0);
-      }
-      for (const id of tracker.instituicaoUsuarios) {
-        const r = await svcRow(`instituicao_usuarios?id=eq.${id}&select=id`);
-        expect(r.length, `resíduo iu.id=${id}`).toBe(0);
-      }
-      for (const id of tracker.userRoles) {
-        const r = await svcRow(`user_roles?id=eq.${id}&select=id`);
-        expect(r.length, `resíduo user_roles.id=${id}`).toBe(0);
-      }
-      for (const uid of tracker.authUsers) {
-        const r = await svcRow(`profiles?user_id=eq.${uid}&select=user_id`);
-        expect(r.length, `resíduo profiles.user_id=${uid}`).toBe(0);
-        expect(await adminGetAuthUser(uid), `resíduo auth.users ${uid}`).toBe(null);
-      }
-      for (const id of tracker.instituicoes) {
-        const r = await svcRow(`instituicoes?id=eq.${id}&select=id`);
-        expect(r.length, `resíduo instituicoes.id=${id}`).toBe(0);
+
+      // Erro agregado somente APÓS a comprovação de zero resíduos.
+      const erros = [
+        ...cleanupErrors,
+        ...auditIssues.map(
+          (issue) =>
+            `${issue.code} acao=${issue.acao} ` +
+            `registro_id=${issue.registroId} ` +
+            `idempotency_key=${issue.idempotencyKey} ` +
+            `quantidade=${issue.quantidade}`,
+        ),
+      ];
+      if (erros.length > 0) {
+        throw new Error(`[cleanup strict] ${erros.join(" | ")}`);
       }
     } finally {
       await closeStab10A3Pool();
