@@ -345,11 +345,92 @@ export async function seedInstituicaoEfemera(
   return { id, slug, nome };
 }
 
+export interface CleanupOptions {
+  /**
+   * FIX01-R1.b — modo estrito, exclusivo para autocadastro-*.e2etest.ts.
+   * Não usa DELETE amplo por user_id/instituicao_id/ação; exclui somente:
+   *   - audit_logs por auditIds rastreados (após resolver auditRefs);
+   *   - autocadastro_idempotencia por idempotencyKeys;
+   *   - assistidos/instituicao_usuarios/user_roles por id;
+   *   - profiles pelo user_id Auth rastreado;
+   *   - auth.users por UUID exato (por último entre registros do user);
+   *   - instituicoes por id (por último de todos).
+   */
+  strict?: boolean;
+}
+
+async function resolveAuditRefs(tracker: CreatedIds): Promise<void> {
+  for (const ref of tracker.auditRefs) {
+    if (ref.id) {
+      if (!tracker.auditIds.includes(ref.id)) tracker.auditIds.push(ref.id);
+      continue;
+    }
+    const rows = await svc<Array<{ id: string; dados_novos: Record<string, unknown> | null }>>(
+      `audit_logs?acao=eq.${encodeURIComponent(ref.acao)}&registro_id=eq.${ref.registroId}&select=id,dados_novos`,
+    );
+    const match = (rows.body ?? []).find((r) => {
+      const key = (r.dados_novos as Record<string, unknown> | null)?.idempotency_key;
+      return typeof key === "string" && key === ref.idempotencyKey;
+    });
+    if (!match) {
+      throw new Error(
+        `[cleanup strict] auditoria obrigatória ausente: acao=${ref.acao} registro_id=${ref.registroId} idempotency_key=${ref.idempotencyKey}`,
+      );
+    }
+    ref.id = match.id;
+    if (!tracker.auditIds.includes(match.id)) tracker.auditIds.push(match.id);
+  }
+}
+
 /**
  * Cleanup integral por IDs rastreados. Ordem: tabelas públicas primeiro,
  * auth.users por último, instituicoes por último de todos. Idempotente.
+ *
+ * FIX01-R1.b — modo estrito (opts.strict=true): remove exclusivamente por
+ * IDs técnicos previamente rastreados; sem DELETE amplo.
  */
-export async function cleanupTracked(tracker: CreatedIds): Promise<void> {
+export async function cleanupTracked(
+  tracker: CreatedIds,
+  opts: CleanupOptions = {},
+): Promise<void> {
+  if (opts.strict) {
+    // 1) Resolver e apagar audit_logs SOMENTE por id.
+    await resolveAuditRefs(tracker);
+    for (const auditId of tracker.auditIds) {
+      await svc(`audit_logs?id=eq.${auditId}`, { method: "DELETE" });
+    }
+    // 2) assistidos por id
+    for (const id of tracker.assistidos) {
+      await svc(`assistidos?id=eq.${id}`, { method: "DELETE" });
+    }
+    // 3) instituicao_usuarios por id
+    for (const id of tracker.instituicaoUsuarios) {
+      await svc(`instituicao_usuarios?id=eq.${id}`, { method: "DELETE" });
+    }
+    // 4) user_roles por id
+    for (const id of tracker.userRoles) {
+      await svc(`user_roles?id=eq.${id}`, { method: "DELETE" });
+    }
+    // 5) profiles: chave é o user_id Auth rastreado (não há id técnico próprio).
+    for (const uid of tracker.authUsers) {
+      await svc(`profiles?user_id=eq.${uid}`, { method: "DELETE" });
+    }
+    // 6) autocadastro_idempotencia por idempotency_key rastreada
+    for (const key of tracker.idempotencyKeys) {
+      await svc(`autocadastro_idempotencia?idempotency_key=eq.${key}`, { method: "DELETE" });
+    }
+    // 7) auth.users por UUID (por último entre registros ligados ao usuário)
+    for (const uid of tracker.authUsers) {
+      await adminDeleteAuthUser(uid);
+    }
+    // 8) instituicoes por id exato (depois de tudo)
+    for (const id of tracker.instituicoes) {
+      await svc(`instituicoes?id=eq.${id}`, { method: "DELETE" });
+    }
+    return;
+  }
+
+  // ------ Modo legado (retrocompatível) — usado por E2Es antigos. ------
   // assistidos: desvincula (user_id=null) para permitir exclusão via cascade limpo.
   for (const id of tracker.assistidos) {
     await svc(`assistidos?id=eq.${id}`, { method: "DELETE" });
