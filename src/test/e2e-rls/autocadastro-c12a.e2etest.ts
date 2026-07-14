@@ -198,9 +198,9 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     const [prof, roles, ass, vin, aud, idem] = await Promise.all([
       restSvcGet<any[]>(`profiles?user_id=eq.${userId}&select=user_id,nome_completo,status`),
       restSvcGet<any[]>(`user_roles?user_id=eq.${userId}&role=eq.assistido&select=id`),
-      restSvcGet<any[]>(`assistidos?id=eq.${row.assistido_id}&select=id,user_id,instituicao_id,status,email,celular`),
+      restSvcGet<any[]>(`assistidos?id=eq.${assistidoId}&select=id,user_id,instituicao_id,status,email,celular`),
       restSvcGet<any[]>(`instituicao_usuarios?user_id=eq.${userId}&instituicao_id=eq.${instId}&select=id,papel_local,status`),
-      restSvcGet<any[]>(`audit_logs?registro_id=eq.${row.assistido_id}&acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&select=id,user_id,dados_novos`),
+      restSvcGet<any[]>(`audit_logs?registro_id=eq.${assistidoId}&acao=eq.AUTOCADASTRO_PUBLICO_ASSISTIDO&select=id,user_id,dados_novos`),
       restSvcGet<any[]>(`autocadastro_idempotencia?idempotency_key=eq.${idempKey}&select=status,assistido_id,result_code,user_id`),
     ]);
     expect(prof.body).toHaveLength(1);
@@ -226,7 +226,7 @@ d("STAB10-C1.2-A — E2E backend transacional do autocadastro", () => {
     expect(idem.body).toHaveLength(1);
     expect(idem.body[0].status).toBe("concluido");
     expect(idem.body[0].result_code).toBe("SUCESSO");
-    expect(idem.body[0].assistido_id).toBe(row.assistido_id);
+    expect(idem.body[0].assistido_id).toBe(assistidoId);
   }, 30_000);
 
   it("reexecução da finalização é idempotente e não duplica escrita", async () => {
