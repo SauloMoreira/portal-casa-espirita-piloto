@@ -3415,6 +3415,7 @@ export type Database = {
           frequencia_valor: number | null
           horario: string | null
           id: string
+          instituicao_id: string
           modo_agendamento: string
           modo_checkin: string
           nome: string
@@ -3442,6 +3443,7 @@ export type Database = {
           frequencia_valor?: number | null
           horario?: string | null
           id?: string
+          instituicao_id: string
           modo_agendamento?: string
           modo_checkin?: string
           nome: string
@@ -3469,6 +3471,7 @@ export type Database = {
           frequencia_valor?: number | null
           horario?: string | null
           id?: string
+          instituicao_id?: string
           modo_agendamento?: string
           modo_checkin?: string
           nome?: string
@@ -3485,7 +3488,15 @@ export type Database = {
           tratamento_livre?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tipos_tratamento_instituicao_id_fkey"
+            columns: ["instituicao_id"]
+            isOneToOne: false
+            referencedRelation: "instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
