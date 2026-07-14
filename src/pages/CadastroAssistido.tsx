@@ -62,10 +62,28 @@ export default function CadastroAssistido() {
         },
       });
 
+      const mensagens: Record<string, string> = {
+        PAYLOAD_INVALIDO: "Confira os dados informados — algum campo está incorreto.",
+        INSTITUICAO_INDISPONIVEL: "O cadastro público não está disponível para esta instituição no momento.",
+        RATE_LIMIT_EXCEDIDO: "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.",
+        IDEMPOTENCY_KEY_INVALIDA: "Ocorreu um problema técnico. Atualize a página e tente novamente.",
+        AUTOCADASTRO_INDISPONIVEL_RETENTAR: "O cadastro está temporariamente indisponível. Tente novamente em instantes.",
+      };
+
       if (error) {
+        let codigoErro: string | undefined;
+        try {
+          const ctx = (error as { context?: { json?: () => Promise<unknown> } }).context;
+          const parsed = ctx && typeof ctx.json === "function" ? await ctx.json() : null;
+          if (parsed && typeof parsed === "object" && "code" in parsed) {
+            codigoErro = String((parsed as { code?: unknown }).code);
+          }
+        } catch {
+          /* ignore — cai no fallback genérico abaixo */
+        }
         toast({
           title: "Não foi possível concluir o cadastro",
-          description: "Tente novamente em alguns instantes.",
+          description: mensagens[codigoErro ?? ""] ?? "Tente novamente ou procure a recepção da casa.",
           variant: "destructive",
         });
         return;
@@ -73,6 +91,7 @@ export default function CadastroAssistido() {
 
       const code = data?.code as string | undefined;
       const nextAction = data?.next_action as string | undefined;
+
 
       if (code === "AUTOCADASTRO_CONCLUIDO" && nextAction === "LOGIN") {
         const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -92,13 +111,6 @@ export default function CadastroAssistido() {
         return;
       }
 
-      const mensagens: Record<string, string> = {
-        PAYLOAD_INVALIDO: "Confira os dados informados — algum campo está incorreto.",
-        INSTITUICAO_INDISPONIVEL: "O cadastro público não está disponível para esta instituição no momento.",
-        RATE_LIMIT_EXCEDIDO: "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.",
-        IDEMPOTENCY_KEY_INVALIDA: "Ocorreu um problema técnico. Atualize a página e tente novamente.",
-        AUTOCADASTRO_INDISPONIVEL_RETENTAR: "O cadastro está temporariamente indisponível. Tente novamente em instantes.",
-      };
       toast({
         title: "Não foi possível concluir o cadastro",
         description: mensagens[code ?? ""] ?? "Tente novamente ou procure a recepção da casa.",
