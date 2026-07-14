@@ -30,10 +30,6 @@ export interface DashboardCargaTarefeiro {
   total: number;
 }
 
-export interface DashboardPresencaPonto {
-  data: string;
-  status_presenca: string;
-}
 
 export interface DashboardEntrevistaPeriodo {
   id: string;
