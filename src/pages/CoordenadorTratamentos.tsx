@@ -46,7 +46,7 @@ export default function CoordenadorTratamentos() {
         .in("id", tratIds);
 
       if (!meusTrat || meusTrat.length === 0) { setItems([]); return; }
-      const tratMap = Object.fromEntries(meusTrat.map((t: any) => [t.id, t.nome]));
+      const tratMap = Object.fromEntries(meusTrat.map((t) => [t.id, t.nome]));
 
       const { data: vinculos } = await supabase
         .from("assistido_tratamentos")
