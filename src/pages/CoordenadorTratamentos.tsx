@@ -56,12 +56,12 @@ export default function CoordenadorTratamentos() {
 
       if (!vinculos || vinculos.length === 0) { setItems([]); return; }
 
-      const assistidoIds = [...new Set(vinculos.map((v: any) => v.assistido_id))];
+      const assistidoIds = [...new Set(vinculos.map((v) => v.assistido_id))];
       const { data: assistidos } = await supabase.from("assistidos").select("id, nome").in("id", assistidoIds);
-      const assistMap = Object.fromEntries((assistidos || []).map((a: any) => [a.id, a.nome]));
+      const assistMap = Object.fromEntries((assistidos || []).map((a) => [a.id, a.nome]));
 
       const today = format(new Date(), "yyyy-MM-dd");
-      const vinculoIds = vinculos.map((v: any) => v.id);
+      const vinculoIds = vinculos.map((v) => v.id);
       const { data: agendas } = await supabase
         .from("agenda_tratamentos_assistido")
         .select("assistido_tratamento_id, data_sessao")
