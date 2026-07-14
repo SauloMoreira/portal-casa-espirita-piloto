@@ -187,8 +187,8 @@ export default function Excecoes() {
         const comTrat = new Set((trats || []).map((t) => t.assistido_id));
         const semIds = assistidoIds.filter((id) => !comTrat.has(id));
         const { data: nomes } = semIds.length > 0 ? await supabase.from("assistidos").select("id, nome").in("id", semIds) : { data: [] };
-        const map = Object.fromEntries((nomes || []).map((n: any) => [n.id, n.nome]));
-        const entMap = Object.fromEntries(entrevistas.map((e: any) => [e.assistido_id, e.data]));
+        const map = Object.fromEntries((nomes || []).map((n) => [n.id, n.nome]));
+        const entMap = Object.fromEntries(entrevistas.map((e) => [e.assistido_id, e.data]));
         semIds.forEach((id) => {
           rows.push({
             id,
@@ -205,7 +205,7 @@ export default function Excecoes() {
         .eq("status_presenca", "ausente");
       if (presencas) {
         const faltaCount: Record<string, number> = {};
-        presencas.forEach((p: any) => {
+        presencas.forEach((p) => {
           faltaCount[p.assistido_tratamento_id] = (faltaCount[p.assistido_tratamento_id] || 0) + 1;
         });
         const comFaltas = Object.entries(faltaCount)
@@ -218,7 +218,7 @@ export default function Excecoes() {
             .from("assistido_tratamentos")
             .select("id, assistido_id, tratamento_id, assistido:assistidos(nome), tratamento:tipos_tratamento(nome)")
             .in("id", atIds.slice(0, 100));
-          const vincMap = Object.fromEntries((vinculos || []).map((v: any) => [v.id, v]));
+          const vincMap = Object.fromEntries((vinculos || []).map((v) => [v.id, v]));
           comFaltas.slice(0, 100).forEach(([atId, count]) => {
             const v = vincMap[atId];
             rows.push({
