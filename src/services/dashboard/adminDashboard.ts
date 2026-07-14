@@ -100,7 +100,7 @@ export async function fetchAdminDashboard(
   const p = (data ?? {}) as Partial<DashboardAdminRpcResult>;
   if (!p.autorizado) return EMPTY(range);
 
-  const et = p.entrevistas_por_tipo ?? {};
+  const et: NonNullable<DashboardAdminRpcResult["entrevistas_por_tipo"]> | Record<string, never> = p.entrevistas_por_tipo ?? {};
   return {
     range,
     assistidosTotal: Number(p.assistidos_total ?? 0),
