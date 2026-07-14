@@ -77,6 +77,10 @@ function findCleanupUsageIssues(file: string, text: string): Hit[] {
   }
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
+    const trimmed = raw.trim();
+    // Ignora linhas de comentário (JSDoc/linha) para evitar falso-positivo
+    // com exemplos citados em docstrings.
+    if (trimmed.startsWith("*") || trimmed.startsWith("//") || trimmed.startsWith("/*")) continue;
     const m = raw.match(/cleanupTracked\s*\(([^)]*)\)/);
     if (!m) continue;
     const args = m[1];
