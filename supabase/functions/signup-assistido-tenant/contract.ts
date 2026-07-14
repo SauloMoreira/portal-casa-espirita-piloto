@@ -14,10 +14,24 @@ import { z } from "https://esm.sh/zod@3.23.8";
 
 // ============================ Schemas ======================================
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const UUID_ANY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SLUG    = /^[a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])?$/;
 const CELULAR = /^\d{10,11}$/;
 const CPF_DIG = /^\d{11}$/;
+
+/** Allowlist para correlation IDs recebidos do cliente. */
+const CORRELATION_RE = /^[A-Za-z0-9._:-]{1,64}$/;
+export function sanitizeCorrelationId(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  return CORRELATION_RE.test(s) ? s : null;
+}
+
+export function isValidUuid(v: unknown): v is string {
+  return typeof v === "string" && UUID_ANY.test(v);
+}
+
 
 export const bodySchema = z
   .object({

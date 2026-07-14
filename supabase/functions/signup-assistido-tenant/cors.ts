@@ -1,21 +1,11 @@
 /**
- * STAB10-C1.2-B1 — CORS dedicado do autocadastro público tenant-aware.
- *
- * Fail-closed:
- *  - produção: aceita apenas `portal-casa-espirita-piloto.lovable.app`
- *    e origens adicionais listadas em `AUTOCADASTRO_CORS_ORIGINS` (CSV).
- *  - localhost SOMENTE quando `AUTOCADASTRO_ALLOW_LOCAL=true`.
- *  - métodos: apenas POST + OPTIONS. GET é rejeitado.
- *  - Origin ausente ou não autorizado → resposta 403 no fluxo browser.
- *
- * Não importa `_shared/cors.ts` (permissivo demais para esta superfície).
- * CORS é defesa complementar; HMAC + rate-limit + CAPTCHA são principais.
+ * STAB10-C1.2-B1-FIX01 — CORS dedicado do autocadastro público tenant-aware.
+ * Fail-closed: OPTIONS + POST validam a origem antes de responder.
  */
 
 const OFFICIAL_ORIGIN = "https://portal-casa-espirita-piloto.lovable.app";
-
-const ALLOW_HEADERS = "content-type, x-correlation-id";
-const ALLOW_METHODS = "POST, OPTIONS";
+const ALLOW_HEADERS   = "content-type, x-correlation-id";
+const ALLOW_METHODS   = "POST, OPTIONS";
 
 function parseExtra(csv: string | undefined): Set<string> {
   const s = new Set<string>();
@@ -33,20 +23,19 @@ function allowLocal(): boolean {
 
 export function isOriginAllowed(origin: string | null): boolean {
   if (!origin) return false;
-  try {
-    const u = new URL(origin);
-    if (allowLocal() && (u.hostname === "localhost" || u.hostname === "127.0.0.1")) {
-      return true;
-    }
-    if (u.protocol !== "https:") return false;
-    if (origin === OFFICIAL_ORIGIN) return true;
-    return parseExtra(Deno.env.get("AUTOCADASTRO_CORS_ORIGINS")).has(origin);
-  } catch {
-    return false;
+  let u: URL;
+  try { u = new URL(origin); } catch { return false; }
+  if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+    if (!allowLocal()) return false;
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    return true;
   }
+  if (u.protocol !== "https:") return false;
+  if (origin === OFFICIAL_ORIGIN) return true;
+  return parseExtra(Deno.env.get("AUTOCADASTRO_CORS_ORIGINS")).has(origin);
 }
 
-/** Cabeçalhos CORS por requisição. Origin não autorizado → 'null'. */
+/** Cabeçalhos CORS por requisição. Origem não autorizada retorna 'null'. */
 export function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin");
   const allowed = isOriginAllowed(origin);
@@ -58,14 +47,12 @@ export function corsHeaders(req: Request): Record<string, string> {
   };
 }
 
-/** Retorna null se OK; caso contrário Response 403 pronto. */
+/** Bloqueia OPTIONS/POST quando a origem não estiver autorizada. */
 export function enforceOriginOrForbid(req: Request): Response | null {
   const origin = req.headers.get("Origin");
-  if (!isOriginAllowed(origin)) {
-    return new Response(JSON.stringify({ code: "ORIGEM_NAO_AUTORIZADA" }), {
-      status: 403,
-      headers: { ...corsHeaders(req), "Content-Type": "application/json" },
-    });
-  }
-  return null;
+  if (isOriginAllowed(origin)) return null;
+  return new Response(JSON.stringify({ code: "ORIGEM_NAO_AUTORIZADA" }), {
+    status: 403,
+    headers: { ...corsHeaders(req), "Content-Type": "application/json" },
+  });
 }
