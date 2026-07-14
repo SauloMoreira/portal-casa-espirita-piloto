@@ -50,6 +50,34 @@ export default function PortalAdmin() {
   const [instituicoes, setInstituicoes] = useState<InstituicaoAdminRow[]>([]);
   const [assinaturas, setAssinaturas] = useState<AssinaturaAdminRow[]>([]);
   const [planos, setPlanos] = useState<PlanoRow[]>([]);
+  const { toast } = useToast();
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const handleToggleAutocadastro = async (instituicaoId: string, novoValor: boolean) => {
+    setTogglingId(instituicaoId);
+    const anterior = instituicoes;
+    setInstituicoes((prev) =>
+      prev.map((i) => (i.id === instituicaoId ? { ...i, autocadastro_habilitado: novoValor } : i))
+    );
+    const { error } = await supabase
+      .from("instituicoes")
+      .update({ autocadastro_habilitado: novoValor })
+      .eq("id", instituicaoId);
+    if (error) {
+      setInstituicoes(anterior);
+      toast({
+        title: "Não foi possível alterar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: novoValor ? "Autocadastro ativado" : "Autocadastro desativado",
+      });
+    }
+    setTogglingId(null);
+  };
+
 
   useEffect(() => {
     if (!isPlatformAdmin) return;
