@@ -42,6 +42,7 @@ import {
   type AuthUserMinimo,
   type EnvSeguro,
 } from "./authAdmin.ts";
+import { readRuntimeEnabledFromEnv } from "./runtime.ts";
 
 // ============================ Constantes ===================================
 
@@ -60,6 +61,12 @@ export interface HandlerDeps {
   correlationId: string;
   requestIdInicial: string;
   deadlineAt: number;           // epoch ms; para deadline cooperativo
+  /**
+   * FIX02 — Kill switch global. Somente `true` habilita o fluxo funcional.
+   * Ausente/false/qualquer outro valor mantém a Edge desativada (503 sem
+   * side-effects). Verificado ANTES de qualquer operação funcional.
+   */
+  runtimeEnabled: boolean;
 }
 
 // ============================ Respostas ====================================
@@ -603,6 +610,16 @@ export async function handleRequest(req: Request, deps: HandlerDeps): Promise<Re
   const originForbid = enforceOriginOrForbid(req);
   if (originForbid) return originForbid;
 
+  // FIX02 — Kill switch global fail-closed. Nenhuma leitura, RPC, rate limit,
+  // signUp, Auth Admin ou INSERT/UPDATE/DELETE ocorre com runtime desativado.
+  if (!deps.runtimeEnabled) {
+    logger.warn("runtime_desativado", {});
+    return new Response(JSON.stringify({ code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR" }), {
+      status: 503,
+      headers: { ...cors, "Content-Type": "application/json", "Retry-After": "60" },
+    });
+  }
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ code: "METODO_NAO_PERMITIDO" }), {
       status: 405, headers: { ...cors, "Content-Type": "application/json", Allow: "POST, OPTIONS" },
@@ -809,6 +826,27 @@ Deno.serve(async (req) => {
     new Request(req.url, { headers: { "x-correlation-id": correlationId } }),
   );
 
+  // FIX02 — Kill switch avaliado ANTES da validação completa de env.
+  // Runtime desativado responde 503 sem tocar em nenhum outro segredo.
+  const runtimeEnabled = readRuntimeEnabledFromEnv();
+
+  if (!runtimeEnabled) {
+    // OPTIONS ainda passa por CORS/origem para respeitar preflight legítimo.
+    const cors = corsHeaders(req);
+    if (req.method === "OPTIONS") {
+      const forb = enforceOriginOrForbid(req);
+      if (forb) return forb;
+      return new Response("ok", { headers: cors });
+    }
+    const originForbid = enforceOriginOrForbid(req);
+    if (originForbid) return originForbid;
+    logger.warn("runtime_desativado_serve", {});
+    return new Response(JSON.stringify({ code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR" }), {
+      status: 503,
+      headers: { ...cors, "Content-Type": "application/json", "Retry-After": "60" },
+    });
+  }
+
   let env: EnvSeguro;
   try { env = readEnvChecked(); }
   catch (e) {
@@ -830,6 +868,7 @@ Deno.serve(async (req) => {
     correlationId,
     requestIdInicial: crypto.randomUUID(),
     deadlineAt: Date.now() + TIMEOUT_MS,
+    runtimeEnabled: true,
   };
 
   try {

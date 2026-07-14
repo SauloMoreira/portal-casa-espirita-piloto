@@ -169,6 +169,7 @@ function buildDeps(over: {
     correlationId: CANONICAL_REQ_ID,
     requestIdInicial: REQ_ID_INICIAL,
     deadlineAt: FIXED_NOW.getTime() + 15_000,
+    runtimeEnabled: true,
   };
 }
 

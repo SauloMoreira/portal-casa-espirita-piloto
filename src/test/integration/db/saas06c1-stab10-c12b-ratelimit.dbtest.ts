@@ -180,10 +180,11 @@ d("STAB10-C1.2-B1 — RPC fn_autocadastro_rate_limit_hit", () => {
 
   it("cleanup remove apenas linhas expiradas e é limitado", async () => {
     await withRollback(async (c) => {
+      // FIX02: constraint canônica exige expires_at = window_start + 10min.
       await c.query(
         `INSERT INTO public.autocadastro_rate_limit
            (scope,bucket_key,window_start,contador,expires_at)
-         VALUES ('ip','antiga-b1', now()-interval '30 minutes', 1, now()-interval '15 minutes')`,
+         VALUES ('ip','antiga-b1', now()-interval '30 minutes', 1, now()-interval '30 minutes' + interval '10 minutes')`,
       );
       await c.query(
         "SELECT public.fn_autocadastro_rate_limit_hit('ip',$1)",
