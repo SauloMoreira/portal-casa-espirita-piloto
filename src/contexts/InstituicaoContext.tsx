@@ -63,12 +63,22 @@ export const InstituicaoProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // SAAS-05-D — Espelha o tenant ativo no módulo `currentTenant` para que
   // services/hooks possam falhar fechado sem ler localStorage por fora.
+  // Atualiza o espelho sempre que a instituição selecionada realmente mudar.
+  // Sem cleanup aqui de propósito: usar cleanup ligado a essa dependência
+  // criaria uma janela momentânea com o valor zerado a cada nova execução,
+  // mesmo quando o valor final é o mesmo de antes — isso já causou falhas
+  // intermitentes reais em requireInstituicaoId() (ex: tela de Entrevistas).
   useEffect(() => {
     _setCurrentInstituicaoId(selecionada?.id ?? null);
+  }, [selecionada?.id]);
+
+  // Só zera o espelho quando o provider desmonta de verdade (logout, navegação
+  // pra fora da área autenticada) — nunca por causa de uma dependência mudar.
+  useEffect(() => {
     return () => {
       _setCurrentInstituicaoId(null);
     };
-  }, [selecionada?.id]);
+  }, []);
 
 
 
