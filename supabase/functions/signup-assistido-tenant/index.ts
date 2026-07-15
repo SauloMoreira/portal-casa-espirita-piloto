@@ -406,16 +406,8 @@ async function finalizarComUsuarioExistente(
 async function fluxoReservadoNovo(deps: HandlerDeps, ctx: OperationCtx): Promise<EdgeResponse> {
   const { svc, anon, env, logger } = deps;
 
-  if (!ctx.body.captcha_token) {
-    await rpcMarcarFalha(svc, logger, {
-      idempotency_key: ctx.body.idempotency_key,
-      fingerprint: ctx.fingerprint,
-      request_id: ctx.canonical,
-      resultado: "AUTH_SIGNUP_FALHOU",
-      auth_delete_ok: true,
-    });
-    return ok(400, { code: "CAPTCHA_OBRIGATORIO", request_id: ctx.canonical });
-  }
+
+
 
   // Checagem defensiva ANTES de gastar signUp/quota.
   const existente = await findAuthUserByEmailChecked(svc, ctx.emailNorm);
