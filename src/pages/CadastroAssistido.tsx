@@ -237,7 +237,7 @@ export default function CadastroAssistido() {
                 <Label htmlFor="celular">Celular (com DDD)</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input id="celular" value={celular} onChange={(e) => setCelular(e.target.value)} required autoComplete="tel" className="h-12 pl-10 text-base" />
+                  <Input id="celular" placeholder="(21) 99999-9999" value={celular} onChange={(e) => setCelular(formatarCelularMascara(e.target.value))} required autoComplete="tel" inputMode="tel" maxLength={15} className="h-12 pl-10 text-base" />
                 </div>
               </div>
 
