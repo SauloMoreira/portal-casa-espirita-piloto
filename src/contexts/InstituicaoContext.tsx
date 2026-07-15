@@ -52,6 +52,7 @@ export const InstituicaoProvider: React.FC<{ children: React.ReactNode }> = ({
       // sem restauração de sessão anterior nem auto-select de único vínculo.
       autoRestore: !isPlatformAdmin,
       autoSelectSingle: !isPlatformAdmin,
+      isLoading,
     });
 
   const selecionada = useMemo(
