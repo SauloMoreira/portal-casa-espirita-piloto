@@ -336,7 +336,12 @@ export default function Portal() {
           </Card>
         </div>
 
-        <PlanoResumo instituicao={selecionada} />
+        {selecionada &&
+          (isPlatformAdmin ||
+            (selecionada.vinculo_status === "ativo" &&
+              selecionada.papel_local === "admin_instituicao")) && (
+            <PlanoResumo instituicao={selecionada} />
+          )}
       </section>
         );
       })()}
