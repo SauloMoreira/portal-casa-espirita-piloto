@@ -46,34 +46,45 @@ export interface UseSelectedInstituicaoOptions {
    * a visão global não deve entrar sozinha no tenant.
    */
   autoSelectSingle?: boolean;
+  /**
+   * Enquanto true, os efeitos de descarte/auto-seleção NÃO rodam — evita
+   * tratar "allowedIds ainda vazio por estar carregando" como "instituição
+   * não permitida" e descartar uma seleção válida por corrida de dados.
+   */
+  isLoading?: boolean;
 }
 
 export function useSelectedInstituicao(
   allowedIds: string[],
   opts: UseSelectedInstituicaoOptions = {},
 ) {
-  const { autoRestore = true, autoSelectSingle = true } = opts;
+  const { autoRestore = true, autoSelectSingle = true, isLoading = false } = opts;
   const [selectedId, setSelectedIdState] = useState<string | null>(() =>
     autoRestore ? readInitial() : null,
   );
 
   // Fail-closed: descarta seleção que não está mais permitida.
+  // Só roda depois que allowedIds terminou de carregar de verdade —
+  // caso contrário, uma lista temporariamente vazia (ainda buscando)
+  // seria tratada como "nenhuma instituição permitida" e descartaria
+  // uma seleção válida por corrida com o fetch.
   useEffect(() => {
+    if (isLoading) return;
     if (selectedId && !allowedIds.includes(selectedId)) {
       setSelectedIdState(null);
       writeStorage(null);
     }
-  }, [allowedIds, selectedId]);
+  }, [allowedIds, selectedId, isLoading]);
 
   // Auto-seleciona quando há exatamente uma instituição permitida.
   useEffect(() => {
-    if (!autoSelectSingle) return;
+    if (!autoSelectSingle || isLoading) return;
     if (!selectedId && allowedIds.length === 1) {
       const only = allowedIds[0];
       setSelectedIdState(only);
       writeStorage(only);
     }
-  }, [allowedIds, selectedId, autoSelectSingle]);
+  }, [allowedIds, selectedId, autoSelectSingle, isLoading]);
 
   // Sincroniza entre abas: outra aba mudou a seleção → reflete aqui.
   useEffect(() => {
