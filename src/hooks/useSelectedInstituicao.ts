@@ -46,6 +46,12 @@ export interface UseSelectedInstituicaoOptions {
    * a visão global não deve entrar sozinha no tenant.
    */
   autoSelectSingle?: boolean;
+  /**
+   * Enquanto true, os efeitos de descarte/auto-seleção NÃO rodam — evita
+   * tratar "allowedIds ainda vazio por estar carregando" como "instituição
+   * não permitida" e descartar uma seleção válida por corrida de dados.
+   */
+  isLoading?: boolean;
 }
 
 export function useSelectedInstituicao(
