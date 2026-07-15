@@ -578,13 +578,11 @@ async function fluxoEmAndamento(deps: HandlerDeps, ctx: OperationCtx): Promise<E
     return ok(409, { code: "AUTOCADASTRO_INDISPONIVEL_RETENTAR", request_id: ctx.canonical });
   }
 
-  // EM_ANDAMENTO antigo sem Auth: NÃO cria nova reserva; exige captcha_token
-  // e prossegue direto para signUp reutilizando o mesmo canonical/fingerprint.
-  if (!ctx.body.captcha_token) {
-    return ok(400, { code: "CAPTCHA_OBRIGATORIO", request_id: ctx.canonical });
-  }
-  // Reaproveita fluxo signUp da reserva atual.
+  // EM_ANDAMENTO antigo sem Auth: NÃO cria nova reserva; reaproveita fluxo
+  // signUp da reserva atual (captcha não é exigido neste fluxo — ver decisão
+  // de acessibilidade documentada).
   return fluxoReservadoNovo(deps, ctx);
+
 }
 
 // ============================ Handler principal ============================
