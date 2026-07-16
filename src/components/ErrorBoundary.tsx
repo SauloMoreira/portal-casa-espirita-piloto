@@ -60,6 +60,14 @@ export class ErrorBoundary extends Component<Props, State> {
               ou recarregar a página.
             </p>
           </div>
+          {this.state.error?.message && (
+            <details className="max-w-lg rounded-md border bg-muted/40 px-3 py-2 text-left text-xs text-muted-foreground">
+              <summary className="cursor-pointer font-medium">Detalhes técnicos</summary>
+              <pre className="mt-2 whitespace-pre-wrap break-words font-mono">
+                {this.state.error.message}
+              </pre>
+            </details>
+          )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={this.handleReset}>
               <RefreshCw className="mr-2 h-4 w-4" />
