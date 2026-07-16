@@ -156,7 +156,10 @@ export default function Entrevistas() {
     }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    console.log("[DIAG-temp] Entrevistas montou/fetchAll disparado em", new Date().toISOString());
+    fetchAll();
+  }, []);
 
   const assistidosAptos = assistidos.filter((a) => {
     if (form.tipo_entrevista === "livre" && permitirLivre) return true;
