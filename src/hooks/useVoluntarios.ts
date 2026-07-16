@@ -379,9 +379,10 @@ export function useVoluntarios() {
     const searchLower = filters.search.toLowerCase();
     const digits = filters.search.replace(/\D/g, "");
     return voluntarios.filter((v) => {
+      const nome = (v.nome_completo || "").toLowerCase();
       const matchesSearch =
         !filters.search ||
-        v.nome_completo.toLowerCase().includes(searchLower) ||
+        nome.includes(searchLower) ||
         (v.cpf || "").includes(digits) ||
         (v.celular || "").includes(digits) ||
         (v.email || "").toLowerCase().includes(searchLower);
