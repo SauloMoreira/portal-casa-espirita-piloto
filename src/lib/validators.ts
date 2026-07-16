@@ -57,7 +57,8 @@ export function isValidCEP(cep: string): boolean {
 }
 
 // Masks
-export function maskCPF(value: string): string {
+export function maskCPF(value: string | null | undefined): string {
+  if (!value) return "";
   const cleaned = value.replace(/\D/g, "").slice(0, 11);
   return cleaned
     .replace(/(\d{3})(\d)/, "$1.$2")
@@ -65,7 +66,8 @@ export function maskCPF(value: string): string {
     .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 }
 
-export function maskPhone(value: string): string {
+export function maskPhone(value: string | null | undefined): string {
+  if (!value) return "";
   const cleaned = value.replace(/\D/g, "").slice(0, 11);
   if (cleaned.length <= 10) {
     return cleaned
@@ -77,7 +79,8 @@ export function maskPhone(value: string): string {
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
-export function maskCEP(value: string): string {
+export function maskCEP(value: string | null | undefined): string {
+  if (!value) return "";
   const cleaned = value.replace(/\D/g, "").slice(0, 8);
   return cleaned.replace(/(\d{5})(\d)/, "$1-$2");
 }
