@@ -39,7 +39,7 @@ export function getCurrentInstituicaoId(): string | null {
  * fallback silencioso para "todos os tenants".
  */
 export function requireInstituicaoId(explicit?: string | null): string {
-  console.log("[DIAG-temp] requireInstituicaoId chamado em", new Date().toISOString(), "\nstack:", new Error().stack);
+  
   const id = explicit ?? _currentInstituicaoId;
   if (!id) {
     throw new Error(

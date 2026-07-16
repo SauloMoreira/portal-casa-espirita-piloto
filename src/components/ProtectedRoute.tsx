@@ -11,7 +11,7 @@ interface Props {
 export const ProtectedRoute = ({ children, allowedRoles }: Props) => {
   const { session, role, roles, profile, loading, rolesResolved, signOut, mfaPending } = useAuth();
   const location = useLocation();
-  console.log("[DIAG-temp] ProtectedRoute render:", { loading, rolesResolved, hasSession: !!session }, new Date().toISOString());
+  
 
   // Accounts that are not active lose access immediately:
   // - "inativo": deactivated by an admin
