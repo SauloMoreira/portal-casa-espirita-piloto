@@ -120,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log("[DIAG-temp] onAuthStateChange disparado:", _event, "em", new Date().toISOString());
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user && session.access_token) {
